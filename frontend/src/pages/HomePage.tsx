@@ -111,7 +111,8 @@ const HomePage: React.FC = () => {
     }
   };
 
-  const handleToggleComplete = (todo: Todo) => {
+  const handleToggleComplete = (todo: Todo, event: React.MouseEvent) => {
+    event.stopPropagation();
     toggleCompleteMutation.mutate({
       id: todo.id,
       isCompleted: !todo.is_completed,
@@ -219,7 +220,7 @@ const HomePage: React.FC = () => {
                       key="complete"
                       type="text"
                       icon={todo.is_completed ? <CheckCircleOutlined /> : <ClockCircleOutlined />}
-                      onClick={() => handleToggleComplete(todo)}
+                      onClick={(e) => handleToggleComplete(todo, e)}
                     >
                       {todo.is_completed ? '已完成' : '标记完成'}
                     </Button>,

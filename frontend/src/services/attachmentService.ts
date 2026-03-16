@@ -3,7 +3,7 @@ import type { ApiResponse, Attachment } from '../types';
 
 export const attachmentService = {
   getTodoAttachments: async (todoId: number) => {
-    const response = await api.get<ApiResponse<Attachment[]>>(`/todo/${todoId}`);
+    const response = await api.get<ApiResponse<Attachment[]>>(`/attachments/todo/${todoId}`);
     return response.data;
   },
 
@@ -12,7 +12,7 @@ export const attachmentService = {
     formData.append('file', file);
     
     const response = await api.post<ApiResponse<Attachment>>(
-      `/todo/${todoId}`,
+      `/attachments/todo/${todoId}`,
       formData,
       {
         headers: {
@@ -24,26 +24,26 @@ export const attachmentService = {
   },
 
   getAttachment: async (id: number) => {
-    const response = await api.get<ApiResponse<Attachment>>(`/${id}`);
+    const response = await api.get<ApiResponse<Attachment>>(`/attachments/${id}`);
     return response.data;
   },
 
   downloadAttachment: async (id: number) => {
-    const response = await api.get(`/${id}/download`, {
+    const response = await api.get(`/attachments/${id}/download`, {
       responseType: 'blob',
     });
     return response;
   },
 
   previewAttachment: async (id: number) => {
-    const response = await api.get(`/${id}/preview`, {
+    const response = await api.get(`/attachments/${id}/preview`, {
       responseType: 'blob',
     });
     return response;
   },
 
   deleteAttachment: async (id: number) => {
-    const response = await api.delete<ApiResponse<null>>(`/${id}`);
+    const response = await api.delete<ApiResponse<null>>(`/attachments/${id}`);
     return response.data;
   },
 };

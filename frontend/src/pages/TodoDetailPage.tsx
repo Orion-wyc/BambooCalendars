@@ -117,7 +117,12 @@ const TodoDetailPage: React.FC = () => {
   };
 
   const handleUpload = async (file: File) => {
-    uploadMutation.mutate(file);
+    try {
+      await uploadMutation.mutateAsync(file);
+      message.success('上传成功');
+    } catch (error) {
+      message.error('上传失败');
+    }
     return false;
   };
 
@@ -200,25 +205,46 @@ const TodoDetailPage: React.FC = () => {
       <Header style={{ 
         background: '#fff', 
         padding: '0 24px',
+        height: '64px',
         display: 'flex',
         alignItems: 'center',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+        justifyContent: 'space-between',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+        lineHeight: '64px'
       }}>
-        <Space>
-          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/')}>
+        <Space size="middle" style={{ alignItems: 'center' }}>
+          <Button 
+            icon={<ArrowLeftOutlined />} 
+            onClick={() => navigate('/')}
+            style={{ height: '36px' }}
+          >
             返回
           </Button>
-          <h1 style={{ margin: 0, color: '#667eea' }}>任务详情</h1>
+          <h1 style={{ 
+            margin: 0, 
+            color: '#667eea', 
+            fontSize: '18px', 
+            fontWeight: 600,
+            lineHeight: '36px',
+            display: 'inline-block'
+          }}>
+            任务详情
+          </h1>
         </Space>
-        <Space>
+        <Space size="small" style={{ alignItems: 'center' }}>
           <Button
             type={todo.is_completed ? 'default' : 'primary'}
             icon={<CheckCircleOutlined />}
             onClick={handleToggleComplete}
+            style={{ height: '36px' }}
           >
             {todo.is_completed ? '标记未完成' : '标记完成'}
           </Button>
-          <Button icon={<EditOutlined />} onClick={handleEdit}>
+          <Button 
+            icon={<EditOutlined />} 
+            onClick={handleEdit}
+            style={{ height: '36px' }}
+          >
             编辑
           </Button>
           <Popconfirm
@@ -227,7 +253,11 @@ const TodoDetailPage: React.FC = () => {
             okText="确定"
             cancelText="取消"
           >
-            <Button icon={<DeleteOutlined />} danger>
+            <Button 
+              icon={<DeleteOutlined />} 
+              danger
+              style={{ height: '36px' }}
+            >
               删除
             </Button>
           </Popconfirm>

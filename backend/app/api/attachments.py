@@ -1,5 +1,5 @@
 import os
-from flask import Blueprint, request, jsonify, send_file, current_app
+from flask import Blueprint, request, jsonify, send_file, send_from_directory, current_app
 from werkzeug.utils import secure_filename
 from app.models.todo import Todo
 from app.models.attachment import Attachment
@@ -182,17 +182,34 @@ def download_attachment(current_user, attachment_id):
             'error': {'message': 'Access denied'}
         }), 403
     
-    if not os.path.exists(attachment.file_path):
+    # Convert relative path to absolute path
+    file_path = attachment.file_path
+    if file_path.startswith('./'):
+        # Get the backend directory (parent of app directory)
+        backend_dir = os.path.dirname(current_app.root_path)
+        file_path = os.path.join(backend_dir, file_path[2:])
+    
+    if not os.path.exists(file_path):
         return jsonify({
             'success': False,
             'error': {'message': 'File not found'}
         }), 404
     
-    return send_file(
-        attachment.file_path,
-        as_attachment=True,
-        download_name=attachment.original_filename
-    )
+    try:
+        directory = os.path.dirname(file_path)
+        filename = os.path.basename(file_path)
+        return send_from_directory(
+            directory,
+            filename,
+            as_attachment=True,
+            download_name=attachment.original_filename
+        )
+    except Exception as e:
+        current_app.logger.error(f"Download error: {e}")
+        return jsonify({
+            'success': False,
+            'error': {'message': 'Download failed'}
+        }), 500
 
 @attachments_bp.route('/<int:attachment_id>/preview', methods=['GET'])
 @token_required
@@ -223,13 +240,27 @@ def preview_attachment(current_user, attachment_id):
     # Use thumbnail if available
     preview_path = attachment.thumbnail_path if attachment.thumbnail_path else attachment.file_path
     
+    # Convert relative path to absolute path
+    if preview_path.startswith('./'):
+        backend_dir = os.path.dirname(current_app.root_path)
+        preview_path = os.path.join(backend_dir, preview_path[2:])
+    
     if not os.path.exists(preview_path):
         return jsonify({
             'success': False,
             'error': {'message': 'File not found'}
         }), 404
     
-    return send_file(preview_path)
+    try:
+        directory = os.path.dirname(preview_path)
+        filename = os.path.basename(preview_path)
+        return send_from_directory(directory, filename)
+    except Exception as e:
+        current_app.logger.error(f"Preview error: {e}")
+        return jsonify({
+            'success': False,
+            'error': {'message': 'Preview failed'}
+        }), 500
 
 @attachments_bp.route('/<int:attachment_id>', methods=['DELETE'])
 @token_required

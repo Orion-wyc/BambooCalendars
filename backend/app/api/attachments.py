@@ -57,11 +57,12 @@ def upload_attachment(current_user, todo_id):
             'error': {'message': 'No file selected'}
         }), 400
     
-    if not allowed_file(file.filename):
-        return jsonify({
-            'success': False,
-            'error': {'message': 'File type not allowed'}
-        }), 400
+    # 移除文件格式限制，支持所有格式
+    # if not allowed_file(file.filename):
+    #     return jsonify({
+    #         'success': False,
+    #         'error': {'message': 'File type not allowed'}
+    #     }), 400
     
     # Check file size
     file.seek(0, os.SEEK_END)
@@ -71,7 +72,7 @@ def upload_attachment(current_user, todo_id):
     if file_size > current_app.config['MAX_CONTENT_LENGTH']:
         return jsonify({
             'success': False,
-            'error': {'message': 'File too large'}
+            'error': {'message': f'File too large, maximum size is {current_app.config["MAX_CONTENT_LENGTH"] / (1024*1024):.0f}MB'}
         }), 400
     
     # Generate unique filename

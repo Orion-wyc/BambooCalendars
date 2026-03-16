@@ -117,11 +117,31 @@ const TodoDetailPage: React.FC = () => {
   };
 
   const handleUpload = async (file: File) => {
+    const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
+    
+    if (file.size > MAX_FILE_SIZE) {
+      Modal.error({
+        title: '文件过大',
+        content: `文件大小超过20MB限制，当前文件大小：${(file.size / 1024 / 1024).toFixed(2)}MB`,
+        okText: '确定',
+        width: 400,
+        centered: true,
+      });
+      return false;
+    }
+    
     try {
       await uploadMutation.mutateAsync(file);
       message.success('上传成功');
     } catch (error) {
-      message.error('上传失败');
+      console.error('上传失败:', error);
+      Modal.error({
+        title: '上传失败',
+        content: '文件上传失败，请重试',
+        okText: '确定',
+        width: 400,
+        centered: true,
+      });
     }
     return false;
   };

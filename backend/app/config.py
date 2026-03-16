@@ -13,9 +13,9 @@ class Config:
     
     # Upload
     UPLOAD_FOLDER = os.getenv('UPLOAD_FOLDER', './uploads')
-    MAX_CONTENT_LENGTH = int(os.getenv('MAX_CONTENT_LENGTH', 10485760))  # 10MB
-    ALLOWED_EXTENSIONS = set(os.getenv('ALLOWED_EXTENSIONS', 
-        'jpg,jpeg,png,gif,webp,pdf,doc,docx,txt,md,zip,rar').split(','))
+    MAX_CONTENT_LENGTH = int(os.getenv('MAX_CONTENT_LENGTH', 20971520))  # 20MB
+    # 移除文件格式限制，支持所有格式
+    ALLOWED_EXTENSIONS = None  # 不限制文件格式
     
     # JWT
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', SECRET_KEY)

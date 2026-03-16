@@ -151,7 +151,7 @@ const HomePage: React.FC = () => {
         justifyContent: 'space-between',
         boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
       }}>
-        <h1 style={{ margin: 0, color: '#667eea' }}>质日</h1>
+        <h1 style={{ margin: 0, color: '#4a64d8ff' }}>质日</h1>
         <Space>
           <Button 
             type="primary" 
@@ -212,8 +212,19 @@ const HomePage: React.FC = () => {
                 <Card
                   hoverable
                   style={{
-                    height: '100%',
+                    height: '240px',
+                    width: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
                     opacity: todo.is_completed ? 0.6 : 1,
+                  }}
+                  bodyStyle={{
+                    flex: 1,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    padding: '16px',
+                    position: 'relative',
                   }}
                   actions={[
                     <Button
@@ -251,38 +262,71 @@ const HomePage: React.FC = () => {
                 >
                   <Card.Meta
                     title={
-                      <Space>
-                        <span style={{ 
-                          textDecoration: todo.is_completed ? 'line-through' : 'none' 
-                        }}>
+                      <div style={{ position: 'relative', width: '100%' }}>
+                        <span 
+                          style={{ 
+                            textDecoration: todo.is_completed ? 'line-through' : 'none',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            maxWidth: '200px',
+                            display: 'inline-block',
+                            fontSize: '16px',
+                            fontWeight: 500,
+                            verticalAlign: 'middle'
+                          }}
+                        >
                           {todo.title}
                         </span>
-                        <Tag color={getPriorityColor(todo.priority)}>
+                        <Tag 
+                          color={getPriorityColor(todo.priority)} 
+                          style={{ 
+                            fontSize: '12px',
+                            position: 'absolute',
+                            right: 0,
+                            top: '50%',
+                            transform: 'translateY(-50%)'
+                          }}
+                        >
                           {getPriorityText(todo.priority)}
                         </Tag>
-                      </Space>
+                      </div>
                     }
                     description={
-                      <div>
+                      <div style={{ 
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'space-between',
+                        height: '100%',
+                        gap: '8px'
+                      }}>
                         {todo.description && (
-                          <div style={{ marginBottom: 8 }}>
-                            {todo.description.length > 100
-                              ? `${todo.description.slice(0, 100)}...`
-                              : todo.description}
+                          <div style={{ 
+                            fontSize: '13px',
+                            color: '#666',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            lineHeight: '1.4',
+                            height: '36px'
+                          }}>
+                            {todo.description}
                           </div>
                         )}
-                        {todo.due_date && (
-                          <div style={{ color: '#999', fontSize: '12px' }}>
-                            截止日期: {dayjs(todo.due_date).format('YYYY-MM-DD')}
-                          </div>
-                        )}
-                        {todo.attachments && todo.attachments.length > 0 && (
-                          <div style={{ marginTop: 8 }}>
-                            <Tag icon={<FileTextOutlined />}>
+                        <div style={{ marginTop: 'auto' }}>
+                          {todo.due_date && (
+                            <div style={{ color: '#999', fontSize: '12px', marginBottom: '4px' }}>
+                              截止日期: {dayjs(todo.due_date).format('YYYY-MM-DD')}
+                            </div>
+                          )}
+                          {todo.attachments && todo.attachments.length > 0 && (
+                            <Tag icon={<FileTextOutlined />} style={{ fontSize: '12px' }}>
                               {todo.attachments.length} 个附件
                             </Tag>
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </div>
                     }
                   />

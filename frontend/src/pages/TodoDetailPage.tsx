@@ -303,8 +303,11 @@ const TodoDetailPage: React.FC = () => {
             <Descriptions.Item label="描述" span={2}>
               {todo.description || '无'}
             </Descriptions.Item>
-            <Descriptions.Item label="创建时间" span={2}>
+            <Descriptions.Item label="创建时间" span={1}>
               {dayjs(todo.created_at).format('YYYY-MM-DD HH:mm')}
+            </Descriptions.Item>
+            <Descriptions.Item label="完成时间" span={1}>
+              {todo.is_completed ? dayjs(todo.updated_at).format('YYYY-MM-DD HH:mm') : '未完成'}
             </Descriptions.Item>
           </Descriptions>
         </Card>

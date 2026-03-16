@@ -45,14 +45,28 @@ def get_todos(current_user):
     elif sort_by == 'due_date':
         order_column = Todo.due_date
     elif sort_by == 'priority':
-        order_column = Todo.priority
+        # 为优先级定义排序权重
+        order_column = db.case(
+            (Todo.priority == 'high', 1),
+            (Todo.priority == 'medium', 2),
+            (Todo.priority == 'low', 3),
+            else_=4
+        )
     else:
         order_column = Todo.created_at
     
     if order == 'asc':
-        query = query.order_by(order_column.asc())
+        # 对于可能为NULL的字段，使用NULLS_LAST
+        if sort_by in ['due_date']:
+            query = query.order_by(db.nulls_last(order_column.asc()))
+        else:
+            query = query.order_by(order_column.asc())
     else:
-        query = query.order_by(order_column.desc())
+        # 对于可能为NULL的字段，使用NULLS_LAST
+        if sort_by in ['due_date']:
+            query = query.order_by(db.nulls_last(order_column.desc()))
+        else:
+            query = query.order_by(order_column.desc())
     
     # Pagination
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)

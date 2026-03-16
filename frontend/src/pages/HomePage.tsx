@@ -141,6 +141,16 @@ const HomePage: React.FC = () => {
     }
   };
 
+  // Define user-friendly sort options
+  const sortOptions = [
+    { label: '最新创建', sortBy: 'created_at', order: 'desc' },
+    { label: '最早创建', sortBy: 'created_at', order: 'asc' },
+    { label: '最近截止', sortBy: 'due_date', order: 'asc' },
+    { label: '最远截止', sortBy: 'due_date', order: 'desc' },
+    { label: '优先级高到低', sortBy: 'priority', order: 'asc' },
+    { label: '优先级低到高', sortBy: 'priority', order: 'desc' },
+  ];
+
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Header style={{ 
@@ -197,6 +207,19 @@ const HomePage: React.FC = () => {
               <Select.Option value="high">高</Select.Option>
               <Select.Option value="medium">中</Select.Option>
               <Select.Option value="low">低</Select.Option>
+            </Select>
+            <Select
+              // fix 使用索引作为组件的内部 value，避免字符串拼接
+              value={sortOptions.findIndex(o => o.sortBy === filter.sortBy && o.order === filter.order)}
+              onChange={(index) => {
+                const { sortBy, order } = sortOptions[index];
+                setFilter({ sortBy, order });
+              }}
+              style={{ width: 130 }}
+            >
+              {sortOptions.map((opt, index) => (
+                <Select.Option key={index} value={index}>{opt.label}</Select.Option>
+              ))}
             </Select>
           </Space>
         </Card>
@@ -316,6 +339,11 @@ const HomePage: React.FC = () => {
                           </div>
                         )}
                         <div style={{ marginTop: 'auto' }}>
+                          {todo.created_at && (
+                            <div style={{ color: '#999', fontSize: '12px', marginBottom: '4px' }}>
+                              创建时间: {dayjs(todo.created_at).format('YYYY-MM-DD')}
+                            </div>
+                          )}
                           {todo.due_date && (
                             <div style={{ color: '#999', fontSize: '12px', marginBottom: '4px' }}>
                               截止日期: {dayjs(todo.due_date).format('YYYY-MM-DD')}

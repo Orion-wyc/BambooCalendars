@@ -272,7 +272,7 @@ const HomePage: React.FC = () => {
                             maxWidth: '200px',
                             display: 'inline-block',
                             fontSize: '16px',
-                            fontWeight: 500,
+                            fontWeight: 'bold',
                             verticalAlign: 'middle'
                           }}
                         >

@@ -8,7 +8,7 @@ interface TodoState {
     search: string;
     status: string;
     priority: string;
-    sortBy: string;
+    sort_by: string;
     order: string;
   };
   setTodos: (todos: Todo[]) => void;
@@ -26,7 +26,7 @@ export const useTodoStore = create<TodoState>((set) => ({
     search: '',
     status: '',
     priority: '',
-    sortBy: 'created_at',
+    sort_by: 'created_at',
     order: 'desc',
   },
   

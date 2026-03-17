@@ -262,10 +262,10 @@ const HomePage: React.FC = () => {
                   <Select.Option value="low">低</Select.Option>
                 </Select>
                 <Select
-                  value={sortOptions.findIndex(o => o.sortBy === filter.sortBy && o.order === filter.order)}
+                  value={sortOptions.findIndex(o => o.sortBy === filter.sort_by && o.order === filter.order)}
                   onChange={(index) => {
                     const { sortBy, order } = sortOptions[index];
-                    setFilter({ sortBy, order });
+                    setFilter({ sort_by: sortBy, order });
                   }}
                   style={{ width: 130 }}
                 >

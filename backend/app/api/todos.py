@@ -56,15 +56,15 @@ def get_todos(current_user):
         order_column = Todo.created_at
     
     if order == 'asc':
-        # 对于可能为NULL的字段，使用NULLS_LAST
+        # 对于可能为NULL的字段，使用多字段排序确保NULL值排在最后
         if sort_by in ['due_date']:
-            query = query.order_by(db.nulls_last(order_column.asc()))
+            query = query.order_by(Todo.due_date.is_(None).asc(), order_column.asc())
         else:
             query = query.order_by(order_column.asc())
     else:
-        # 对于可能为NULL的字段，使用NULLS_LAST
+        # 对于可能为NULL的字段，使用多字段排序确保NULL值排在最后
         if sort_by in ['due_date']:
-            query = query.order_by(db.nulls_last(order_column.desc()))
+            query = query.order_by(Todo.due_date.is_(None).asc(), order_column.desc())
         else:
             query = query.order_by(order_column.desc())
     

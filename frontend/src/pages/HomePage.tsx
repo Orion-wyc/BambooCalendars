@@ -1,19 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { 
   Layout, List, Card, Button, Input, Select, Modal, Form, 
-  DatePicker, message, Space, Tag, Popconfirm, Empty 
+  DatePicker, message, Space, Tag, Popconfirm, Empty, Col, Row 
 } from 'antd';
 import { 
   PlusOutlined, SearchOutlined, FilterOutlined, 
   EditOutlined, DeleteOutlined, CheckCircleOutlined, 
-  ClockCircleOutlined, FileTextOutlined 
+  ClockCircleOutlined, FileTextOutlined, SendOutlined 
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { todoService } from '../services/todoService';
+import { recordService } from '../services/recordService';
 import { useTodoStore } from '../store/todoStore';
 import { useAuthStore } from '../store/authStore';
-import type { Todo } from '../types';
+import type { Todo, Record } from '../types';
+import RecordCard from '../components/RecordCard';
 import dayjs from 'dayjs';
 
 const { Header, Content } = Layout;
@@ -28,10 +30,17 @@ const HomePage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTodo, setEditingTodo] = useState<Todo | null>(null);
   const [form] = Form.useForm();
+  const [newRecordContent, setNewRecordContent] = useState('');
 
   const { data: todosData, isLoading, refetch } = useQuery({
     queryKey: ['todos', filter],
     queryFn: () => todoService.getTodos(filter),
+    enabled: isAuthenticated,
+  });
+
+  const { data: recordsData, refetch: refetchRecords } = useQuery({
+    queryKey: ['records'],
+    queryFn: () => recordService.getRecords(),
     enabled: isAuthenticated,
   });
 
@@ -60,6 +69,32 @@ const HomePage: React.FC = () => {
       todoService.toggleComplete(id, isCompleted),
     onSuccess: () => {
       refetch();
+    },
+  });
+
+  const createRecordMutation = useMutation({
+    mutationFn: recordService.createRecord,
+    onSuccess: (response) => {
+      if (response.success && response.data) {
+        message.success('记录创建成功');
+        setNewRecordContent('');
+        refetchRecords();
+      }
+    },
+  });
+
+  const updateRecordMutation = useMutation({
+    mutationFn: ({ id, content }: { id: number; content: string }) =>
+      recordService.updateRecord(id, { content }),
+    onSuccess: () => {
+      refetchRecords();
+    },
+  });
+
+  const deleteRecordMutation = useMutation({
+    mutationFn: recordService.deleteRecord,
+    onSuccess: () => {
+      refetchRecords();
     },
   });
 
@@ -123,6 +158,22 @@ const HomePage: React.FC = () => {
     deleteMutation.mutate(id);
   };
 
+  const handleCreateRecord = () => {
+    if (!newRecordContent.trim()) {
+      message.warning('请输入记录内容');
+      return;
+    }
+    createRecordMutation.mutate({ content: newRecordContent.trim() });
+  };
+
+  const handleUpdateRecord = async (id: number, content: string) => {
+    await updateRecordMutation.mutateAsync({ id, content });
+  };
+
+  const handleDeleteRecord = async (id: number) => {
+    await deleteRecordMutation.mutateAsync(id);
+  };
+
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case 'high': return 'red';
@@ -178,193 +229,248 @@ const HomePage: React.FC = () => {
       </Header>
 
       <Content style={{ padding: '24px' }}>
-        <Card style={{ marginBottom: 24 }}>
-          <Space style={{ width: '100%' }} size="middle">
-            <Input
-              placeholder="搜索任务..."
-              prefix={<SearchOutlined />}
-              value={filter.search}
-              onChange={(e) => setFilter({ search: e.target.value })}
-              style={{ width: 300 }}
-            />
-            <Select
-              placeholder="状态"
-              value={filter.status || undefined}
-              onChange={(value) => setFilter({ status: value || '' })}
-              style={{ width: 120 }}
-              allowClear
-            >
-              <Select.Option value="active">进行中</Select.Option>
-              <Select.Option value="completed">已完成</Select.Option>
-            </Select>
-            <Select
-              placeholder="优先级"
-              value={filter.priority || undefined}
-              onChange={(value) => setFilter({ priority: value || '' })}
-              style={{ width: 120 }}
-              allowClear
-            >
-              <Select.Option value="high">高</Select.Option>
-              <Select.Option value="medium">中</Select.Option>
-              <Select.Option value="low">低</Select.Option>
-            </Select>
-            <Select
-              // fix 使用索引作为组件的内部 value，避免字符串拼接
-              value={sortOptions.findIndex(o => o.sortBy === filter.sortBy && o.order === filter.order)}
-              onChange={(index) => {
-                const { sortBy, order } = sortOptions[index];
-                setFilter({ sortBy, order });
-              }}
-              style={{ width: 130 }}
-            >
-              {sortOptions.map((opt, index) => (
-                <Select.Option key={index} value={index}>{opt.label}</Select.Option>
-              ))}
-            </Select>
-          </Space>
-        </Card>
-
-        {isLoading ? (
-          <div style={{ textAlign: 'center', padding: '50px' }}>加载中...</div>
-        ) : todosData?.data?.todos && todosData.data.todos.length > 0 ? (
-          <List
-            grid={{ gutter: 16, xs: 1, sm: 2, md: 3, lg: 3, xl: 4, xxl: 4 }}
-            dataSource={todosData.data.todos}
-            renderItem={(todo) => (
-              <List.Item>
-                <Card
-                  hoverable
-                  style={{
-                    height: '240px',
-                    width: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    opacity: todo.is_completed ? 0.6 : 1,
-                  }}
-                  bodyStyle={{
-                    flex: 1,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    padding: '16px',
-                    position: 'relative',
-                  }}
-                  actions={[
-                    <Button
-                      key="complete"
-                      type="text"
-                      icon={todo.is_completed ? <CheckCircleOutlined /> : <ClockCircleOutlined />}
-                      onClick={(e) => handleToggleComplete(todo, e)}
-                    >
-                      {todo.is_completed ? '已完成' : '标记完成'}
-                    </Button>,
-                    <Button
-                      key="edit"
-                      type="text"
-                      icon={<EditOutlined />}
-                      onClick={() => handleEdit(todo)}
-                    >
-                      编辑
-                    </Button>,
-                    <Popconfirm
-                      key="delete"
-                      title="确定删除这个任务吗？"
-                      onConfirm={() => handleDelete(todo.id)}
-                      okText="确定"
-                      cancelText="取消"
-                    >
-                      <Button type="text" icon={<DeleteOutlined />} danger>
-                        删除
-                      </Button>
-                    </Popconfirm>,
-                  ]}
-                  onClick={() => {
-                    setSelectedTodo(todo);
-                    navigate(`/todo/${todo.id}`);
-                  }}
+        <Row gutter={24}>
+          <Col xs={24} md={24} lg={16} xl={16} xxl={16}>
+            <Card style={{ marginBottom: 24 }}>
+              <Space style={{ width: '100%' }} size="middle">
+                <Input
+                  placeholder="搜索任务..."
+                  prefix={<SearchOutlined />}
+                  value={filter.search}
+                  onChange={(e) => setFilter({ search: e.target.value })}
+                  style={{ width: 300 }}
+                />
+                <Select
+                  placeholder="状态"
+                  value={filter.status || undefined}
+                  onChange={(value) => setFilter({ status: value || '' })}
+                  style={{ width: 120 }}
+                  allowClear
                 >
-                  <Card.Meta
-                    title={
-                      <div style={{ position: 'relative', width: '100%' }}>
-                        <span 
-                          style={{ 
-                            textDecoration: todo.is_completed ? 'line-through' : 'none',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                            maxWidth: '200px',
-                            display: 'inline-block',
-                            fontSize: '16px',
-                            fontWeight: 'bold',
-                            verticalAlign: 'middle'
-                          }}
-                        >
-                          {todo.title}
-                        </span>
-                        <Tag 
-                          color={getPriorityColor(todo.priority)} 
-                          style={{ 
-                            fontSize: '12px',
-                            position: 'absolute',
-                            right: 0,
-                            top: '50%',
-                            transform: 'translateY(-50%)'
-                          }}
-                        >
-                          {getPriorityText(todo.priority)}
-                        </Tag>
-                      </div>
-                    }
-                    description={
-                      <div style={{ 
+                  <Select.Option value="active">进行中</Select.Option>
+                  <Select.Option value="completed">已完成</Select.Option>
+                </Select>
+                <Select
+                  placeholder="优先级"
+                  value={filter.priority || undefined}
+                  onChange={(value) => setFilter({ priority: value || '' })}
+                  style={{ width: 120 }}
+                  allowClear
+                >
+                  <Select.Option value="high">高</Select.Option>
+                  <Select.Option value="medium">中</Select.Option>
+                  <Select.Option value="low">低</Select.Option>
+                </Select>
+                <Select
+                  value={sortOptions.findIndex(o => o.sortBy === filter.sortBy && o.order === filter.order)}
+                  onChange={(index) => {
+                    const { sortBy, order } = sortOptions[index];
+                    setFilter({ sortBy, order });
+                  }}
+                  style={{ width: 130 }}
+                >
+                  {sortOptions.map((opt, index) => (
+                    <Select.Option key={index} value={index}>{opt.label}</Select.Option>
+                  ))}
+                </Select>
+              </Space>
+            </Card>
+
+            {isLoading ? (
+              <div style={{ textAlign: 'center', padding: '50px' }}>加载中...</div>
+            ) : todosData?.data?.todos && todosData.data.todos.length > 0 ? (
+              <List
+                grid={{ gutter: 16, xs: 1, sm: 2, md: 2, lg: 2, xl: 2, xxl: 2 }}
+                dataSource={todosData.data.todos}
+                renderItem={(todo) => (
+                  <List.Item>
+                    <Card
+                      hoverable
+                      style={{
+                        height: '240px',
+                        width: '100%',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        opacity: todo.is_completed ? 0.6 : 1,
+                      }}
+                      bodyStyle={{
+                        flex: 1,
                         display: 'flex',
                         flexDirection: 'column',
                         justifyContent: 'space-between',
-                        height: '100%',
-                        gap: '8px'
-                      }}>
-                        {todo.description && (
-                          <div style={{ 
-                            fontSize: '13px',
-                            color: '#666',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            display: '-webkit-box',
-                            WebkitLineClamp: 2,
-                            WebkitBoxOrient: 'vertical',
-                            lineHeight: '1.4',
-                            height: '36px'
-                          }}>
-                            {todo.description}
-                          </div>
-                        )}
-                        <div style={{ marginTop: 'auto' }}>
-                          {todo.created_at && (
-                            <div style={{ color: '#999', fontSize: '12px', marginBottom: '4px' }}>
-                              创建时间: {dayjs(todo.created_at).format('YYYY-MM-DD')}
-                            </div>
-                          )}
-                          {todo.due_date && (
-                            <div style={{ color: '#999', fontSize: '12px', marginBottom: '4px' }}>
-                              截止日期: {dayjs(todo.due_date).format('YYYY-MM-DD')}
-                            </div>
-                          )}
-                          {todo.attachments && todo.attachments.length > 0 && (
-                            <Tag icon={<FileTextOutlined />} style={{ fontSize: '12px' }}>
-                              {todo.attachments.length} 个附件
+                        padding: '16px',
+                        position: 'relative',
+                      }}
+                      actions={[
+                        <Button
+                          key="complete"
+                          type="text"
+                          icon={todo.is_completed ? <CheckCircleOutlined /> : <ClockCircleOutlined />}
+                          onClick={(e) => handleToggleComplete(todo, e)}
+                        >
+                          {todo.is_completed ? '已完成' : '标记完成'}
+                        </Button>,
+                        <Button
+                          key="edit"
+                          type="text"
+                          icon={<EditOutlined />}
+                          onClick={() => handleEdit(todo)}
+                        >
+                          编辑
+                        </Button>,
+                        <Popconfirm
+                          key="delete"
+                          title="确定删除这个任务吗？"
+                          onConfirm={() => handleDelete(todo.id)}
+                          okText="确定"
+                          cancelText="取消"
+                        >
+                          <Button type="text" icon={<DeleteOutlined />} danger>
+                            删除
+                          </Button>
+                        </Popconfirm>,
+                      ]}
+                      onClick={() => {
+                        setSelectedTodo(todo);
+                        navigate(`/todo/${todo.id}`);
+                      }}
+                    >
+                      <Card.Meta
+                        title={
+                          <div style={{ position: 'relative', width: '100%' }}>
+                            <span 
+                              style={{ 
+                                textDecoration: todo.is_completed ? 'line-through' : 'none',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                                maxWidth: '200px',
+                                display: 'inline-block',
+                                fontSize: '16px',
+                                fontWeight: 'bold',
+                                verticalAlign: 'middle'
+                              }}
+                            >
+                              {todo.title}
+                            </span>
+                            <Tag 
+                              color={getPriorityColor(todo.priority)} 
+                              style={{ 
+                                fontSize: '12px',
+                                position: 'absolute',
+                                right: 0,
+                                top: '50%',
+                                transform: 'translateY(-50%)'
+                              }}
+                            >
+                              {getPriorityText(todo.priority)}
                             </Tag>
-                          )}
-                        </div>
-                      </div>
-                    }
-                  />
-                </Card>
-              </List.Item>
+                          </div>
+                        }
+                        description={
+                          <div style={{ 
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                            height: '100%',
+                            gap: '8px'
+                          }}>
+                            {todo.description && (
+                              <div style={{ 
+                                fontSize: '13px',
+                                color: '#666',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                display: '-webkit-box',
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: 'vertical',
+                                lineHeight: '1.4',
+                                height: '36px'
+                              }}>
+                                {todo.description}
+                              </div>
+                            )}
+                            <div style={{ marginTop: 'auto' }}>
+                              {todo.created_at && (
+                                <div style={{ color: '#999', fontSize: '12px', marginBottom: '4px' }}>
+                                  创建时间: {dayjs(todo.created_at).format('YYYY-MM-DD')}
+                                </div>
+                              )}
+                              {todo.due_date && (
+                                <div style={{ color: '#999', fontSize: '12px', marginBottom: '4px' }}>
+                                  截止日期: {dayjs(todo.due_date).format('YYYY-MM-DD')}
+                                </div>
+                              )}
+                              {todo.attachments && todo.attachments.length > 0 && (
+                                <Tag icon={<FileTextOutlined />} style={{ fontSize: '12px' }}>
+                                  {todo.attachments.length} 个附件
+                                </Tag>
+                              )}
+                            </div>
+                          </div>
+                        }
+                      />
+                    </Card>
+                  </List.Item>
+                )}
+              />
+            ) : (
+              <Empty description="暂无任务" />
             )}
-          />
-        ) : (
-          <Empty description="暂无任务" />
-        )}
+          </Col>
+
+          <Col xs={24} md={24} lg={8} xl={8} xxl={8}>
+            <Card 
+              title="记录时间线" 
+              style={{ marginBottom: 24 }}
+              bodyStyle={{ padding: '16px' }}
+            >
+              <div style={{ marginBottom: 16 }}>
+                <TextArea
+                  placeholder="快速记录你的想法..."
+                  value={newRecordContent}
+                  onChange={(e) => setNewRecordContent(e.target.value)}
+                  onPressEnter={(e) => {
+                    if (!e.shiftKey) {
+                      e.preventDefault();
+                      handleCreateRecord();
+                    }
+                  }}
+                  rows={3}
+                  style={{ marginBottom: 8 }}
+                />
+                <Button
+                  type="primary"
+                  icon={<SendOutlined />}
+                  onClick={handleCreateRecord}
+                  loading={createRecordMutation.isPending}
+                  style={{ width: '100%', background: '#667eea', borderColor: '#667eea' }}
+                >
+                  保存记录
+                </Button>
+              </div>
+
+              <div style={{ 
+                maxHeight: 'calc(100vh - 400px)', 
+                overflowY: 'auto',
+                paddingRight: '8px'
+              }}>
+                {recordsData?.data?.records && recordsData.data.records.length > 0 ? (
+                  recordsData.data.records.map((record) => (
+                    <RecordCard
+                      key={record.id}
+                      record={record}
+                      onUpdate={handleUpdateRecord}
+                      onDelete={handleDeleteRecord}
+                    />
+                  ))
+                ) : (
+                  <Empty description="暂无记录" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                )}
+              </div>
+            </Card>
+          </Col>
+        </Row>
       </Content>
 
       <Modal

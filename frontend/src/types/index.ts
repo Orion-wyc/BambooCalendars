@@ -53,3 +53,18 @@ export interface TodosResponse {
   pages: number;
   current_page: number;
 }
+
+export interface Record {
+  id: number;
+  user_id: number;
+  content: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RecordsResponse {
+  records: Record[];
+  total: number;
+  pages: number;
+  current_page: number;
+}

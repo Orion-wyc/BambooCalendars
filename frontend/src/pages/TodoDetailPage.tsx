@@ -2,19 +2,21 @@ import React, { useEffect, useState } from 'react';
 import { 
   Layout, Card, Button, Modal, Form, Input, DatePicker, 
   message, Space, Tag, List, Upload, Image, Popconfirm,
-  Descriptions, Empty, Select 
+  Descriptions, Empty, Select, Row, Col 
 } from 'antd';
 import { 
   ArrowLeftOutlined, EditOutlined, DeleteOutlined, 
   CheckCircleOutlined, UploadOutlined, FileOutlined,
-  DownloadOutlined, EyeOutlined 
+  DownloadOutlined, EyeOutlined, PlusOutlined 
 } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { todoService } from '../services/todoService';
 import { attachmentService } from '../services/attachmentService';
+import { stepService } from '../services/stepService';
 import { useTodoStore } from '../store/todoStore';
-import type { Todo, Attachment } from '../types';
+import type { Attachment } from '../types';
+import StepCard from '../components/StepCard';
 import dayjs from 'dayjs';
 
 const { TextArea } = Input;
@@ -23,12 +25,12 @@ const { Header, Content } = Layout;
 const TodoDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const queryClient = useQueryClient();
   const { selectedTodo, setSelectedTodo } = useTodoStore();
   
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [previewImage, setPreviewImage] = useState<string>('');
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [newStepContent, setNewStepContent] = useState('');
   const [form] = Form.useForm();
 
   const todoId = parseInt(id || '0');
@@ -36,6 +38,12 @@ const TodoDetailPage: React.FC = () => {
   const { data: todoData, isLoading, refetch } = useQuery({
     queryKey: ['todo', todoId],
     queryFn: () => todoService.getTodo(todoId),
+    enabled: !!todoId,
+  });
+
+  const { data: stepsData, refetch: refetchSteps } = useQuery({
+    queryKey: ['steps', todoId],
+    queryFn: () => stepService.getSteps(todoId),
     enabled: !!todoId,
   });
 
@@ -80,6 +88,41 @@ const TodoDetailPage: React.FC = () => {
     onSuccess: () => {
       message.success('删除成功');
       refetch();
+    },
+  });
+
+  const createStepMutation = useMutation({
+    mutationFn: (content: string) => stepService.createStep(todoId, { content }),
+    onSuccess: (response) => {
+      if (response.success && response.data) {
+        message.success('步骤创建成功');
+        setNewStepContent('');
+        refetchSteps();
+      }
+    },
+  });
+
+  const updateStepMutation = useMutation({
+    mutationFn: ({ id, content }: { id: number; content: string }) =>
+      stepService.updateStep(id, { content }),
+    onSuccess: () => {
+      refetchSteps();
+    },
+  });
+
+  const toggleStepCompleteMutation = useMutation({
+    mutationFn: ({ id, isCompleted }: { id: number; isCompleted: boolean }) =>
+      stepService.toggleComplete(id, isCompleted),
+    onSuccess: () => {
+      refetchSteps();
+    },
+  });
+
+  const deleteStepMutation = useMutation({
+    mutationFn: stepService.deleteStep,
+    onSuccess: () => {
+      message.success('删除成功');
+      refetchSteps();
     },
   });
 
@@ -185,6 +228,26 @@ const TodoDetailPage: React.FC = () => {
 
   const handleDeleteAttachment = (attachmentId: number) => {
     deleteAttachmentMutation.mutate(attachmentId);
+  };
+
+  const handleCreateStep = () => {
+    if (!newStepContent.trim()) {
+      message.warning('请输入步骤内容');
+      return;
+    }
+    createStepMutation.mutate(newStepContent.trim());
+  };
+
+  const handleUpdateStep = async (id: number, content: string) => {
+    await updateStepMutation.mutateAsync({ id, content });
+  };
+
+  const handleToggleStepComplete = async (id: number, isCompleted: boolean) => {
+    await toggleStepCompleteMutation.mutateAsync({ id, isCompleted });
+  };
+
+  const handleDeleteStep = async (id: number) => {
+    await deleteStepMutation.mutateAsync(id);
   };
 
   const getPriorityColor = (priority: string) => {
@@ -312,77 +375,134 @@ const TodoDetailPage: React.FC = () => {
           </Descriptions>
         </Card>
 
-        <Card 
-          title="附件" 
-          extra={
-            <Upload
-              showUploadList={false}
-              beforeUpload={handleUpload}
+        <Row gutter={24}>
+          <Col xs={24} sm={24} md={12} lg={12} xl={12} xxl={12}>
+            <Card 
+              title="步骤" 
+              style={{ height: '100%' }}
             >
-              <Button icon={<UploadOutlined />} loading={uploadMutation.isPending}>
-                上传附件
-              </Button>
-            </Upload>
-          }
-        >
-          {todo.attachments && todo.attachments.length > 0 ? (
-            <List
-              dataSource={todo.attachments}
-              renderItem={(attachment) => (
-                <List.Item
-                  actions={[
-                    attachment.file_type === 'image' && (
-                      <Button
-                        key="preview"
-                        type="text"
-                        icon={<EyeOutlined />}
-                        onClick={() => handlePreview(attachment)}
-                      >
-                        预览
-                      </Button>
-                    ),
-                    <Button
-                      key="download"
-                      type="text"
-                      icon={<DownloadOutlined />}
-                      onClick={() => handleDownload(attachment)}
-                    >
-                      下载
-                    </Button>,
-                    <Popconfirm
-                      key="delete"
-                      title="确定删除这个附件吗？"
-                      onConfirm={() => handleDeleteAttachment(attachment.id)}
-                      okText="确定"
-                      cancelText="取消"
-                    >
-                      <Button type="text" icon={<DeleteOutlined />} danger>
-                        删除
-                      </Button>
-                    </Popconfirm>,
-                  ]}
+              <div style={{ marginBottom: 16 }}>
+                <Input
+                  placeholder="添加新步骤..."
+                  value={newStepContent}
+                  onChange={(e) => setNewStepContent(e.target.value)}
+                  onPressEnter={handleCreateStep}
+                  style={{ marginBottom: 8 }}
+                />
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={handleCreateStep}
+                  loading={createStepMutation.isPending}
+                  style={{ width: '100%', background: '#667eea', borderColor: '#667eea' }}
                 >
-                  <List.Item.Meta
-                    avatar={getFileIcon(attachment)}
-                    title={attachment.original_filename}
-                    description={
-                      <Space>
-                        <Tag>{attachment.file_type}</Tag>
-                        <span>
-                          {attachment.file_size 
-                            ? `${(attachment.file_size / 1024).toFixed(2)} KB`
-                            : '未知大小'}
-                        </span>
-                      </Space>
-                    }
+                  添加步骤
+                </Button>
+              </div>
+
+              <div style={{ 
+                maxHeight: 'calc(100vh - 400px)', 
+                overflowY: 'auto',
+                paddingRight: '8px'
+              }}>
+                {stepsData?.data?.steps && stepsData.data.steps.length > 0 ? (
+                  stepsData.data.steps.map((step) => (
+                    <StepCard
+                      key={step.id}
+                      step={step}
+                      onUpdate={handleUpdateStep}
+                      onDelete={handleDeleteStep}
+                      onToggleComplete={handleToggleStepComplete}
+                    />
+                  ))
+                ) : (
+                  <Empty description="暂无步骤" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                )}
+              </div>
+            </Card>
+          </Col>
+
+          <Col xs={24} sm={24} md={12} lg={12} xl={12} xxl={12}>
+            <Card 
+              title="附件" 
+              extra={
+                <Upload
+                  showUploadList={false}
+                  beforeUpload={handleUpload}
+                >
+                  <Button icon={<UploadOutlined />} loading={uploadMutation.isPending}>
+                    上传附件
+                  </Button>
+                </Upload>
+              }
+              style={{ height: '100%' }}
+            >
+              <div style={{ 
+                maxHeight: 'calc(100vh - 400px)', 
+                overflowY: 'auto',
+                paddingRight: '8px'
+              }}>
+                {todo.attachments && todo.attachments.length > 0 ? (
+                  <List
+                    dataSource={todo.attachments}
+                    renderItem={(attachment) => (
+                      <List.Item
+                        actions={[
+                          attachment.file_type === 'image' && (
+                            <Button
+                              key="preview"
+                              type="text"
+                              icon={<EyeOutlined />}
+                              onClick={() => handlePreview(attachment)}
+                            >
+                              预览
+                            </Button>
+                          ),
+                          <Button
+                            key="download"
+                            type="text"
+                            icon={<DownloadOutlined />}
+                            onClick={() => handleDownload(attachment)}
+                          >
+                            下载
+                          </Button>,
+                          <Popconfirm
+                            key="delete"
+                            title="确定删除这个附件吗？"
+                            onConfirm={() => handleDeleteAttachment(attachment.id)}
+                            okText="确定"
+                            cancelText="取消"
+                          >
+                            <Button type="text" icon={<DeleteOutlined />} danger>
+                              删除
+                            </Button>
+                          </Popconfirm>,
+                        ]}
+                      >
+                        <List.Item.Meta
+                          avatar={getFileIcon(attachment)}
+                          title={attachment.original_filename}
+                          description={
+                            <Space>
+                              <Tag>{attachment.file_type}</Tag>
+                              <span>
+                                {attachment.file_size 
+                                  ? `${(attachment.file_size / 1024).toFixed(2)} KB`
+                                  : '未知大小'}
+                              </span>
+                            </Space>
+                          }
+                        />
+                      </List.Item>
+                    )}
                   />
-                </List.Item>
-              )}
-            />
-          ) : (
-            <Empty description="暂无附件" />
-          )}
-        </Card>
+                ) : (
+                  <Empty description="暂无附件" />
+                )}
+              </div>
+            </Card>
+          </Col>
+        </Row>
       </Content>
 
       <Modal

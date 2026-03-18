@@ -6,6 +6,16 @@ export interface User {
   updated_at: string;
 }
 
+export interface Step {
+  id: number;
+  todo_id: number;
+  content: string;
+  is_completed: boolean;
+  order: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Todo {
   id: number;
   user_id: number;
@@ -17,6 +27,7 @@ export interface Todo {
   created_at: string;
   updated_at: string;
   attachments: Attachment[];
+  steps: Step[];
 }
 
 export interface Attachment {

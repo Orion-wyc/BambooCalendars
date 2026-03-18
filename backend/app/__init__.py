@@ -25,10 +25,12 @@ def create_app(config_name='default'):
     from app.api.todos import todos_bp
     from app.api.attachments import attachments_bp
     from app.api.records import records_bp
+    from app.api.steps import steps_bp
     
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(todos_bp, url_prefix='/api/todos')
     app.register_blueprint(attachments_bp, url_prefix='/api/attachments')
     app.register_blueprint(records_bp, url_prefix='/api/records')
+    app.register_blueprint(steps_bp, url_prefix='/api')
     
     return app

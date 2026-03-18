@@ -16,6 +16,8 @@ class Todo(db.Model):
     
     attachments = db.relationship('Attachment', backref='todo', lazy='dynamic', 
                                    cascade='all, delete-orphan')
+    steps = db.relationship('Step', backref='todo', lazy='dynamic',
+                            cascade='all, delete-orphan', order_by='Step.order')
     
     def to_dict(self):
         return {
@@ -28,5 +30,6 @@ class Todo(db.Model):
             'due_date': self.due_date.isoformat() if self.due_date else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
-            'attachments': [att.to_dict() for att in self.attachments]
+            'attachments': [att.to_dict() for att in self.attachments],
+            'steps': [step.to_dict() for step in self.steps]
         }

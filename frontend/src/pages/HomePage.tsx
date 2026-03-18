@@ -4,17 +4,17 @@ import {
   DatePicker, message, Space, Tag, Popconfirm, Empty, Col, Row 
 } from 'antd';
 import { 
-  PlusOutlined, SearchOutlined, FilterOutlined, 
+  PlusOutlined, SearchOutlined, 
   EditOutlined, DeleteOutlined, CheckCircleOutlined, 
   ClockCircleOutlined, FileTextOutlined, SendOutlined 
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { todoService } from '../services/todoService';
 import { recordService } from '../services/recordService';
 import { useTodoStore } from '../store/todoStore';
 import { useAuthStore } from '../store/authStore';
-import type { Todo, Record } from '../types';
+import type { Todo } from '../types';
 import RecordCard from '../components/RecordCard';
 import dayjs from 'dayjs';
 
@@ -23,7 +23,6 @@ const { TextArea } = Input;
 
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const { isAuthenticated } = useAuthStore();
   const { filter, setFilter, setSelectedTodo } = useTodoStore();
   
@@ -279,10 +278,19 @@ const HomePage: React.FC = () => {
             {isLoading ? (
               <div style={{ textAlign: 'center', padding: '50px' }}>加载中...</div>
             ) : todosData?.data?.todos && todosData.data.todos.length > 0 ? (
-              <List
-                grid={{ gutter: 16, xs: 1, sm: 2, md: 2, lg: 2, xl: 2, xxl: 2 }}
-                dataSource={todosData.data.todos}
-                renderItem={(todo) => (
+              <Card 
+                title="任务列表" 
+                style={{ height: 'calc(100vh - 250px)' }}
+                bodyStyle={{ 
+                  padding: '16px',
+                  height: 'calc(100% - 70px)',
+                  overflowY: 'auto'
+                }}
+              >
+                <List
+                  grid={{ gutter: 16, xs: 1, sm: 2, md: 2, lg: 2, xl: 2, xxl: 2 }}
+                  dataSource={todosData.data.todos}
+                  renderItem={(todo) => (
                   <List.Item>
                     <Card
                       hoverable
@@ -321,11 +329,26 @@ const HomePage: React.FC = () => {
                         <Popconfirm
                           key="delete"
                           title="确定删除这个任务吗？"
-                          onConfirm={() => handleDelete(todo.id)}
+                          onConfirm={(e) => {
+                            e?.stopPropagation();
+                            handleDelete(todo.id);
+                          }}
+                          onCancel={(e) => {
+                            e?.stopPropagation();
+                          }}
                           okText="确定"
                           cancelText="取消"
+                          getPopupContainer={(triggerNode) => triggerNode.parentElement as HTMLElement}
                         >
-                          <Button type="text" icon={<DeleteOutlined />} danger>
+                          <Button 
+                            type="text" 
+                            icon={<DeleteOutlined />} 
+                            danger
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                            }}
+                          >
                             删除
                           </Button>
                         </Popconfirm>,
@@ -414,18 +437,38 @@ const HomePage: React.FC = () => {
                   </List.Item>
                 )}
               />
+              </Card>
             ) : (
-              <Empty description="暂无任务" />
+              <Card 
+                title="任务列表" 
+                style={{ height: 'calc(100vh - 250px)' }}
+                bodyStyle={{ 
+                  padding: '16px',
+                  height: 'calc(100% - 50px)',
+                  overflowY: 'auto'
+                }}
+              >
+                <Empty description="暂无任务" />
+              </Card>
             )}
           </Col>
 
           <Col xs={24} md={24} lg={8} xl={8} xxl={8}>
             <Card 
               title="记录时间线" 
-              style={{ marginBottom: 24 }}
-              bodyStyle={{ padding: '16px' }}
+              style={{ 
+                height: 'calc(100vh - 145px)',
+                marginBottom: 24 
+              }}
+              bodyStyle={{ 
+                padding: '16px',
+                height: 'calc(100% - 55px)',
+                overflowY: 'hidden',
+                display: 'flex',
+                flexDirection: 'column'
+              }}
             >
-              <div style={{ marginBottom: 16 }}>
+              <div style={{ marginBottom: 16, flexShrink: 0 }}>
                 <TextArea
                   placeholder="快速记录你的想法..."
                   value={newRecordContent}
@@ -449,9 +492,9 @@ const HomePage: React.FC = () => {
                   保存记录
                 </Button>
               </div>
-
+ 
               <div style={{ 
-                maxHeight: 'calc(100vh - 400px)', 
+                flex: 1,
                 overflowY: 'auto',
                 paddingRight: '8px'
               }}>

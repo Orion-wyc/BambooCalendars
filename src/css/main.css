@@ -1098,6 +1098,214 @@ html.side-bar-hidden #sidebar {
   color: var(--text-muted);
 }
 
+/* Search Highlight */
+mark {
+  background: rgba(235, 97, 87, 0.2);
+  color: var(--accent);
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
+/* List Header Subtitle */
+.list-header-subtitle {
+  font-size: 13px;
+  opacity: 0.8;
+  margin-top: 4px;
+}
+
+/* Inline Edit */
+.inline-edit-input {
+  width: 100%;
+  padding: 4px 8px;
+  border: 2px solid var(--accent);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-family: inherit;
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  outline: none;
+}
+
+/* Suggestion Items */
+.suggestion-item {
+  border-left: 3px solid var(--accent);
+  opacity: 0.85;
+}
+
+.suggestion-item:hover {
+  opacity: 1;
+}
+
+.task-section-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+/* Context Menu */
+.context-menu {
+  position: fixed;
+  z-index: 2000;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  min-width: 180px;
+  padding: 6px 0;
+  font-size: 13px;
+}
+
+.context-menu-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+  cursor: pointer;
+  white-space: nowrap;
+  position: relative;
+}
+
+.context-menu-item:hover {
+  background: var(--bg-hover);
+}
+
+.context-menu-item.danger {
+  color: var(--danger);
+}
+
+.context-menu-item.danger:hover {
+  background: var(--danger);
+  color: white;
+}
+
+.context-menu-icon {
+  width: 20px;
+  margin-right: 10px;
+  text-align: center;
+  font-size: 13px;
+}
+
+.context-menu-item.has-submenu::after {
+  content: '▸';
+  margin-left: auto;
+  color: var(--text-muted);
+}
+
+.context-menu-submenu {
+  display: none;
+  position: absolute;
+  left: 100%;
+  top: -6px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  min-width: 150px;
+  padding: 6px 0;
+}
+
+.context-menu-item:hover > .context-menu-submenu {
+  display: block;
+}
+
+.task-suggestion-add {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 12px;
+  background: var(--accent);
+  color: white;
+  border-radius: 50%;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+/* Compact Mode */
+html.compact-mode #sidebar {
+  width: 60px;
+  min-width: 60px;
+}
+
+html.compact-mode #sidebar-user {
+  padding: 12px 8px;
+  font-size: 14px;
+  text-align: center;
+}
+
+html.compact-mode #sidebar-search {
+  display: none;
+}
+
+html.compact-mode .nav-item-label,
+html.compact-mode .nav-item-count,
+html.compact-mode .list-item-label,
+html.compact-mode .list-item-count,
+html.compact-mode .list-item-actions,
+html.compact-mode .lists-section-title,
+html.compact-mode .btn-add-list span,
+html.compact-mode .btn-add-list > div:last-child {
+  display: none;
+}
+
+html.compact-mode .nav-item {
+  justify-content: center;
+  padding: 12px 8px;
+  border-left-width: 0;
+  border-bottom: 2px solid transparent;
+}
+
+html.compact-mode .nav-item.active {
+  border-left-color: transparent;
+  border-bottom-color: var(--accent);
+}
+
+html.compact-mode .nav-item-icon {
+  margin-right: 0;
+  font-size: 18px;
+}
+
+html.compact-mode .list-item {
+  justify-content: center;
+  padding: 12px 8px;
+  border-left-width: 0;
+}
+
+html.compact-mode .list-item-icon {
+  margin-right: 0;
+  font-size: 16px;
+}
+
+html.compact-mode .btn-add-list {
+  justify-content: center;
+}
+
+html.compact-mode #list-header {
+  padding: 16px 20px;
+  min-height: 60px;
+}
+
+html.compact-mode #list-header h1 {
+  font-size: 20px;
+}
+
+html.compact-mode #task-input-area {
+  padding: 12px 20px;
+}
+
+html.compact-mode #task-list-area {
+  padding: 12px 20px;
+}
+
+html.compact-mode #detail-panel {
+  width: 320px;
+  min-width: 320px;
+}
+
+html.compact-mode .task-item {
+  padding: 10px 12px;
+}
+
 /* Utilities */
 .hidden {
   display: none !important;

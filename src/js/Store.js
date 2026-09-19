@@ -12,6 +12,9 @@ export class Store {
         sideBarHidden: false,
         hideCompleted: true,
         requestExitConfirmation: true,
+        compactMode: false,
+        sortBy: 'created',
+        alwaysOnTop: false,
       }
     };
     this.saveTimer = null;
@@ -91,9 +94,34 @@ export class Store {
       tasks = tasks.filter(t => t.completed === filter.completed);
     }
 
-    return tasks.sort((a, b) => {
+    return this._sortTasks(tasks, filter.sortBy || this.data.settings.sortBy || 'created');
+  }
+
+  _sortTasks(tasks, sortBy) {
+    const sorted = [...tasks];
+    const cmp = (a, b) => {
+      switch (sortBy) {
+        case 'dueDate':
+          if (!a.dueDate && !b.dueDate) return b.createdAt - a.createdAt;
+          if (!a.dueDate) return 1;
+          if (!b.dueDate) return -1;
+          return new Date(a.dueDate) - new Date(b.dueDate);
+        case 'important':
+          if (a.important !== b.important) return a.important ? -1 : 1;
+          return b.updatedAt - a.updatedAt;
+        case 'alpha':
+          return a.title.localeCompare(b.title, 'zh-CN');
+        case 'manual':
+          return (a.order || 0) - (b.order || 0);
+        case 'created':
+        default:
+          return b.createdAt - a.createdAt;
+      }
+    };
+    // keep completed at bottom always
+    return sorted.sort((a, b) => {
       if (a.completed !== b.completed) return a.completed ? 1 : -1;
-      return b.updatedAt - a.updatedAt;
+      return cmp(a, b);
     });
   }
 
@@ -269,6 +297,78 @@ export class Store {
         return acc;
       }, {})
     };
+  }
+
+  getMyDaySuggestions() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    return this.data.tasks.filter(t => {
+      if (t.completed || t.inMyDay) return false;
+      if (t.important) return true;
+      if (t.dueDate) {
+        const due = new Date(t.dueDate);
+        due.setHours(0, 0, 0, 0);
+        if (due <= today) return true;
+        if (due.getTime() === today.getTime()) return true;
+      }
+      return false;
+    });
+  }
+
+  getPlannedGroups() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const weekEnd = new Date(today);
+    weekEnd.setDate(weekEnd.getDate() + 7);
+
+    const groups = { overdue: [], today: [], tomorrow: [], thisWeek: [], later: [] };
+
+    this.data.tasks.filter(t => !t.completed && t.dueDate).forEach(t => {
+      const due = new Date(t.dueDate);
+      due.setHours(0, 0, 0, 0);
+      if (due < today) groups.overdue.push(t);
+      else if (due.getTime() === today.getTime()) groups.today.push(t);
+      else if (due.getTime() === tomorrow.getTime()) groups.tomorrow.push(t);
+      else if (due <= weekEnd) groups.thisWeek.push(t);
+      else groups.later.push(t);
+    });
+
+    return groups;
+  }
+
+  moveTaskToList(taskId, listId) {
+    const task = this.data.tasks.find(t => t.id === taskId);
+    if (task) {
+      task.listId = listId;
+      task.updatedAt = Date.now();
+      this.save();
+    }
+    return task;
+  }
+
+  duplicateTask(taskId) {
+    const task = this.data.tasks.find(t => t.id === taskId);
+    if (task) {
+      const dup = {
+        ...task,
+        id: this.generateId(),
+        title: task.title + ' (副本)',
+        completed: false,
+        completedAt: null,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        subtasks: task.subtasks.map(s => ({ ...s, id: this.generateId(), completed: false })),
+      };
+      this.data.tasks.push(dup);
+      this.save();
+      return dup;
+    }
+    return null;
   }
 }
 

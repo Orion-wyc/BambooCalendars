@@ -35,6 +35,36 @@ function send(action, data) {
   }
 }
 
+function applyCompactMode(window, compact) {
+  if (!window) return;
+  try {
+    window.webContents.send('menu-action', { action: 'compact-mode', data: compact });
+  } catch {}
+}
+
+function checkUpdate() {
+  const { net } = require('electron');
+  const request = net.request('https://api.github.com/repos/Orion-wyc/BambooCalendars/releases/latest');
+  request.setHeader('User-Agent', 'BambooCalendars');
+  request.on('response', (res) => {
+    let body = '';
+    res.on('data', (chunk) => { body += chunk; });
+    res.on('end', () => {
+      try {
+        const release = JSON.parse(body);
+        if (release.tag_name && release.tag_name !== 'v1.0.0') {
+          new Notification({
+            title: '发现新版本',
+            body: `Bamboo Todo ${release.tag_name} 已发布，请前往 GitHub 查看更新`
+          }).show();
+        }
+      } catch {}
+    });
+  });
+  request.on('error', () => {});
+  request.end();
+}
+
 function createMenu() {
   const template = [
     {
@@ -118,10 +148,15 @@ function createMenu() {
         { label: '上一个清单', accelerator: 'CmdOrCtrl+Shift+Tab', click: () => send('prev-list') },
         { type: 'separator' },
         { label: '切换侧边栏', accelerator: 'CmdOrCtrl+O', click: () => send('toggle-sidebar') },
+        { label: '紧凑模式', accelerator: 'CmdOrCtrl+Shift+M', click: () => send('toggle-compact') },
         {
           label: '始终置顶', type: 'checkbox', accelerator: 'CmdOrCtrl+Shift+P',
           click: (item) => {
             mainWindow.setAlwaysOnTop(item.checked);
+            const data = readJSON(STORE_PATH, { settings: {} });
+            if (!data.settings) data.settings = {};
+            data.settings.alwaysOnTop = item.checked;
+            writeJSON(STORE_PATH, data);
             mainWindow.webContents.send('menu-action', { action: 'always-on-top', data: item.checked });
           }
         },
@@ -139,6 +174,7 @@ function createMenu() {
     {
       label: '帮助',
       submenu: [
+        { label: '检查更新', click: () => checkUpdate() },
         { label: '关于 Bamboo Todo', click: () => send('about') },
         { type: 'separator' },
         { role: 'toggleDevTools', label: '开发者工具' },
@@ -244,6 +280,18 @@ function createWindow() {
   mainWindow.loadURL('app://./index.html');
   createMenu();
 
+  // Apply saved settings
+  const data = readJSON(STORE_PATH, { settings: {} });
+  if (data.settings && data.settings.alwaysOnTop) {
+    mainWindow.setAlwaysOnTop(true);
+  }
+  if (data.settings && data.settings.compactMode) {
+    applyCompactMode(mainWindow, true);
+  }
+
+  // Check for updates on startup
+  checkUpdate();
+
   if (state.isMaximized) {
     mainWindow.maximize();
   }
@@ -288,6 +336,19 @@ function setupIPC() {
   ipcMain.handle('window:isMaximized', () => mainWindow && mainWindow.isMaximized());
   ipcMain.handle('window:show', () => { if (mainWindow) { mainWindow.show(); mainWindow.focus(); } });
   ipcMain.handle('app:getPath', (_, name) => app.getPath(name));
+
+  ipcMain.on('menu:apply-setting', (_, { key, value }) => {
+    const data = readJSON(STORE_PATH, { settings: {} });
+    if (!data.settings) data.settings = {};
+    data.settings[key] = value;
+    writeJSON(STORE_PATH, data);
+    if (key === 'alwaysOnTop' && mainWindow) {
+      mainWindow.setAlwaysOnTop(Boolean(value));
+    }
+    if (key === 'compactMode') {
+      applyCompactMode(mainWindow, Boolean(value));
+    }
+  });
 }
 
 app.whenReady().then(() => {

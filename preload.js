@@ -16,6 +16,9 @@ contextBridge.exposeInMainWorld('api', {
     show: () => ipcRenderer.invoke('window:show'),
     getPath: (name) => ipcRenderer.invoke('app:getPath', name),
   },
+  app: {
+    applySetting: (key, value) => ipcRenderer.send('menu:apply-setting', { key, value }),
+  },
   zoom: {
     get: () => webFrame.getZoomFactor(),
     set: (factor) => { webFrame.setZoomFactor(Math.max(0.3, Math.min(3, factor))); },

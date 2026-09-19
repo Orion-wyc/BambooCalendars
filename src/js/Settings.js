@@ -102,12 +102,36 @@ export class Settings {
           </div>
           <div class="toggle-switch ${settings.sideBarHidden ? 'active' : ''}"></div>
         </div>
+        <div class="settings-toggle-row" id="toggle-compact-setting">
+          <div class="settings-toggle-label">
+            <div class="settings-toggle-title">紧凑模式</div>
+            <div class="settings-toggle-desc">缩小界面元素，显示更多内容</div>
+          </div>
+          <div class="toggle-switch ${settings.compactMode ? 'active' : ''}"></div>
+        </div>
+        <div class="settings-toggle-row" id="toggle-always-top">
+          <div class="settings-toggle-label">
+            <div class="settings-toggle-title">窗口置顶</div>
+            <div class="settings-toggle-desc">窗口始终显示在其他窗口之上</div>
+          </div>
+          <div class="toggle-switch ${settings.alwaysOnTop ? 'active' : ''}"></div>
+        </div>
         <div class="settings-toggle-row" id="toggle-exit-confirm">
           <div class="settings-toggle-label">
             <div class="settings-toggle-title">关闭时最小化到托盘</div>
             <div class="settings-toggle-desc">点击窗口关闭按钮时最小化到系统托盘</div>
           </div>
           <div class="toggle-switch ${settings.requestExitConfirmation !== false ? 'active' : ''}"></div>
+        </div>
+        <div class="settings-field" style="margin-top: 12px;">
+          <div class="detail-field-label">任务排序方式</div>
+          <select class="detail-select" id="setting-sort-by">
+            <option value="created" ${settings.sortBy === 'created' ? 'selected' : ''}>按创建时间</option>
+            <option value="dueDate" ${settings.sortBy === 'dueDate' ? 'selected' : ''}>按截止日期</option>
+            <option value="important" ${settings.sortBy === 'important' ? 'selected' : ''}>按重要程度</option>
+            <option value="alpha" ${settings.sortBy === 'alpha' ? 'selected' : ''}>按字母排序</option>
+            <option value="manual" ${settings.sortBy === 'manual' ? 'selected' : ''}>手动排序</option>
+          </select>
         </div>
       </div>
 
@@ -202,6 +226,33 @@ export class Settings {
         document.documentElement.classList.toggle('side-bar-hidden', hidden);
         store.updateSettings({ sideBarHidden: hidden });
         this.render('general');
+        return;
+      }
+
+      // Compact mode toggle
+      if (e.target.closest('#toggle-compact-setting')) {
+        const val = !store.getSettings().compactMode;
+        document.documentElement.classList.toggle('compact-mode', val);
+        store.updateSettings({ compactMode: val });
+        window.api.app.applySetting('compactMode', val);
+        this.render('general');
+        return;
+      }
+
+      // Always on top toggle
+      if (e.target.closest('#toggle-always-top')) {
+        const val = !store.getSettings().alwaysOnTop;
+        store.updateSettings({ alwaysOnTop: val });
+        window.api.app.applySetting('alwaysOnTop', val);
+        this.render('general');
+        return;
+      }
+
+      // Sort by change
+      const sortByEl = e.target.closest('#setting-sort-by');
+      if (sortByEl) {
+        store.updateSettings({ sortBy: sortByEl.value });
+        eventBus.emit('task:update');
         return;
       }
 

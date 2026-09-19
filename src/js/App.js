@@ -175,6 +175,16 @@ class App {
       case 'about':
         this.settings.openAbout();
         break;
+      case 'toggle-compact':
+        this.toggleCompact();
+        break;
+      case 'compact-mode':
+        document.documentElement.classList.toggle('compact-mode', data);
+        break;
+      case 'auto-night':
+        theme.setAutoNight(data);
+        store.updateSettings({ autoNightMode: data });
+        break;
       case 'popup-new-todo':
         this.taskList.focusInput();
         window.api.window.show();
@@ -191,6 +201,12 @@ class App {
   toggleSidebar() {
     const hidden = document.documentElement.classList.toggle('side-bar-hidden');
     store.updateSettings({ sideBarHidden: hidden });
+  }
+
+  toggleCompact() {
+    const enabled = document.documentElement.classList.toggle('compact-mode');
+    store.updateSettings({ compactMode: enabled });
+    window.api.app.applySetting('compactMode', enabled);
   }
 
   bindKeyboard() {

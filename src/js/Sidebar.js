@@ -45,10 +45,22 @@ export class Sidebar {
         <div class="nav-item-label">已计划</div>
         <div class="nav-item-count">${counts.planned || ''}</div>
       </div>
+      <div class="nav-item ${this.currentView === 'next7' ? 'active' : ''}" data-view="next7">
+        <div class="nav-item-icon">🗓</div>
+        <div class="nav-item-label">最近 7 天</div>
+      </div>
       <div class="nav-item ${this.currentView === 'tasks' ? 'active' : ''}" data-view="tasks">
         <div class="nav-item-icon">✓</div>
         <div class="nav-item-label">任务</div>
         <div class="nav-item-count">${counts.tasks || ''}</div>
+      </div>
+      <div class="nav-item ${this.currentView === 'calendar' ? 'active' : ''}" data-view="calendar">
+        <div class="nav-item-icon">📆</div>
+        <div class="nav-item-label">日历</div>
+      </div>
+      <div class="nav-item ${this.currentView === 'pomodoro' ? 'active' : ''}" data-view="pomodoro">
+        <div class="nav-item-icon">🍅</div>
+        <div class="nav-item-label">番茄钟</div>
       </div>
     `;
   }
@@ -227,7 +239,10 @@ export class Sidebar {
       { type: 'smart', view: 'my-day', id: null },
       { type: 'smart', view: 'important', id: null },
       { type: 'smart', view: 'planned', id: null },
+      { type: 'smart', view: 'next7', id: null },
       { type: 'smart', view: 'tasks', id: null },
+      { type: 'smart', view: 'calendar', id: null },
+      { type: 'smart', view: 'pomodoro', id: null },
     ];
     const lists = store.getLists().map(l => ({ type: 'list', view: 'list', id: l.id }));
     return [...smart, ...lists];

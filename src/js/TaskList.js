@@ -1,6 +1,15 @@
 import { store } from './Store.js';
 import { eventBus } from './EventBus.js';
 
+const PRIORITY_COLORS = {
+  1: '#e74c3c',
+  2: '#e67e22',
+  3: '#4a90d9',
+  4: '#95a5a6'
+};
+
+const PRIORITY_LABELS = { 1: 'P1', 2: 'P2', 3: 'P3', 4: 'P4' };
+
 export class TaskList {
   constructor() {
     this.currentView = 'tasks';
@@ -9,6 +18,9 @@ export class TaskList {
     this.selectedTaskId = null;
     this.collapsedSections = { completed: true };
     this.contextMenu = null;
+    this.filterPriority = null;
+    this.filterTagId = null;
+    this.calendarMonth = new Date();
     this.render();
     this.bindEvents();
   }
@@ -25,11 +37,23 @@ export class TaskList {
     this.render();
   }
 
+  setPriorityFilter(p) {
+    this.filterPriority = this.filterPriority === p ? null : p;
+    this.render();
+  }
+
+  setTagFilter(tagId) {
+    this.filterTagId = this.filterTagId === tagId ? null : tagId;
+    this.render();
+  }
+
   getTasks() {
     const filter = {
       view: this.currentView,
       listId: this.currentListId,
-      search: this.searchQuery
+      search: this.searchQuery,
+      priority: this.filterPriority,
+      tagId: this.filterTagId
     };
     return store.getTasks(filter);
   }
@@ -48,22 +72,39 @@ export class TaskList {
     if (this.currentView === 'my-day') title = '☀ 我的一天';
     else if (this.currentView === 'important') title = '★ 重要';
     else if (this.currentView === 'planned') title = '📅 已计划';
+    else if (this.currentView === 'next7') title = '🗓 最近 7 天';
+    else if (this.currentView === 'calendar') title = '📆 日历';
+    else if (this.currentView === 'pomodoro') title = '🍅 番茄钟';
     else if (this.currentView === 'list' && this.currentListId) {
       const list = store.data.lists.find(l => l.id === this.currentListId);
       title = `📋 ${list ? list.name : '清单'}`;
     }
     if (this.searchQuery) subtitle = `搜索"${this.searchQuery}"的结果`;
+    if (this.filterPriority || this.filterTagId) {
+      const parts = [];
+      if (this.filterPriority) parts.push(`优先级 ${PRIORITY_LABELS[this.filterPriority]}`);
+      if (this.filterTagId) {
+        const tag = store.getTag(this.filterTagId);
+        parts.push(`标签 ${tag ? tag.name : ''}`);
+      }
+      subtitle = subtitle ? `${subtitle} · ${parts.join(' · ')}` : `筛选: ${parts.join(' · ')}`;
+    }
 
     header.innerHTML = `<h1>${title}</h1>${subtitle ? `<div class="list-header-subtitle">${subtitle}</div>` : ''}`;
   }
 
   renderInput() {
     const area = document.getElementById('task-input-area');
+    if (this.currentView === 'calendar') {
+      area.innerHTML = '';
+      return;
+    }
     area.innerHTML = `
       <div class="task-input-wrapper">
         <div class="task-input-icon">+</div>
         <input type="text" class="task-input" id="task-input" placeholder="添加任务..." autocomplete="off">
       </div>
+      ${this.renderFilterBar()}
     `;
   }
 
@@ -73,6 +114,16 @@ export class TaskList {
 
     if (this.currentView === 'planned') {
       this.renderPlannedView(area);
+      return;
+    }
+
+    if (this.currentView === 'next7') {
+      this.renderNext7View(area);
+      return;
+    }
+
+    if (this.currentView === 'calendar') {
+      this.renderCalendarView(area);
       return;
     }
 
@@ -122,15 +173,151 @@ export class TaskList {
     area.innerHTML = html;
   }
 
+  renderNext7View(area) {
+    const groups = store.getNext7Days();
+    let html = '';
+
+    groups.forEach(group => {
+      if (group.tasks.length === 0) return;
+      html += `
+        <div class="task-section">
+          <div class="task-section-header">
+            <div class="task-section-title">${group.label}</div>
+            <div class="task-section-count">${group.tasks.length}</div>
+          </div>
+          <div class="task-list">
+            ${group.tasks.map(t => this.renderTaskItem(t)).join('')}
+          </div>
+        </div>
+      `;
+    });
+
+    if (!html) {
+      area.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">🗓</div>
+          <div class="empty-state-title">未来 7 天没有任务</div>
+          <div class="empty-state-desc">给任务设置截止日期后会显示在这里</div>
+        </div>
+      `;
+      return;
+    }
+    area.innerHTML = html;
+  }
+
+  renderCalendarView(area) {
+    const year = this.calendarMonth.getFullYear();
+    const month = this.calendarMonth.getMonth();
+    const tasks = store.getCalendarTasks(year, month);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const firstDay = new Date(year, month, 1);
+    const startOffset = firstDay.getDay(); // 0=Sunday
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    let cells = '';
+    for (let i = 0; i < startOffset; i++) cells += `<div class="cal-cell empty"></div>`;
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = new Date(year, month, d).toISOString().split('T')[0];
+      const dayTasks = tasks.filter(t => t.dueDate === dateStr);
+      const isToday = (() => {
+        const dd = new Date(year, month, d);
+        dd.setHours(0, 0, 0, 0);
+        return dd.getTime() === today.getTime();
+      })();
+      cells += `
+        <div class="cal-cell ${isToday ? 'today' : ''} ${dayTasks.length ? 'has-tasks' : ''}" data-date="${dateStr}">
+          <div class="cal-day-num">${d}</div>
+          <div class="cal-day-tasks">
+            ${dayTasks.slice(0, 3).map(t => `
+              <div class="cal-task" data-task-id="${t.id}">
+                <span class="cal-priority" style="background:${PRIORITY_COLORS[t.priority] || '#95a5a6'}"></span>
+                <span class="cal-task-title">${this.escapeHtml(t.title)}</span>
+              </div>
+            `).join('')}
+            ${dayTasks.length > 3 ? `<div class="cal-more">+${dayTasks.length - 3} 更多</div>` : ''}
+          </div>
+        </div>
+      `;
+    }
+
+    const monthName = `${year} 年 ${month + 1} 月`;
+    const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+
+    area.innerHTML = `
+      <div class="calendar-view">
+        <div class="calendar-header">
+          <button class="btn-calendar-nav" id="cal-prev">‹</button>
+          <div class="calendar-title">${monthName}</div>
+          <button class="btn-calendar-nav" id="cal-next">›</button>
+          <button class="btn-calendar-nav" id="cal-today">今天</button>
+        </div>
+        <div class="calendar-weekdays">
+          ${weekdays.map(d => `<div class="cal-weekday">${d}</div>`).join('')}
+        </div>
+        <div class="calendar-grid">
+          ${cells}
+        </div>
+        <div class="calendar-tasks-list" id="calendar-day-detail"></div>
+      </div>
+    `;
+
+    this.bindCalendarEvents();
+  }
+
+  bindCalendarEvents() {
+    const area = document.getElementById('task-list-area');
+    area.querySelector('#cal-prev').addEventListener('click', () => {
+      this.calendarMonth.setMonth(this.calendarMonth.getMonth() - 1);
+      this.render();
+    });
+    area.querySelector('#cal-next').addEventListener('click', () => {
+      this.calendarMonth.setMonth(this.calendarMonth.getMonth() + 1);
+      this.render();
+    });
+    area.querySelector('#cal-today').addEventListener('click', () => {
+      this.calendarMonth = new Date();
+      this.render();
+    });
+
+    area.querySelectorAll('.cal-cell.has-tasks').forEach(cell => {
+      cell.addEventListener('click', (e) => {
+        if (e.target.closest('.cal-task')) return;
+        const date = cell.dataset.date;
+        this.showCalendarDayTasks(date);
+      });
+    });
+
+    area.querySelectorAll('.cal-task').forEach(task => {
+      task.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const taskId = task.dataset.taskId;
+        this.selectTask(taskId);
+      });
+    });
+  }
+
+  showCalendarDayTasks(date) {
+    const detail = document.getElementById('calendar-day-detail');
+    const dayTasks = store.data.tasks.filter(t => t.dueDate === date);
+    const dateLabel = new Date(date).toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' });
+    if (!dayTasks.length) {
+      detail.innerHTML = `<div class="cal-day-empty">${dateLabel} 无任务</div>`;
+      return;
+    }
+    detail.innerHTML = `
+      <div class="cal-day-title">${dateLabel} · ${dayTasks.length} 个任务</div>
+      <div class="task-list">
+        ${dayTasks.map(t => this.renderTaskItem(t)).join('')}
+      </div>
+    `;
+  }
+
   renderPlannedView(area) {
     const groups = store.getPlannedGroups();
-    const groupTitles = {
-      overdue: '已过期',
-      today: '今天',
-      tomorrow: '明天',
-      thisWeek: '本周',
-      later: '以后'
-    };
+    const groupTitles = { overdue: '已过期', today: '今天', tomorrow: '明天', thisWeek: '本周', later: '以后' };
     const hasAny = Object.values(groups).some(g => g.length > 0);
 
     if (!hasAny) {
@@ -229,6 +416,7 @@ export class TaskList {
       'my-day': ['🌤', '我的一天是空的', '添加任务或从建议中选择'],
       'important': ['⭐', '暂无重要任务', '点击任务旁的星标标记重要'],
       'planned': ['🗓', '暂无已计划任务', '为任务设置截止日期'],
+      'next7': ['🗓', '未来 7 天没有任务', '为任务设置截止日期'],
       'tasks': ['📝', '暂无任务', '在上方输入框添加新任务'],
       'list': ['📋', '此清单暂无任务', '在上方输入框添加新任务'],
       'search': ['🔍', '未找到匹配任务', '换个关键词试试']
@@ -243,23 +431,57 @@ export class TaskList {
     `;
   }
 
+  renderFilterBar() {
+    const tags = store.getTags();
+    return `
+      <div class="filter-bar">
+        <div class="filter-group">
+          <span class="filter-label">优先级</span>
+          ${[1, 2, 3, 4].map(p => `
+            <button class="filter-chip ${this.filterPriority === p ? 'active' : ''}" data-filter-priority="${p}">
+              <span class="chip-dot" style="background:${PRIORITY_COLORS[p]}"></span>
+              ${PRIORITY_LABELS[p]}
+            </button>
+          `).join('')}
+        </div>
+        ${tags.length ? `
+          <div class="filter-group">
+            <span class="filter-label">标签</span>
+            ${tags.map(t => `
+              <button class="filter-chip ${this.filterTagId === t.id ? 'active' : ''}" data-filter-tag="${t.id}">
+                <span class="chip-dot" style="background:${t.color}"></span>
+                ${t.name}
+              </button>
+            `).join('')}
+          </div>
+        ` : ''}
+        ${(this.filterPriority || this.filterTagId) ? `<button class="filter-clear" id="filter-clear">清除筛选 ✕</button>` : ''}
+      </div>
+    `;
+  }
+
   renderTaskItem(task) {
     const dueDateStr = this.formatDueDate(task.dueDate);
     const dueDateClass = this.getDueDateClass(task.dueDate, task.completed);
     const highlighted = this.highlightSearch(this.escapeHtml(task.title));
+    const priorityColor = PRIORITY_COLORS[task.priority] || '#95a5a6';
+    const tags = (task.tags || []).map(id => store.getTag(id)).filter(Boolean);
 
     return `
       <div class="task-item ${task.completed ? 'completed' : ''} ${this.selectedTaskId === task.id ? 'selected' : ''}" 
            data-task-id="${task.id}" draggable="true">
+        <div class="task-priority-bar" style="background:${priorityColor}"></div>
         <div class="task-checkbox ${task.completed ? 'checked' : ''}" data-action="toggle-complete" data-task-id="${task.id}">
           ${task.completed ? '✓' : ''}
         </div>
         <div class="task-content" data-action="select" data-task-id="${task.id}">
           <div class="task-title">${highlighted}</div>
           <div class="task-meta">
+            ${task.priority < 4 ? `<div class="task-priority-badge" style="color:${priorityColor};border-color:${priorityColor}">${PRIORITY_LABELS[task.priority]}</div>` : ''}
             ${task.important ? '<div>★</div>' : ''}
             ${task.dueDate ? `<div class="task-due-date ${dueDateClass}">📅 ${dueDateStr}</div>` : ''}
             ${task.subtasks.length > 0 ? `<div>📝 ${task.subtasks.filter(s => s.completed).length}/${task.subtasks.length}</div>` : ''}
+            ${tags.length ? `<div class="task-tags">${tags.map(t => `<span class="task-tag" style="background:${t.color}22;color:${t.color};border-color:${t.color}55">#${t.name}</span>`).join('')}</div>` : ''}
           </div>
         </div>
         <div class="task-actions">
@@ -273,15 +495,12 @@ export class TaskList {
 
   highlightSearch(text) {
     if (!this.searchQuery) return text;
-    const q = this.escapeHtml(this.searchQuery);
-    const escaped = text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const escaped = this.escapeHtml(this.searchQuery).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     if (!escaped) return text;
     try {
       const re = new RegExp(`(${escaped})`, 'gi');
       return text.replace(re, '<mark>$1</mark>');
-    } catch {
-      return text;
-    }
+    } catch { return text; }
   }
 
   bindEvents() {
@@ -291,6 +510,25 @@ export class TaskList {
     inputArea.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && e.target.id === 'task-input') {
         this.createTaskFromInput(e.target);
+      }
+    });
+
+    // Filter bar
+    inputArea.addEventListener('click', (e) => {
+      const prioBtn = e.target.closest('[data-filter-priority]');
+      if (prioBtn) {
+        this.setPriorityFilter(parseInt(prioBtn.dataset.filterPriority, 10));
+        return;
+      }
+      const tagBtn = e.target.closest('[data-filter-tag]');
+      if (tagBtn) {
+        this.setTagFilter(tagBtn.dataset.filterTag);
+        return;
+      }
+      if (e.target.closest('#filter-clear')) {
+        this.filterPriority = null;
+        this.filterTagId = null;
+        this.render();
       }
     });
 
@@ -375,7 +613,6 @@ export class TaskList {
       }
     });
 
-    // Close context menu on outside click
     document.addEventListener('click', (e) => {
       if (this.contextMenu && !this.contextMenu.contains(e.target)) {
         this.closeContextMenu();
@@ -388,7 +625,6 @@ export class TaskList {
     if (!title) return;
     let listId = 'tasks';
     if (this.currentView === 'list' && this.currentListId) listId = this.currentListId;
-    if (this.currentView === 'my-day') listId = 'tasks';
     const task = store.createTask({ title, listId });
     if (this.currentView === 'my-day') {
       store.updateTask(task.id, { inMyDay: true });
@@ -459,17 +695,20 @@ export class TaskList {
     if (!task) return;
 
     const lists = store.getLists();
+    const tags = store.getTags();
     const menu = document.createElement('div');
     menu.className = 'context-menu';
-    menu.style.left = `${x}px`;
-    menu.style.top = `${y}px`;
+    menu.style.left = `${Math.min(x, window.innerWidth - 220)}px`;
+    menu.style.top = `${Math.min(y, window.innerHeight - 400)}px`;
 
     const items = [
       { icon: '✏️', label: task.completed ? '取消完成' : '完成任务', action: 'complete' },
       { icon: task.important ? '⭐' : '☆', label: task.important ? '取消重要' : '标记重要', action: 'important' },
       { icon: '☀', label: task.inMyDay ? '从我的日移除' : '添加到我的日', action: 'myday' },
+      { icon: '⚑', label: '设置优先级', action: 'priority', submenu: [1, 2, 3, 4].map(p => ({ label: `${PRIORITY_LABELS[p]}  ${p === 1 ? '紧急' : p === 2 ? '高' : p === 3 ? '中' : '低'}`, action: `set-priority-${p}` })) },
+      { icon: '🏷', label: '添加标签', action: 'tag', submenu: tags.map(t => ({ label: `#${t.name}`, action: `toggle-tag-${t.id}` })) },
       { icon: '✏️', label: '编辑标题', action: 'rename' },
-      { icon: '📋', label: '移动到...', action: 'move', submenu: lists },
+      { icon: '📋', label: '移动到...', action: 'move', submenu: lists.map(l => ({ label: l.name, action: `move-to-${l.id}` })) },
       { icon: '📝', label: '复制任务', action: 'duplicate' },
       { icon: '🗑', label: '删除', action: 'delete', danger: true },
     ];
@@ -484,30 +723,35 @@ export class TaskList {
         el.classList.add('has-submenu');
         const sub = document.createElement('div');
         sub.className = 'context-menu-submenu';
-        item.submenu.forEach(list => {
+        item.submenu.forEach(subItem => {
           const li = document.createElement('div');
           li.className = 'context-menu-item';
-          li.dataset.action = 'move-to-list';
           li.dataset.taskId = taskId;
-          li.dataset.listId = list.id;
-          li.innerHTML = `<span class="context-menu-icon">${list.id === task.listId ? '✓' : ''}</span>${list.name}`;
+          li.dataset.action = subItem.action;
+          if (subItem.action.startsWith('set-priority-')) {
+            const p = parseInt(subItem.action.split('-')[2], 10);
+            li.innerHTML = `<span class="context-menu-icon" style="color:${PRIORITY_COLORS[p]}">${task.priority === p ? '✓' : '•'}</span>${subItem.label}`;
+          } else if (subItem.action.startsWith('toggle-tag-')) {
+            const tagId = subItem.action.split('-')[2];
+            li.innerHTML = `<span class="context-menu-icon">${task.tags.includes(tagId) ? '✓' : ''}</span>${subItem.label}`;
+          } else if (subItem.action.startsWith('move-to-')) {
+            const lid = subItem.action.split('-')[2];
+            li.innerHTML = `<span class="context-menu-icon">${task.listId === lid ? '✓' : ''}</span>${subItem.label}`;
+          } else {
+            li.innerHTML = subItem.label;
+          }
           li.addEventListener('click', (e) => {
             e.stopPropagation();
-            this.handleContextAction('move-to-list', taskId, list.id);
+            this.handleContextAction(subItem.action, taskId);
           });
           sub.appendChild(li);
         });
         el.appendChild(sub);
-        el.addEventListener('mouseenter', () => {
-          sub.style.display = 'block';
-        });
-        el.addEventListener('mouseleave', () => {
-          sub.style.display = 'none';
-        });
       }
 
       el.addEventListener('click', (e) => {
         e.stopPropagation();
+        if (item.submenu) return;
         this.handleContextAction(item.action, taskId);
       });
       menu.appendChild(el);
@@ -531,13 +775,8 @@ export class TaskList {
       case 'rename':
         this.startInlineEdit(document.querySelector(`.task-item[data-task-id="${taskId}"]`));
         break;
-      case 'move-to-list':
-        store.moveTaskToList(taskId, listId);
-        eventBus.emit('task:update');
-        break;
       case 'duplicate':
         store.duplicateTask(taskId);
-        eventBus.emit('task:update');
         break;
       case 'delete':
         if (confirm('确定删除此任务？')) {
@@ -546,7 +785,18 @@ export class TaskList {
             this.selectedTaskId = null;
             eventBus.emit('task:deselect');
           }
-          eventBus.emit('task:delete');
+        }
+        break;
+      default:
+        if (action.startsWith('set-priority-')) {
+          store.setPriority(taskId, parseInt(action.split('-')[2], 10));
+        } else if (action.startsWith('toggle-tag-')) {
+          const tagId = action.split('-')[2];
+          const task = store.data.tasks.find(t => t.id === taskId);
+          if (task && task.tags.includes(tagId)) store.removeTagFromTask(taskId, tagId);
+          else store.addTagToTask(taskId, tagId);
+        } else if (action.startsWith('move-to-')) {
+          store.moveTaskToList(taskId, action.split('-')[2]);
         }
         break;
     }

@@ -55,6 +55,31 @@ export class TaskDetail {
         </div>
 
         <div class="detail-section">
+          <div class="detail-section-title">优先级</div>
+          <div class="priority-selector">
+            ${[1, 2, 3, 4].map(p => `
+              <div class="priority-option ${task.priority === p ? 'active' : ''}" data-priority="${p}">
+                <span class="priority-flag" style="background:${this.priorityColor(p)}"></span>
+                <span class="priority-label">${p === 1 ? '紧急' : p === 2 ? '高' : p === 3 ? '中' : '低'}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <div class="detail-section">
+          <div class="detail-section-title">标签</div>
+          <div class="tag-selector">
+            ${store.getTags().map(t => `
+              <div class="tag-option ${(task.tags || []).includes(t.id) ? 'active' : ''}" data-tag-id="${t.id}">
+                <span class="tag-dot" style="background:${t.color}"></span>
+                <span class="tag-label">${this.escapeHtml(t.name)}</span>
+              </div>
+            `).join('')}
+            ${store.getTags().length === 0 ? '<div style="font-size:12px;color:var(--text-muted);">暂无标签，请在设置中添加</div>' : ''}
+          </div>
+        </div>
+
+        <div class="detail-section">
           <div class="detail-field">
             <div class="detail-field-label">截止日期</div>
             <input type="date" class="detail-input" id="detail-due-date" value="${task.dueDate || ''}">
@@ -178,6 +203,31 @@ export class TaskDetail {
       eventBus.emit('task:update');
     });
 
+    // Priority
+    this.panel.querySelectorAll('.priority-option').forEach(el => {
+      el.addEventListener('click', () => {
+        const p = parseInt(el.dataset.priority, 10);
+        store.setPriority(this.currentTaskId, p);
+        this.render();
+        eventBus.emit('task:update');
+      });
+    });
+
+    // Tags
+    this.panel.querySelectorAll('.tag-option').forEach(el => {
+      el.addEventListener('click', () => {
+        const tagId = el.dataset.tagId;
+        const task = store.data.tasks.find(t => t.id === this.currentTaskId);
+        if (task && (task.tags || []).includes(tagId)) {
+          store.removeTagFromTask(this.currentTaskId, tagId);
+        } else {
+          store.addTagToTask(this.currentTaskId, tagId);
+        }
+        this.render();
+        eventBus.emit('task:update');
+      });
+    });
+
     // Subtasks
     this.panel.addEventListener('click', (e) => {
       const action = e.target.dataset.action;
@@ -278,8 +328,14 @@ export class TaskDetail {
   }
 
   escapeHtml(text) {
+    if (text === null || text === undefined) return '';
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+  }
+
+  priorityColor(p) {
+    const colors = { 1: '#e74c3c', 2: '#e67e22', 3: '#4a90d9', 4: '#95a5a6' };
+    return colors[p] || '#95a5a6';
   }
 }

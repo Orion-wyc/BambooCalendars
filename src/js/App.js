@@ -5,6 +5,7 @@ import { Sidebar } from './Sidebar.js';
 import { TaskList } from './TaskList.js';
 import { TaskDetail } from './TaskDetail.js';
 import { Settings } from './Settings.js';
+import { Pomodoro } from './Pomodoro.js';
 
 class App {
   constructor() {
@@ -12,6 +13,7 @@ class App {
     this.taskList = null;
     this.taskDetail = null;
     this.settings = null;
+    this.pomodoro = null;
   }
 
   async init() {
@@ -31,6 +33,7 @@ class App {
     this.taskList = new TaskList();
     this.taskDetail = new TaskDetail();
     this.settings = new Settings();
+    this.pomodoro = new Pomodoro();
 
     this.bindEvents();
     this.bindMenuActions();
@@ -41,8 +44,12 @@ class App {
   bindEvents() {
     eventBus.on('view:change', ({ view, listId }) => {
       this.taskList.setView(view, listId);
+      if (view === 'pomodoro') {
+        if (!this.pomodoro.visible) this.pomodoro.toggle();
+      } else if (this.pomodoro.visible) {
+        this.pomodoro.toggle();
+      }
     });
-
     eventBus.on('search:change', (query) => {
       this.taskList.setSearch(query);
     });

@@ -5,6 +5,7 @@ export class Store {
         { id: 'tasks', name: '任务', createdAt: Date.now(), order: 0 }
       ],
       tasks: [],
+      tags: [],
       settings: {
         theme: 'default',
         mode: 'normal',
@@ -24,6 +25,11 @@ export class Store {
     const saved = await window.api.store.read();
     if (saved) {
       this.data = saved;
+      if (!this.data.tags) this.data.tags = [];
+      this.data.tasks.forEach(t => {
+        if (t.priority === undefined) t.priority = 4;
+        if (!t.tags) t.tags = [];
+      });
     }
   }
 
@@ -66,6 +72,43 @@ export class Store {
     this.save();
   }
 
+  // Tags
+  getTags() {
+    return [...this.data.tags];
+  }
+
+  getTag(id) {
+    return this.data.tags.find(t => t.id === id);
+  }
+
+  createTag(name, color) {
+    const tag = {
+      id: this.generateId(),
+      name,
+      color: color || '#4a90d9'
+    };
+    this.data.tags.push(tag);
+    this.save();
+    return tag;
+  }
+
+  updateTag(id, updates) {
+    const tag = this.data.tags.find(t => t.id === id);
+    if (tag) {
+      Object.assign(tag, updates);
+      this.save();
+    }
+    return tag;
+  }
+
+  deleteTag(id) {
+    this.data.tags = this.data.tags.filter(t => t.id !== id);
+    this.data.tasks.forEach(t => {
+      t.tags = t.tags.filter(tagId => tagId !== id);
+    });
+    this.save();
+  }
+
   // Tasks
   getTasks(filter = {}) {
     let tasks = [...this.data.tasks];
@@ -80,6 +123,14 @@ export class Store {
       tasks = tasks.filter(t => t.important);
     } else if (filter.view === 'planned') {
       tasks = tasks.filter(t => t.dueDate);
+    }
+
+    if (filter.priority) {
+      tasks = tasks.filter(t => t.priority === filter.priority);
+    }
+
+    if (filter.tagId) {
+      tasks = tasks.filter(t => t.tags && t.tags.includes(filter.tagId));
     }
 
     if (filter.search) {
@@ -101,6 +152,9 @@ export class Store {
     const sorted = [...tasks];
     const cmp = (a, b) => {
       switch (sortBy) {
+        case 'priority':
+          if (a.priority !== b.priority) return a.priority - b.priority;
+          return b.updatedAt - a.updatedAt;
         case 'dueDate':
           if (!a.dueDate && !b.dueDate) return b.createdAt - a.createdAt;
           if (!a.dueDate) return 1;
@@ -118,7 +172,6 @@ export class Store {
           return b.createdAt - a.createdAt;
       }
     };
-    // keep completed at bottom always
     return sorted.sort((a, b) => {
       if (a.completed !== b.completed) return a.completed ? 1 : -1;
       return cmp(a, b);
@@ -135,6 +188,8 @@ export class Store {
       completedAt: null,
       important: false,
       inMyDay: false,
+      priority: taskData.priority || 4,
+      tags: taskData.tags || [],
       dueDate: null,
       reminder: null,
       repeat: 'none',
@@ -193,6 +248,37 @@ export class Store {
     const task = this.data.tasks.find(t => t.id === id);
     if (task) {
       task.inMyDay = !task.inMyDay;
+      task.updatedAt = Date.now();
+      this.save();
+    }
+    return task;
+  }
+
+  setPriority(id, priority) {
+    const task = this.data.tasks.find(t => t.id === id);
+    if (task) {
+      task.priority = priority;
+      task.updatedAt = Date.now();
+      this.save();
+    }
+    return task;
+  }
+
+  addTagToTask(id, tagId) {
+    const task = this.data.tasks.find(t => t.id === id);
+    if (task) {
+      if (!task.tags) task.tags = [];
+      if (!task.tags.includes(tagId)) task.tags.push(tagId);
+      task.updatedAt = Date.now();
+      this.save();
+    }
+    return task;
+  }
+
+  removeTagFromTask(id, tagId) {
+    const task = this.data.tasks.find(t => t.id === id);
+    if (task) {
+      task.tags = (task.tags || []).filter(t => t !== tagId);
       task.updatedAt = Date.now();
       this.save();
     }
@@ -302,8 +388,6 @@ export class Store {
   getMyDaySuggestions() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
 
     return this.data.tasks.filter(t => {
       if (t.completed || t.inMyDay) return false;
@@ -312,7 +396,6 @@ export class Store {
         const due = new Date(t.dueDate);
         due.setHours(0, 0, 0, 0);
         if (due <= today) return true;
-        if (due.getTime() === today.getTime()) return true;
       }
       return false;
     });
@@ -339,6 +422,31 @@ export class Store {
     });
 
     return groups;
+  }
+
+  getNext7Days() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const groups = [];
+    for (let i = 0; i < 7; i++) {
+      const day = new Date(today);
+      day.setDate(day.getDate() + i);
+      const key = day.toISOString().split('T')[0];
+      groups.push({
+        date: key,
+        label: i === 0 ? '今天' : i === 1 ? '明天' : day.toLocaleDateString('zh-CN', { weekday: 'long', month: 'numeric', day: 'numeric' }),
+        tasks: this.data.tasks.filter(t => !t.completed && t.dueDate === key)
+      });
+    }
+    return groups;
+  }
+
+  getCalendarTasks(year, month) {
+    return this.data.tasks.filter(t => {
+      if (!t.dueDate) return false;
+      const d = new Date(t.dueDate);
+      return d.getFullYear() === year && d.getMonth() === month;
+    });
   }
 
   moveTaskToList(taskId, listId) {

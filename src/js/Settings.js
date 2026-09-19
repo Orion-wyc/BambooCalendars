@@ -158,8 +158,28 @@ export class Settings {
           <div>类型：离线待办事项桌面应用</div>
           <div>数据存储：本地 JSON 文件（完全离线）</div>
           <div>技术栈：Electron + 原生 JS</div>
+</div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">标签管理</div>
+        <div class="tag-manager">
+          ${store.getTags().map(t => `
+            <div class="tag-manager-item" data-tag-id="${t.id}">
+              <span class="tag-manager-dot" style="background:${t.color}"></span>
+              <input class="tag-manager-name" value="${t.name}" data-tag-id="${t.id}">
+              <input type="color" class="tag-manager-color" value="${t.color}" data-tag-id="${t.id}">
+              <button class="tag-manager-delete" data-tag-id="${t.id}" title="删除标签">✕</button>
+            </div>
+          `).join('')}
+          <div class="tag-manager-add">
+            <input class="tag-manager-input" id="new-tag-name" placeholder="新标签名称">
+            <input type="color" class="tag-manager-color" id="new-tag-color" value="#4a90d9">
+            <button class="tag-manager-btn" id="btn-add-tag">添加</button>
+          </div>
         </div>
       </div>
+
       <div class="settings-section">
         <div class="settings-section-title">特色功能</div>
         <div style="color: var(--text-secondary); font-size: 13px; line-height: 2;">
@@ -261,7 +281,49 @@ export class Settings {
         const val = store.getSettings().requestExitConfirmation !== false;
         store.updateSettings({ requestExitConfirmation: !val });
         this.render('general');
+        return;
       }
+
+      // Add tag
+      if (e.target.closest('#btn-add-tag')) {
+        const nameInput = document.getElementById('new-tag-name');
+        const colorInput = document.getElementById('new-tag-color');
+        const name = nameInput.value.trim();
+        if (name) {
+          store.createTag(name, colorInput.value);
+          eventBus.emit('task:update');
+          this.render('general');
+        }
+        return;
+      }
+
+      // Delete tag
+      const delBtn = e.target.closest('.tag-manager-delete');
+      if (delBtn) {
+        store.deleteTag(delBtn.dataset.tagId);
+        eventBus.emit('task:update');
+        this.render('general');
+        return;
+      }
+    });
+
+    // Tag name/color change
+    this.overlay.querySelectorAll('.tag-manager-name').forEach(input => {
+      input.addEventListener('change', () => {
+        const name = input.value.trim();
+        if (name) {
+          store.updateTag(input.dataset.tagId, { name });
+          eventBus.emit('task:update');
+          this.render('general');
+        }
+      });
+    });
+    this.overlay.querySelectorAll('.tag-manager-color').forEach(input => {
+      input.addEventListener('change', () => {
+        store.updateTag(input.dataset.tagId, { color: input.value });
+        eventBus.emit('task:update');
+        this.render('general');
+      });
     });
   }
 

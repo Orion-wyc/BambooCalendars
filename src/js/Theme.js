@@ -3,15 +3,16 @@ import { THEME_PRESETS } from '../themes/presets.js';
 export class Theme {
   constructor() {
     this.currentTheme = 'default';
+    this.mode = 'normal';
+    this.autoNight = false;
+    this.nightTimer = null;
     this.userThemes = [];
   }
 
   async load() {
     try {
       this.userThemes = await window.api.themes.readUser();
-    } catch {
-      this.userThemes = [];
-    }
+    } catch { this.userThemes = []; }
   }
 
   getAllThemes() {
@@ -22,13 +23,11 @@ export class Theme {
     return this.getAllThemes().find(t => t.id === id) || THEME_PRESETS[0];
   }
 
-  apply(id) {
-    const theme = this.getTheme(id);
-    if (!theme) return;
-
-    this.currentTheme = id;
-    const { primary, accent, secondary } = theme.colors;
-
+  apply(themeId) {
+    const t = this.getTheme(themeId);
+    if (!t) return;
+    this.currentTheme = themeId;
+    const { primary, accent, secondary } = t.colors;
     const root = document.documentElement;
     root.style.setProperty('--primary', primary);
     root.style.setProperty('--primary-light', this.lighten(primary, 20));
@@ -42,6 +41,47 @@ export class Theme {
     root.style.setProperty('--sidebar-bg', primary);
     root.style.setProperty('--header-gradient', `linear-gradient(135deg, ${primary}, ${accent})`);
     root.style.setProperty('--accent-bg', this.hexToRgba(accent, 0.08));
+    this.applyMode(this.mode);
+  }
+
+  applyMode(mode) {
+    this.mode = mode || 'normal';
+    const root = document.documentElement;
+    root.classList.remove('dark-mode', 'black-mode', 'sepia-mode');
+    if (mode === 'dark') {
+      root.classList.add('dark-mode');
+    } else if (mode === 'black') {
+      root.classList.add('black-mode');
+    } else if (mode === 'sepia') {
+      root.classList.add('sepia-mode');
+    }
+  }
+
+  toggleMode(mode) {
+    if (this.mode === mode) {
+      this.applyMode('normal');
+    } else {
+      this.applyMode(mode);
+    }
+    return this.mode;
+  }
+
+  setAutoNight(enabled) {
+    this.autoNight = enabled;
+    if (this.nightTimer) clearTimeout(this.nightTimer);
+    if (enabled) this._scheduleNightCheck();
+  }
+
+  _scheduleNightCheck() {
+    if (!this.autoNight) return;
+    const h = new Date().getHours();
+    const isNight = h < 7 || h >= 19;
+    if (isNight && this.mode === 'normal') {
+      this.applyMode('dark');
+    } else if (!isNight && this.mode !== 'normal') {
+      this.applyMode('normal');
+    }
+    this.nightTimer = setTimeout(() => this._scheduleNightCheck(), 300000);
   }
 
   lighten(hex, percent) {
@@ -70,18 +110,14 @@ export class Theme {
     return `rgba(${R}, ${G}, ${B}, ${alpha})`;
   }
 
-  async saveUserTheme(theme) {
-    const index = this.userThemes.findIndex(t => t.id === theme.id);
-    if (index >= 0) {
-      this.userThemes[index] = theme;
-    } else {
-      this.userThemes.push(theme);
-    }
+  async saveUserTheme(t) {
+    const idx = this.userThemes.findIndex(u => u.id === t.id);
+    if (idx >= 0) this.userThemes[idx] = t; else this.userThemes.push(t);
     await window.api.themes.writeUser(this.userThemes);
   }
 
   async deleteUserTheme(id) {
-    this.userThemes = this.userThemes.filter(t => t.id !== id);
+    this.userThemes = this.userThemes.filter(u => u.id !== id);
     await window.api.themes.writeUser(this.userThemes);
   }
 }

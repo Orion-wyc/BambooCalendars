@@ -232,6 +232,41 @@ export class TaskDetail {
     return (completed / task.subtasks.length) * 100;
   }
 
+  toggleMyDay() {
+    if (!this.currentTaskId) {
+      const first = document.querySelector('.task-item');
+      if (first) {
+        const taskId = first.dataset.taskId;
+        if (taskId) {
+          store.toggleMyDay(taskId);
+          eventBus.emit('task:update');
+        }
+      }
+      return;
+    }
+    store.toggleMyDay(this.currentTaskId);
+    if (this.panel.classList.contains('hidden')) {
+      eventBus.emit('task:update');
+    } else {
+      this.render();
+      eventBus.emit('task:update');
+    }
+  }
+
+  focusReminder() {
+    if (!this.currentTaskId) return;
+    this.open(this.currentTaskId);
+    const input = document.getElementById('detail-reminder');
+    if (input) input.focus();
+  }
+
+  focusDueDate() {
+    if (!this.currentTaskId) return;
+    this.open(this.currentTaskId);
+    const input = document.getElementById('detail-due-date');
+    if (input) input.focus();
+  }
+
   bindEvents() {
     eventBus.on('task:select', (taskId) => {
       this.open(taskId);

@@ -243,6 +243,80 @@ export class TaskList {
     this.render();
   }
 
+  // Menu / shortcut action helpers
+  focusInput() {
+    const input = document.getElementById('task-input');
+    if (input) {
+      input.focus();
+      input.select();
+    }
+  }
+
+  getSelectedTask() {
+    if (!this.selectedTaskId) return null;
+    return store.data.tasks.find(t => t.id === this.selectedTaskId);
+  }
+
+  selectFirstActive() {
+    const tasks = this.getTasks().filter(t => !t.completed);
+    if (tasks.length > 0) {
+      this.selectedTaskId = tasks[0].id;
+      this.render();
+      return tasks[0];
+    }
+    return null;
+  }
+
+  deleteSelectedTask() {
+    let task = this.getSelectedTask();
+    if (!task) task = this.selectFirstActive();
+    if (!task) return;
+    if (confirm(`确定删除任务"${task.title}"？`)) {
+      store.deleteTask(task.id);
+      if (this.selectedTaskId === task.id) {
+        this.selectedTaskId = null;
+        eventBus.emit('task:deselect');
+      }
+      this.render();
+      eventBus.emit('task:delete');
+    }
+  }
+
+  renameSelectedTask() {
+    let task = this.getSelectedTask();
+    if (!task) task = this.selectFirstActive();
+    if (!task) return;
+    const newTitle = prompt('重命名任务:', task.title);
+    if (newTitle && newTitle.trim()) {
+      store.updateTask(task.id, { title: newTitle.trim() });
+      this.render();
+      eventBus.emit('task:update');
+    }
+  }
+
+  toggleCompleteSelected() {
+    let task = this.getSelectedTask();
+    if (!task) task = this.selectFirstActive();
+    if (!task) return;
+    store.toggleComplete(task.id);
+    this.render();
+    eventBus.emit('task:update');
+  }
+
+  toggleImportantSelected() {
+    let task = this.getSelectedTask();
+    if (!task) task = this.selectFirstActive();
+    if (!task) return;
+    store.toggleImportant(task.id);
+    this.render();
+    eventBus.emit('task:update');
+  }
+
+  toggleHideCompleted() {
+    this.collapsedSections.completed = !this.collapsedSections.completed;
+    this.render();
+  }
+
   formatDueDate(dateStr) {
     if (!dateStr) return '';
     const date = new Date(dateStr);

@@ -6,7 +6,12 @@ export class Store {
       ],
       tasks: [],
       settings: {
-        theme: 'default'
+        theme: 'default',
+        mode: 'normal',
+        autoNightMode: false,
+        sideBarHidden: false,
+        hideCompleted: true,
+        requestExitConfirmation: true,
       }
     };
     this.saveTimer = null;

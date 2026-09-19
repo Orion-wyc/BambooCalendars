@@ -171,6 +171,111 @@ export class Sidebar {
     this.render();
   }
 
+  // Menu action helpers
+  focusSearch() {
+    const input = document.getElementById('search-input');
+    if (input) {
+      input.focus();
+      input.select();
+    }
+  }
+
+  jumpToView(view) {
+    this.currentView = view;
+    this.currentListId = null;
+    eventBus.emit('view:change', { view });
+    this.render();
+  }
+
+  addList() {
+    const name = prompt('新清单名称:');
+    if (name && name.trim()) {
+      const list = store.createList(name.trim());
+      this.render();
+      eventBus.emit('list:create', list);
+    }
+  }
+
+  renameCurrentList() {
+    if (this.currentView === 'list' && this.currentListId) {
+      const list = store.data.lists.find(l => l.id === this.currentListId);
+      if (!list) return;
+      const newName = prompt('重命名清单:', list.name);
+      if (newName && newName.trim()) {
+        store.updateList(this.currentListId, { name: newName.trim() });
+        this.render();
+        eventBus.emit('list:update');
+      }
+    }
+  }
+
+  deleteCurrentList() {
+    if (this.currentView === 'list' && this.currentListId) {
+      if (confirm('确定删除此清单及其所有任务？')) {
+        store.deleteList(this.currentListId);
+        this.currentView = 'tasks';
+        this.currentListId = null;
+        eventBus.emit('view:change', { view: 'tasks' });
+        this.render();
+        eventBus.emit('list:delete');
+      }
+    }
+  }
+
+  _getOrderedViews() {
+    const smart = [
+      { type: 'smart', view: 'my-day', id: null },
+      { type: 'smart', view: 'important', id: null },
+      { type: 'smart', view: 'planned', id: null },
+      { type: 'smart', view: 'tasks', id: null },
+    ];
+    const lists = store.getLists().map(l => ({ type: 'list', view: 'list', id: l.id }));
+    return [...smart, ...lists];
+  }
+
+  _currentIndex() {
+    const views = this._getOrderedViews();
+    const idx = views.findIndex(v =>
+      v.type === 'smart' ? v.view === this.currentView :
+        (this.currentView === 'list' && v.id === this.currentListId)
+    );
+    return idx === -1 ? 0 : idx;
+  }
+
+  nextList() {
+    const views = this._getOrderedViews();
+    const idx = this._currentIndex();
+    const next = views[(idx + 1) % views.length];
+    this._jumpToView(next);
+  }
+
+  prevList() {
+    const views = this._getOrderedViews();
+    const idx = this._currentIndex();
+    const prev = views[(idx - 1 + views.length) % views.length];
+    this._jumpToView(prev);
+  }
+
+  jumpToList(n) {
+    const views = this._getOrderedViews();
+    if (n >= 0 && n < views.length) {
+      this._jumpToView(views[n]);
+    }
+  }
+
+  _jumpToView(v) {
+    if (v.type === 'smart') {
+      this.currentView = v.view;
+      this.currentListId = null;
+      eventBus.emit('view:change', { view: v.view });
+    } else {
+      this.currentView = 'list';
+      this.currentListId = v.id;
+      eventBus.emit('view:change', { view: 'list', listId: v.id });
+    }
+    this.render();
+  }
+
   escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;

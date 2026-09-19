@@ -4,7 +4,8 @@
 > 检视方式：全量静态阅读 + 关键逻辑 Node 实测复现（时区、事件递归、计数覆盖）
 > 状态标记：`[ ]` 待修复 `[x]` 已修复 `[-]` 误报/不修
 >
-> **修复进度：BUG-01 ~ BUG-37 全部修复完成，BUG-38 复核为误报。验证记录见文末。**
+> **修复进度：BUG-01 ~ BUG-37（首轮检视）+ BUG-39 ~ BUG-46（修复过程中新发现）全部修复完成，
+> BUG-38 复核为误报。合计 45 项修复。回归用例见 `tests/`，验证记录见文末。**
 
 ---
 
@@ -290,6 +291,16 @@ P2: BUG-21 → 37
 - 修复：新建时继承视图语义（我的一天/重要/已计划今天）与当前优先级、标签筛选。
 - 状态：[x]
 
+### BUG-46 渲染进程缺少内容安全策略（CSP）
+- 位置：`src/index.html`
+- 现象：页面无 `Content-Security-Policy`，Electron 开发模式持续告警；一旦存在 BUG-15 那类注入点，
+  注入的脚本可自由加载外部资源，缺少最后一道防线。
+- 修复：加入 CSP meta（`default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';
+  img-src 'self' data:; font-src 'self' data:`）。保留 `style-src 'unsafe-inline'` 是因为组件大量使用
+  内联 `style` 属性渲染主题色；脚本全部为外部模块文件，不需要 `unsafe-eval`。
+- 发现方式：端到端测试捕获渲染进程控制台告警。
+- 状态：[x]
+
 ### BUG-45 设置项缺少白名单，脏数据可污染配置
 - 位置：`Store.js:330-333`（原 `updateSettings`）
 - 现象：`Object.assign(this.data.settings, updates)` 接受任意键；`settings` 缺失时直接抛错。
@@ -315,6 +326,10 @@ P2: BUG-21 → 37
 | `src/js/App.js` | 重写：快捷键守卫、Esc 分层、提醒去重、启动恢复 | 10 19 22 27 30 32 33 41 |
 | `src/js/EventBus.js` | emit 遍历副本 | 36 |
 | `src/css/main.css` | 补充 `.cal-cell.selected`、`.task-due-date.tomorrow`、`.context-menu-item.disabled` 样式 | 05 31 |
+| `src/index.html` | 加入 CSP meta | 46 |
+| `src/package.json` | **新增** `{"type":"module"}`，使 Node 可直接加载 src 下 ESM 源码用于测试 | - |
+| `tests/**` | **新增** 零依赖测试套件（逻辑/组件/编排/端到端） | 全部 |
+| `package.json` | 新增 `test` / `test:logic` / `test:e2e` 脚本 | - |
 | `README.md` | 同步功能与数据文件说明 | 25 |
 
 ---
@@ -323,37 +338,37 @@ P2: BUG-21 → 37
 
 无既有测试框架，本次以 Node 直跑 + Electron 真实渲染进程两种方式回归。
 
-### 1. Store / Utils 逻辑回归（28 项）
+### 1. Store / Utils 逻辑回归（29 项 × 4 时区）
 覆盖：结构归一化、损坏数据回退、旧版字段补齐、去重、日期 key、日历取月、已计划分组边界、
 截止标签、计数命名空间、内置清单保护、tags 数组独立性、重复任务边沿与追赶、工作日/月末/闰年推进、
 拖拽 order、入参校验、筛选贯通、排序、转义、番茄会话跨天、写盘失败上报。
 
 ```
-TZ=Asia/Shanghai      共 28 项，失败 0 项
-TZ=UTC                共 28 项，失败 0 项
-TZ=America/New_York   共 28 项，失败 0 项
-TZ=Pacific/Kiritimati 共 28 项，失败 0 项
+TZ=Asia/Shanghai      共 29 项，失败 0 项
+TZ=UTC                共 29 项，失败 0 项
+TZ=America/New_York   共 29 项，失败 0 项
+TZ=Pacific/Kiritimati 共 29 项，失败 0 项
 ```
 
-### 2. 组件层回归（假 DOM，21 项）
+### 2. 组件层回归（假 DOM，25 项）
 覆盖：详情面板关闭不递归、面板/设置监听器不累积、子任务单次切换、标题点击命中、
 右键重命名保留输入框、内联编辑提交与回退、排序 change 生效、侧边栏计数与内置清单保护、
 搜索框不被重渲染清空、标签页、开关同步主进程、番茄钟计时、无选中不误删、XSS 转义。
 
 ```
-共 21 项，失败 0 项
+共 25 项，失败 0 项
 ```
 
-### 3. App 编排层回归（13 项）
+### 3. App 编排层回归（14 项）
 覆盖：启动恢复紧凑模式/侧边栏/主题、输入框内不触发快捷键、Alt 组合不拦截、
 快捷键映射（Ctrl+1-9 → 清单，Shift+M/G/J/O）、Esc 分层关闭、提醒只通知一次、
 错过补发与久远静默、菜单动作分发、add-my-day 只作用选中项、删除清单关闭详情、变更落盘。
 
 ```
-共 13 项，失败 0 项
+共 14 项，失败 0 项
 ```
 
-### 4. Electron 渲染进程端到端（xvfb 真实运行，48 项）
+### 4. Electron 端到端（xvfb 真实运行，62 项 = 渲染进程 45 + 主进程 17）
 在真实 Chromium DOM 中执行完整用户流程：新建任务 → 点击标题开详情 → 加子任务并连续勾选两次 →
 关闭面板 → 右键重命名 → 注入 `<img onerror>`/`<script>` 标题 → 日历"今天"格子命中 →
 最近 7 天首组为今天 → 分组视图搜索 → 搜索框内容保持 → 设置面板点击只渲染一次 →
@@ -361,19 +376,23 @@ TZ=Pacific/Kiritimati 共 28 项，失败 0 项
 拖拽 order → 番茄钟跨视图不中断。
 
 ```
-pass: 48  fail: 0  errors: []
+共 62 项，失败 0 项
 退出码: 0
 ```
 
-### 5. Electron 主进程端到端（14 项）
+### 5. 主进程端到端明细（含在上表 62 项内）
 覆盖：窗口显示、resize 防抖落盘、尺寸一致、**点击关闭 → 隐藏到托盘**、菜单快捷键无重复、
 Escape 不再是菜单快捷键、置顶菜单写入 app-state、渲染进程设置同步、store.json 结构完整、
 取消置顶、`app://` 目录穿越被拦截（403/400）、**`app.quit()` 2ms 内正常退出**。
 
 ```
-pass=14 fail=0
+PASS  BUG-01 点击关闭 → 隐藏到托盘而非退出
+PASS  BUG-01 app.quit() 正常退出（2~4ms）
+PASS  BUG-09 菜单快捷键无重复 / Escape 不再是菜单快捷键
+PASS  BUG-24 resize 防抖落盘 / 关闭时保存窗口状态
+PASS  BUG-26 app:// 目录穿越被拦截（403），正常资源 200
+PASS  BUG-43 置顶写入 app-state.json 且渲染进程同步
 退出码: 0
-BUG-01 app.quit() 正常退出，用时 2ms
 ```
 
 > BUG-01 修复前的行为：`app.quit()` 会被 `close` 处理器 preventDefault，进程常驻，
@@ -381,13 +400,13 @@ BUG-01 app.quit() 正常退出，用时 2ms
 
 ### 复现方式
 
+用例已随仓库落地在 `tests/`，详见 `tests/README.md`：
+
 ```bash
-# 语法检查
-node --check main.js && node --check preload.js
-
-# 逻辑回归（需将 src/js 复制到含 {"type":"module"} 的目录）
-TZ=Asia/Shanghai node store.test.mjs
-
-# 端到端（xvfb）
-SMOKE=smoke-page.js xvfb-run -a ./node_modules/electron/dist/electron . --no-sandbox --user-data-dir=/tmp/bamboo-smoke
+npm test              # 全量：29×4 时区 + 25 组件 + 14 编排 + 62 端到端
+npm run test:logic    # 仅 Node 层，约 2 秒
+npm run test:e2e      # 仅 Electron 端到端（自动使用 xvfb-run）
+SKIP_E2E=1 npm test   # 跳过端到端
 ```
+
+全量结果：`全部 7 个测试任务通过`，退出码 0。

@@ -1,0 +1,6 @@
+{
+  "name": "bamboo-todo",
+  "productName": "Bamboo Todo",
+  "version": "1.0.0",
+  "main": "bootstrap.cjs"
+}

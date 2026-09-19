@@ -6,6 +6,9 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
+    "test": "node tests/run.cjs",
+    "test:logic": "node tests/store.test.mjs && node tests/components.test.mjs && node tests/app.test.mjs",
+    "test:e2e": "node tests/e2e/run.cjs",
     "build": "electron-builder",
     "build:win": "electron-builder --win",
     "build:mac": "electron-builder --mac",

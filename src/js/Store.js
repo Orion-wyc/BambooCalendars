@@ -1,43 +1,189 @@
+import {
+  addDays, addMonths, addYears, advanceToNextWeekday, parseDateKey,
+  startOfToday, toDateKey
+} from './Utils.js';
+
+const BUILTIN_LIST_ID = 'tasks';
+
+const SETTING_KEYS = [
+  'theme', 'mode', 'autoNightMode', 'sideBarHidden', 'requestExitConfirmation',
+  'compactMode', 'sortBy', 'alwaysOnTop', 'checkUpdateOnStartup'
+];
+
+const REPEAT_VALUES = ['none', 'daily', 'weekdays', 'weekly', 'monthly', 'yearly'];
+
+function defaultSettings() {
+  return {
+    theme: 'default',
+    mode: 'normal',
+    autoNightMode: false,
+    sideBarHidden: false,
+    requestExitConfirmation: true,
+    compactMode: false,
+    sortBy: 'created',
+    alwaysOnTop: false,
+    checkUpdateOnStartup: true,
+  };
+}
+
+function defaultData() {
+  return {
+    lists: [
+      { id: BUILTIN_LIST_ID, name: '任务', createdAt: Date.now(), order: 0, builtin: true }
+    ],
+    tasks: [],
+    tags: [],
+    settings: defaultSettings(),
+    stats: { pomodoroDate: '', pomodoroSessions: 0 },
+  };
+}
+
 export class Store {
   constructor() {
-    this.data = {
-      lists: [
-        { id: 'tasks', name: '任务', createdAt: Date.now(), order: 0 }
-      ],
-      tasks: [],
-      tags: [],
-      settings: {
-        theme: 'default',
-        mode: 'normal',
-        autoNightMode: false,
-        sideBarHidden: false,
-        hideCompleted: true,
-        requestExitConfirmation: true,
-        compactMode: false,
-        sortBy: 'created',
-        alwaysOnTop: false,
-      }
-    };
+    this.data = defaultData();
     this.saveTimer = null;
+    this.dirty = false;
+    this.saveError = null;
+    this._idSeq = 0;
   }
 
   async load() {
-    const saved = await window.api.store.read();
-    if (saved) {
-      this.data = saved;
-      if (!this.data.tags) this.data.tags = [];
-      this.data.tasks.forEach(t => {
-        if (t.priority === undefined) t.priority = 4;
-        if (!t.tags) t.tags = [];
+    let saved = null;
+    try {
+      saved = await window.api.store.read();
+    } catch (e) {
+      this.saveError = e.message;
+    }
+    this.data = this.normalize(saved);
+    this.dirty = false;
+    return this.data;
+  }
+
+  normalize(saved) {
+    const base = defaultData();
+    if (!saved || typeof saved !== 'object') return base;
+
+    const lists = Array.isArray(saved.lists) ? saved.lists : [];
+    const normalizedLists = lists
+      .filter(l => l && typeof l === 'object' && l.id)
+      .map((l, index) => ({
+        id: String(l.id),
+        name: typeof l.name === 'string' && l.name ? l.name : '未命名清单',
+        createdAt: Number(l.createdAt) || Date.now(),
+        order: Number.isFinite(l.order) ? l.order : index,
+        builtin: l.id === BUILTIN_LIST_ID,
+      }));
+    if (!normalizedLists.some(l => l.id === BUILTIN_LIST_ID)) {
+      normalizedLists.unshift({
+        id: BUILTIN_LIST_ID, name: '任务', createdAt: Date.now(), order: -1, builtin: true
       });
     }
+
+    const knownListIds = new Set(normalizedLists.map(l => l.id));
+    const tasks = Array.isArray(saved.tasks) ? saved.tasks : [];
+    const seenTaskIds = new Set();
+    const normalizedTasks = [];
+    tasks.forEach(t => {
+      if (!t || typeof t !== 'object' || !t.id) return;
+      const id = String(t.id);
+      if (seenTaskIds.has(id)) return;
+      seenTaskIds.add(id);
+      normalizedTasks.push(this.normalizeTask(t, knownListIds));
+    });
+
+    const tags = Array.isArray(saved.tags) ? saved.tags : [];
+    const normalizedTags = tags
+      .filter(t => t && typeof t === 'object' && t.id)
+      .map(t => ({
+        id: String(t.id),
+        name: String(t.name || '标签'),
+        color: typeof t.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(t.color) ? t.color : '#4a90d9',
+      }));
+    const knownTagIds = new Set(normalizedTags.map(t => t.id));
+    normalizedTasks.forEach(t => {
+      t.tags = t.tags.filter(id => knownTagIds.has(id));
+    });
+
+    const settings = defaultSettings();
+    if (saved.settings && typeof saved.settings === 'object') {
+      SETTING_KEYS.forEach(key => {
+        if (saved.settings[key] !== undefined) settings[key] = saved.settings[key];
+      });
+    }
+
+    const stats = saved.stats && typeof saved.stats === 'object' ? saved.stats : {};
+    return {
+      lists: normalizedLists,
+      tasks: normalizedTasks,
+      tags: normalizedTags,
+      settings,
+      stats: {
+        pomodoroDate: typeof stats.pomodoroDate === 'string' ? stats.pomodoroDate : '',
+        pomodoroSessions: Number.isFinite(stats.pomodoroSessions) ? Math.max(0, stats.pomodoroSessions) : 0,
+      },
+    };
+  }
+
+  normalizeTask(task, knownListIds) {
+    const priority = Number(task.priority);
+    const dueDate = parseDateKey(task.dueDate) ? toDateKey(parseDateKey(task.dueDate)) : null;
+    const subtasks = Array.isArray(task.subtasks) ? task.subtasks : [];
+    return {
+      id: String(task.id),
+      listId: knownListIds && knownListIds.has(task.listId) ? task.listId : BUILTIN_LIST_ID,
+      title: typeof task.title === 'string' && task.title ? task.title : '未命名任务',
+      note: typeof task.note === 'string' ? task.note : '',
+      completed: Boolean(task.completed),
+      completedAt: Number(task.completedAt) || null,
+      important: Boolean(task.important),
+      inMyDay: Boolean(task.inMyDay),
+      priority: priority >= 1 && priority <= 4 ? priority : 4,
+      tags: Array.isArray(task.tags) ? task.tags.filter(id => typeof id === 'string') : [],
+      dueDate,
+      reminder: typeof task.reminder === 'string' && task.reminder ? task.reminder : null,
+      reminderNotified: Boolean(task.reminderNotified),
+      repeat: REPEAT_VALUES.includes(task.repeat) ? task.repeat : 'none',
+      subtasks: subtasks
+        .filter(s => s && typeof s === 'object' && s.id)
+        .map(s => ({
+          id: String(s.id),
+          title: String(s.title || ''),
+          completed: Boolean(s.completed),
+        })),
+      createdAt: Number(task.createdAt) || Date.now(),
+      updatedAt: Number(task.updatedAt) || Number(task.createdAt) || Date.now(),
+      order: Number.isFinite(task.order) ? task.order : 0,
+    };
   }
 
   save() {
-    if (this.saveTimer) clearTimeout(this.saveTimer);
-    this.saveTimer = setTimeout(() => {
-      window.api.store.write(this.data);
-    }, 100);
+    this.dirty = true;
+    this.saveTimer = setTimeout(() => this.flush(), 100);
+  }
+
+  async flush() {
+    if (this.saveTimer) {
+      clearTimeout(this.saveTimer);
+      this.saveTimer = null;
+    }
+    if (!this.dirty) return true;
+    this.dirty = false;
+    try {
+      const result = await window.api.store.write(this.data);
+      if (result && result.ok === false) {
+        this.dirty = true;
+        this.saveError = result.error || '写入失败';
+        console.error('保存失败:', this.saveError);
+        return false;
+      }
+      this.saveError = null;
+      return true;
+    } catch (e) {
+      this.dirty = true;
+      this.saveError = e.message;
+      console.error('保存失败:', e);
+      return false;
+    }
   }
 
   // Lists
@@ -45,12 +191,21 @@ export class Store {
     return [...this.data.lists].sort((a, b) => a.order - b.order);
   }
 
+  getList(id) {
+    return this.data.lists.find(l => l.id === id) || null;
+  }
+
+  isBuiltinList(id) {
+    return id === BUILTIN_LIST_ID;
+  }
+
   createList(name) {
     const list = {
       id: this.generateId(),
       name,
       createdAt: Date.now(),
-      order: this.data.lists.length
+      order: this.data.lists.length,
+      builtin: false,
     };
     this.data.lists.push(list);
     this.save();
@@ -60,16 +215,18 @@ export class Store {
   updateList(id, updates) {
     const list = this.data.lists.find(l => l.id === id);
     if (list) {
-      Object.assign(list, updates);
+      Object.assign(list, this._safeUpdates(updates, ['id', 'builtin', 'createdAt']));
       this.save();
     }
     return list;
   }
 
   deleteList(id) {
+    if (id === BUILTIN_LIST_ID) return false;
     this.data.lists = this.data.lists.filter(l => l.id !== id);
     this.data.tasks = this.data.tasks.filter(t => t.listId !== id);
     this.save();
+    return true;
   }
 
   // Tags
@@ -85,7 +242,7 @@ export class Store {
     const tag = {
       id: this.generateId(),
       name,
-      color: color || '#4a90d9'
+      color: /^#[0-9a-fA-F]{6}$/.test(color || '') ? color : '#4a90d9'
     };
     this.data.tags.push(tag);
     this.save();
@@ -95,7 +252,7 @@ export class Store {
   updateTag(id, updates) {
     const tag = this.data.tags.find(t => t.id === id);
     if (tag) {
-      Object.assign(tag, updates);
+      Object.assign(tag, this._safeUpdates(updates, ['id']));
       this.save();
     }
     return tag;
@@ -104,99 +261,97 @@ export class Store {
   deleteTag(id) {
     this.data.tags = this.data.tags.filter(t => t.id !== id);
     this.data.tasks.forEach(t => {
-      t.tags = t.tags.filter(tagId => tagId !== id);
+      t.tags = (t.tags || []).filter(tagId => tagId !== id);
     });
     this.save();
   }
 
   // Tasks
-  getTasks(filter = {}) {
-    let tasks = [...this.data.tasks];
-
-    if (filter.listId) {
-      tasks = tasks.filter(t => t.listId === filter.listId);
-    }
-
-    if (filter.view === 'my-day') {
-      tasks = tasks.filter(t => t.inMyDay);
-    } else if (filter.view === 'important') {
-      tasks = tasks.filter(t => t.important);
-    } else if (filter.view === 'planned') {
-      tasks = tasks.filter(t => t.dueDate);
-    }
-
-    if (filter.priority) {
-      tasks = tasks.filter(t => t.priority === filter.priority);
-    }
-
-    if (filter.tagId) {
-      tasks = tasks.filter(t => t.tags && t.tags.includes(filter.tagId));
-    }
-
+  _matches(task, filter = {}) {
+    if (filter.listId && task.listId !== filter.listId) return false;
+    if (filter.priority && task.priority !== filter.priority) return false;
+    if (filter.tagId && !(task.tags || []).includes(filter.tagId)) return false;
+    if (filter.completed !== undefined && task.completed !== filter.completed) return false;
     if (filter.search) {
-      const q = filter.search.toLowerCase();
-      tasks = tasks.filter(t =>
-        t.title.toLowerCase().includes(q) ||
-        (t.note && t.note.toLowerCase().includes(q))
-      );
+      const q = String(filter.search).toLowerCase();
+      const inTitle = (task.title || '').toLowerCase().includes(q);
+      const inNote = (task.note || '').toLowerCase().includes(q);
+      if (!inTitle && !inNote) return false;
     }
+    return true;
+  }
 
-    if (filter.completed !== undefined) {
-      tasks = tasks.filter(t => t.completed === filter.completed);
-    }
+  _matchesView(task, view) {
+    if (view === 'my-day') return Boolean(task.inMyDay);
+    if (view === 'important') return Boolean(task.important);
+    if (view === 'planned') return Boolean(task.dueDate);
+    return true;
+  }
 
+  getTasks(filter = {}) {
+    const tasks = this.data.tasks.filter(t =>
+      this._matchesView(t, filter.view) && this._matches(t, filter)
+    );
     return this._sortTasks(tasks, filter.sortBy || this.data.settings.sortBy || 'created');
   }
 
   _sortTasks(tasks, sortBy) {
-    const sorted = [...tasks];
     const cmp = (a, b) => {
       switch (sortBy) {
         case 'priority':
           if (a.priority !== b.priority) return a.priority - b.priority;
           return b.updatedAt - a.updatedAt;
-        case 'dueDate':
-          if (!a.dueDate && !b.dueDate) return b.createdAt - a.createdAt;
-          if (!a.dueDate) return 1;
-          if (!b.dueDate) return -1;
-          return new Date(a.dueDate) - new Date(b.dueDate);
+        case 'dueDate': {
+          const da = parseDateKey(a.dueDate);
+          const db = parseDateKey(b.dueDate);
+          if (!da && !db) return b.createdAt - a.createdAt;
+          if (!da) return 1;
+          if (!db) return -1;
+          return da - db;
+        }
         case 'important':
           if (a.important !== b.important) return a.important ? -1 : 1;
           return b.updatedAt - a.updatedAt;
         case 'alpha':
-          return a.title.localeCompare(b.title, 'zh-CN');
+          return String(a.title).localeCompare(String(b.title), 'zh-CN');
         case 'manual':
-          return (a.order || 0) - (b.order || 0);
+          return (a.order || 0) - (b.order || 0) || a.createdAt - b.createdAt;
         case 'created':
         default:
           return b.createdAt - a.createdAt;
       }
     };
-    return sorted.sort((a, b) => {
+    return [...tasks].sort((a, b) => {
       if (a.completed !== b.completed) return a.completed ? 1 : -1;
       return cmp(a, b);
     });
   }
 
-  createTask(taskData) {
+  _nextOrder() {
+    return this.data.tasks.reduce((max, t) => Math.max(max, t.order || 0), 0) + 1;
+  }
+
+  createTask(taskData = {}) {
+    const now = Date.now();
     const task = {
       id: this.generateId(),
-      listId: taskData.listId || 'tasks',
+      listId: this.getList(taskData.listId) ? taskData.listId : BUILTIN_LIST_ID,
       title: taskData.title,
       note: taskData.note || '',
       completed: false,
       completedAt: null,
-      important: false,
-      inMyDay: false,
-      priority: taskData.priority || 4,
-      tags: taskData.tags || [],
-      dueDate: null,
-      reminder: null,
-      repeat: 'none',
+      important: Boolean(taskData.important),
+      inMyDay: Boolean(taskData.inMyDay),
+      priority: taskData.priority >= 1 && taskData.priority <= 4 ? taskData.priority : 4,
+      tags: Array.isArray(taskData.tags) ? [...taskData.tags] : [],
+      dueDate: parseDateKey(taskData.dueDate) ? toDateKey(parseDateKey(taskData.dueDate)) : null,
+      reminder: taskData.reminder || null,
+      reminderNotified: false,
+      repeat: REPEAT_VALUES.includes(taskData.repeat) ? taskData.repeat : 'none',
       subtasks: [],
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-      order: 0
+      createdAt: now,
+      updatedAt: now,
+      order: this._nextOrder(),
     };
     this.data.tasks.push(task);
     this.save();
@@ -205,11 +360,34 @@ export class Store {
 
   updateTask(id, updates) {
     const task = this.data.tasks.find(t => t.id === id);
-    if (task) {
-      Object.assign(task, updates, { updatedAt: Date.now() });
-      this.save();
+    if (!task) return null;
+    const rest = this._safeUpdates(updates, ['id', 'createdAt']);
+    if (rest.dueDate !== undefined) {
+      const parsed = parseDateKey(rest.dueDate);
+      rest.dueDate = parsed ? toDateKey(parsed) : null;
     }
+    if (rest.priority !== undefined) {
+      rest.priority = rest.priority >= 1 && rest.priority <= 4 ? rest.priority : 4;
+    }
+    if (rest.repeat !== undefined && !REPEAT_VALUES.includes(rest.repeat)) {
+      rest.repeat = 'none';
+    }
+    if (rest.title !== undefined) {
+      const title = String(rest.title).trim();
+      if (!title) return task;
+      rest.title = title;
+    }
+    Object.assign(task, rest, { updatedAt: Date.now() });
+    this.save();
     return task;
+  }
+
+  _safeUpdates(updates, blockedKeys) {
+    const result = {};
+    Object.keys(updates || {}).forEach(key => {
+      if (!blockedKeys.includes(key)) result[key] = updates[key];
+    });
+    return result;
   }
 
   deleteTask(id) {
@@ -219,18 +397,17 @@ export class Store {
 
   toggleComplete(id) {
     const task = this.data.tasks.find(t => t.id === id);
-    if (task) {
-      task.completed = !task.completed;
-      task.completedAt = task.completed ? Date.now() : null;
-      task.updatedAt = Date.now();
+    if (!task) return null;
+    const wasCompleted = task.completed;
+    task.completed = !wasCompleted;
+    task.completedAt = task.completed ? Date.now() : null;
+    task.updatedAt = Date.now();
 
-      if (task.repeat !== 'none' && task.completed && task.dueDate) {
-        const nextTask = this.createNextOccurrence(task);
-        this.data.tasks.push(nextTask);
-      }
-
-      this.save();
+    if (!wasCompleted && task.completed && task.repeat !== 'none') {
+      this.data.tasks.push(this.createNextOccurrence(task));
     }
+
+    this.save();
     return task;
   }
 
@@ -257,7 +434,7 @@ export class Store {
   setPriority(id, priority) {
     const task = this.data.tasks.find(t => t.id === id);
     if (task) {
-      task.priority = priority;
+      task.priority = priority >= 1 && priority <= 4 ? priority : 4;
       task.updatedAt = Date.now();
       this.save();
     }
@@ -267,7 +444,7 @@ export class Store {
   addTagToTask(id, tagId) {
     const task = this.data.tasks.find(t => t.id === id);
     if (task) {
-      if (!task.tags) task.tags = [];
+      if (!Array.isArray(task.tags)) task.tags = [];
       if (!task.tags.includes(tagId)) task.tags.push(tagId);
       task.updatedAt = Date.now();
       this.save();
@@ -285,9 +462,18 @@ export class Store {
     return task;
   }
 
+  toggleTagOnTask(id, tagId) {
+    const task = this.data.tasks.find(t => t.id === id);
+    if (!task) return task;
+    if ((task.tags || []).includes(tagId)) this.removeTagFromTask(id, tagId);
+    else this.addTagToTask(id, tagId);
+    return task;
+  }
+
   addSubtask(taskId, title) {
     const task = this.data.tasks.find(t => t.id === taskId);
     if (task) {
+      if (!Array.isArray(task.subtasks)) task.subtasks = [];
       task.subtasks.push({
         id: this.generateId(),
         title,
@@ -302,7 +488,7 @@ export class Store {
   toggleSubtask(taskId, subtaskId) {
     const task = this.data.tasks.find(t => t.id === taskId);
     if (task) {
-      const subtask = task.subtasks.find(s => s.id === subtaskId);
+      const subtask = (task.subtasks || []).find(s => s.id === subtaskId);
       if (subtask) {
         subtask.completed = !subtask.completed;
         task.updatedAt = Date.now();
@@ -315,11 +501,26 @@ export class Store {
   deleteSubtask(taskId, subtaskId) {
     const task = this.data.tasks.find(t => t.id === taskId);
     if (task) {
-      task.subtasks = task.subtasks.filter(s => s.id !== subtaskId);
+      task.subtasks = (task.subtasks || []).filter(s => s.id !== subtaskId);
       task.updatedAt = Date.now();
       this.save();
     }
     return task;
+  }
+
+  reorderTask(draggedId, targetId) {
+    if (draggedId === targetId) return false;
+    const tasks = this.data.tasks;
+    const draggedIndex = tasks.findIndex(t => t.id === draggedId);
+    const targetIndex = tasks.findIndex(t => t.id === targetId);
+    if (draggedIndex === -1 || targetIndex === -1) return false;
+    const [draggedTask] = tasks.splice(draggedIndex, 1);
+    tasks.splice(targetIndex, 0, draggedTask);
+    tasks.forEach((t, index) => { t.order = index; });
+    const changedSort = this.data.settings.sortBy !== 'manual';
+    if (changedSort) this.data.settings.sortBy = 'manual';
+    this.save();
+    return changedSort;
   }
 
   // Settings
@@ -328,92 +529,111 @@ export class Store {
   }
 
   updateSettings(updates) {
-    Object.assign(this.data.settings, updates);
+    if (!this.data.settings) this.data.settings = defaultSettings();
+    Object.keys(updates || {}).forEach(key => {
+      if (SETTING_KEYS.includes(key)) this.data.settings[key] = updates[key];
+    });
     this.save();
   }
 
   // Helpers
   generateId() {
-    return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+    this._idSeq += 1;
+    return Date.now().toString(36) + this._idSeq.toString(36) +
+      Math.random().toString(36).slice(2, 8);
   }
 
   createNextOccurrence(task) {
-    const nextTask = { ...task };
-    nextTask.id = this.generateId();
-    nextTask.completed = false;
-    nextTask.completedAt = null;
-    nextTask.createdAt = Date.now();
-    nextTask.updatedAt = Date.now();
-    nextTask.subtasks = task.subtasks.map(s => ({ ...s, completed: false }));
-
-    const date = new Date(task.dueDate);
-    switch (task.repeat) {
-      case 'daily':
-        date.setDate(date.getDate() + 1);
-        break;
-      case 'weekdays':
-        do {
-          date.setDate(date.getDate() + 1);
-        } while (date.getDay() === 0 || date.getDay() === 6);
-        break;
-      case 'weekly':
-        date.setDate(date.getDate() + 7);
-        break;
-      case 'monthly':
-        date.setMonth(date.getMonth() + 1);
-        break;
-      case 'yearly':
-        date.setFullYear(date.getFullYear() + 1);
-        break;
+    const base = parseDateKey(task.dueDate) || startOfToday();
+    let date = this._advanceRepeat(base, task.repeat);
+    const today = startOfToday();
+    let guard = 0;
+    while (date <= today && guard < 5000) {
+      date = this._advanceRepeat(date, task.repeat);
+      guard += 1;
     }
-    nextTask.dueDate = date.toISOString().split('T')[0];
 
-    return nextTask;
+    return {
+      ...task,
+      id: this.generateId(),
+      completed: false,
+      completedAt: null,
+      reminderNotified: false,
+      tags: [...(task.tags || [])],
+      subtasks: (task.subtasks || []).map(s => ({ ...s, id: this.generateId(), completed: false })),
+      dueDate: toDateKey(date),
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      order: this._nextOrder(),
+    };
+  }
+
+  _advanceRepeat(date, repeat) {
+    switch (repeat) {
+      case 'daily': return addDays(date, 1);
+      case 'weekdays': return advanceToNextWeekday(date);
+      case 'weekly': return addDays(date, 7);
+      case 'monthly': return addMonths(date, 1);
+      case 'yearly': return addYears(date, 1);
+      default: return addDays(date, 1);
+    }
   }
 
   getCounts() {
     const active = this.data.tasks.filter(t => !t.completed);
-    return {
+    const views = {
       myDay: active.filter(t => t.inMyDay).length,
       important: active.filter(t => t.important).length,
       planned: active.filter(t => t.dueDate).length,
       tasks: active.length,
-      ...this.data.lists.reduce((acc, list) => {
-        acc[list.id] = active.filter(t => t.listId === list.id).length;
-        return acc;
-      }, {})
     };
+    const lists = {};
+    this.data.lists.forEach(list => {
+      lists[list.id] = active.filter(t => t.listId === list.id).length;
+    });
+    return { views, lists };
   }
 
-  getMyDaySuggestions() {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+  getPomodoroSessions() {
+    const today = toDateKey(new Date());
+    if (this.data.stats.pomodoroDate !== today) return 0;
+    return this.data.stats.pomodoroSessions;
+  }
 
+  addPomodoroSession() {
+    const today = toDateKey(new Date());
+    if (!this.data.stats) this.data.stats = { pomodoroDate: '', pomodoroSessions: 0 };
+    if (this.data.stats.pomodoroDate !== today) {
+      this.data.stats.pomodoroDate = today;
+      this.data.stats.pomodoroSessions = 0;
+    }
+    this.data.stats.pomodoroSessions += 1;
+    this.save();
+    return this.data.stats.pomodoroSessions;
+  }
+
+  getMyDaySuggestions(filter = {}) {
+    const today = startOfToday();
     return this.data.tasks.filter(t => {
       if (t.completed || t.inMyDay) return false;
+      if (!this._matches(t, filter)) return false;
       if (t.important) return true;
-      if (t.dueDate) {
-        const due = new Date(t.dueDate);
-        due.setHours(0, 0, 0, 0);
-        if (due <= today) return true;
-      }
-      return false;
+      const due = parseDateKey(t.dueDate);
+      return Boolean(due) && due <= today;
     });
   }
 
-  getPlannedGroups() {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const weekEnd = new Date(today);
-    weekEnd.setDate(weekEnd.getDate() + 7);
-
+  getPlannedGroups(filter = {}) {
+    const today = startOfToday();
+    const tomorrow = addDays(today, 1);
+    const weekEnd = addDays(today, 7);
     const groups = { overdue: [], today: [], tomorrow: [], thisWeek: [], later: [] };
 
-    this.data.tasks.filter(t => !t.completed && t.dueDate).forEach(t => {
-      const due = new Date(t.dueDate);
-      due.setHours(0, 0, 0, 0);
+    this.data.tasks.forEach(t => {
+      if (t.completed || !t.dueDate) return;
+      if (!this._matchesView(t, 'planned') || !this._matches(t, filter)) return;
+      const due = parseDateKey(t.dueDate);
+      if (!due) return;
       if (due < today) groups.overdue.push(t);
       else if (due.getTime() === today.getTime()) groups.today.push(t);
       else if (due.getTime() === tomorrow.getTime()) groups.tomorrow.push(t);
@@ -421,37 +641,51 @@ export class Store {
       else groups.later.push(t);
     });
 
+    const sortBy = filter.sortBy || this.data.settings.sortBy || 'created';
+    Object.keys(groups).forEach(key => {
+      groups[key] = this._sortTasks(groups[key], sortBy === 'manual' ? 'manual' : sortBy);
+    });
     return groups;
   }
 
-  getNext7Days() {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+  getNext7Days(filter = {}) {
+    const today = startOfToday();
     const groups = [];
     for (let i = 0; i < 7; i++) {
-      const day = new Date(today);
-      day.setDate(day.getDate() + i);
-      const key = day.toISOString().split('T')[0];
+      const day = addDays(today, i);
+      const key = toDateKey(day);
       groups.push({
         date: key,
-        label: i === 0 ? '今天' : i === 1 ? '明天' : day.toLocaleDateString('zh-CN', { weekday: 'long', month: 'numeric', day: 'numeric' }),
-        tasks: this.data.tasks.filter(t => !t.completed && t.dueDate === key)
+        label: i === 0
+          ? '今天'
+          : i === 1
+            ? '明天'
+            : day.toLocaleDateString('zh-CN', { weekday: 'long', month: 'numeric', day: 'numeric' }),
+        tasks: this.data.tasks.filter(t =>
+          !t.completed && t.dueDate === key && this._matches(t, filter)
+        ),
       });
     }
     return groups;
   }
 
-  getCalendarTasks(year, month) {
+  getCalendarTasks(year, month, filter = {}) {
     return this.data.tasks.filter(t => {
       if (!t.dueDate) return false;
-      const d = new Date(t.dueDate);
-      return d.getFullYear() === year && d.getMonth() === month;
+      const d = parseDateKey(t.dueDate);
+      if (!d) return false;
+      if (d.getFullYear() !== year || d.getMonth() !== month) return false;
+      return this._matches(t, filter);
     });
+  }
+
+  getTasksByDate(dateKey, filter = {}) {
+    return this.data.tasks.filter(t => t.dueDate === dateKey && this._matches(t, filter));
   }
 
   moveTaskToList(taskId, listId) {
     const task = this.data.tasks.find(t => t.id === taskId);
-    if (task) {
+    if (task && this.getList(listId)) {
       task.listId = listId;
       task.updatedAt = Date.now();
       this.save();
@@ -461,23 +695,25 @@ export class Store {
 
   duplicateTask(taskId) {
     const task = this.data.tasks.find(t => t.id === taskId);
-    if (task) {
-      const dup = {
-        ...task,
-        id: this.generateId(),
-        title: task.title + ' (副本)',
-        completed: false,
-        completedAt: null,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-        subtasks: task.subtasks.map(s => ({ ...s, id: this.generateId(), completed: false })),
-      };
-      this.data.tasks.push(dup);
-      this.save();
-      return dup;
-    }
-    return null;
+    if (!task) return null;
+    const dup = {
+      ...task,
+      id: this.generateId(),
+      title: `${task.title} (副本)`,
+      completed: false,
+      completedAt: null,
+      reminderNotified: false,
+      tags: [...(task.tags || [])],
+      subtasks: (task.subtasks || []).map(s => ({ ...s, id: this.generateId(), completed: false })),
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      order: this._nextOrder(),
+    };
+    this.data.tasks.push(dup);
+    this.save();
+    return dup;
   }
 }
 
 export const store = new Store();
+export { BUILTIN_LIST_ID };

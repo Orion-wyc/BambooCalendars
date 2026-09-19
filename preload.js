@@ -1,32 +1,42 @@
 const { contextBridge, ipcRenderer, webFrame } = require('electron');
 
+const MIN_ZOOM = 0.3;
+const MAX_ZOOM = 3;
+
+function setZoom(factor) {
+  webFrame.setZoomFactor(Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, factor)));
+  return webFrame.getZoomFactor();
+}
+
 contextBridge.exposeInMainWorld('api', {
   store: {
     read: () => ipcRenderer.invoke('store:read'),
     write: (data) => ipcRenderer.invoke('store:write', data),
   },
   themes: {
-    readPresets: () => ipcRenderer.invoke('themes:readPresets'),
     readUser: () => ipcRenderer.invoke('themes:readUser'),
-    writeUser: (data) => ipcRenderer.invoke('themes:writeUser', data),
   },
   notify: (title, body) => ipcRenderer.invoke('notify', { title, body }),
   window: {
-    isMaximized: () => ipcRenderer.invoke('window:isMaximized'),
     show: () => ipcRenderer.invoke('window:show'),
     getPath: (name) => ipcRenderer.invoke('app:getPath', name),
   },
   app: {
     applySetting: (key, value) => ipcRenderer.send('menu:apply-setting', { key, value }),
+    getVersion: () => ipcRenderer.invoke('app:getVersion'),
+    checkUpdate: () => ipcRenderer.invoke('app:checkUpdate'),
+    quit: () => ipcRenderer.invoke('app:quit'),
   },
   zoom: {
     get: () => webFrame.getZoomFactor(),
-    set: (factor) => { webFrame.setZoomFactor(Math.max(0.3, Math.min(3, factor))); },
-    in: () => { const z = webFrame.getZoomFactor(); webFrame.setZoomFactor(Math.min(3, z + 0.1)); },
-    out: () => { const z = webFrame.getZoomFactor(); webFrame.setZoomFactor(Math.max(0.3, z - 0.1)); },
-    reset: () => webFrame.setZoomFactor(1.0),
+    set: (factor) => setZoom(factor),
+    in: () => setZoom(webFrame.getZoomFactor() + 0.1),
+    out: () => setZoom(webFrame.getZoomFactor() - 0.1),
+    reset: () => setZoom(1.0),
   },
   onMenuAction: (callback) => {
-    ipcRenderer.on('menu-action', (_, { action, data }) => callback(action, data));
+    const listener = (_, { action, data }) => callback(action, data);
+    ipcRenderer.on('menu-action', listener);
+    return () => ipcRenderer.removeListener('menu-action', listener);
   },
 });

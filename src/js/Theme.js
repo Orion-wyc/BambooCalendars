@@ -1,18 +1,29 @@
 import { THEME_PRESETS } from '../themes/presets.js';
 
+const NIGHT_START_HOUR = 19;
+const NIGHT_END_HOUR = 7;
+const MODES = ['normal', 'dark', 'black', 'sepia'];
+const MODE_CLASSES = { dark: 'dark-mode', black: 'black-mode', sepia: 'sepia-mode' };
+
 export class Theme {
   constructor() {
     this.currentTheme = 'default';
     this.mode = 'normal';
+    this.userMode = 'normal';
     this.autoNight = false;
+    this.autoApplied = false;
+    this.lastNightState = null;
     this.nightTimer = null;
     this.userThemes = [];
   }
 
   async load() {
     try {
-      this.userThemes = await window.api.themes.readUser();
-    } catch { this.userThemes = []; }
+      const themes = await window.api.themes.readUser();
+      this.userThemes = Array.isArray(themes) ? themes.filter(t => t && t.id && t.colors) : [];
+    } catch {
+      this.userThemes = [];
+    }
   }
 
   getAllThemes() {
@@ -25,8 +36,7 @@ export class Theme {
 
   apply(themeId) {
     const t = this.getTheme(themeId);
-    if (!t) return;
-    this.currentTheme = themeId;
+    this.currentTheme = t.id;
     const { primary, accent, secondary } = t.colors;
     const root = document.documentElement;
     root.style.setProperty('--primary', primary);
@@ -41,84 +51,101 @@ export class Theme {
     root.style.setProperty('--sidebar-bg', primary);
     root.style.setProperty('--header-gradient', `linear-gradient(135deg, ${primary}, ${accent})`);
     root.style.setProperty('--accent-bg', this.hexToRgba(accent, 0.08));
-    this.applyMode(this.mode);
+    this.applyMode(this.mode, false);
   }
 
-  applyMode(mode) {
-    this.mode = mode || 'normal';
+  applyMode(mode, fromUser = true) {
+    const next = MODES.includes(mode) ? mode : 'normal';
+    if (fromUser) {
+      this.userMode = next;
+      this.autoApplied = false;
+    }
+    this.mode = next;
     const root = document.documentElement;
-    root.classList.remove('dark-mode', 'black-mode', 'sepia-mode');
-    if (mode === 'dark') {
-      root.classList.add('dark-mode');
-    } else if (mode === 'black') {
-      root.classList.add('black-mode');
-    } else if (mode === 'sepia') {
-      root.classList.add('sepia-mode');
-    }
-  }
-
-  toggleMode(mode) {
-    if (this.mode === mode) {
-      this.applyMode('normal');
-    } else {
-      this.applyMode(mode);
-    }
+    Object.values(MODE_CLASSES).forEach(cls => root.classList.remove(cls));
+    if (MODE_CLASSES[next]) root.classList.add(MODE_CLASSES[next]);
     return this.mode;
   }
 
-  setAutoNight(enabled) {
-    this.autoNight = enabled;
-    if (this.nightTimer) clearTimeout(this.nightTimer);
-    if (enabled) this._scheduleNightCheck();
+  setUserMode(mode) {
+    const next = MODES.includes(mode) ? mode : 'normal';
+    this.userMode = next;
+    this.applyMode(next, false);
+    return this.mode;
   }
 
-  _scheduleNightCheck() {
-    if (!this.autoNight) return;
-    const h = new Date().getHours();
-    const isNight = h < 7 || h >= 19;
-    if (isNight && this.mode === 'normal') {
-      this.applyMode('dark');
-    } else if (!isNight && this.mode !== 'normal') {
-      this.applyMode('normal');
+  toggleMode(mode) {
+    const target = MODES.includes(mode) ? mode : 'normal';
+    return this.applyMode(this.mode === target ? 'normal' : target);
+  }
+
+  setAutoNight(enabled) {
+    this.autoNight = Boolean(enabled);
+    if (this.nightTimer) {
+      clearInterval(this.nightTimer);
+      this.nightTimer = null;
     }
-    this.nightTimer = setTimeout(() => this._scheduleNightCheck(), 300000);
+    if (!this.autoNight) {
+      if (this.autoApplied) this.applyMode(this.userMode, false);
+      this.autoApplied = false;
+      this.lastNightState = null;
+      return;
+    }
+    this.lastNightState = null;
+    this.refreshAutoNight(true);
+    this.nightTimer = setInterval(() => this.refreshAutoNight(), 60000);
+  }
+
+  isNightTime(now = new Date()) {
+    const h = now.getHours();
+    return h >= NIGHT_START_HOUR || h < NIGHT_END_HOUR;
+  }
+
+  refreshAutoNight(force = false) {
+    if (!this.autoNight) return;
+    const isNight = this.isNightTime();
+    if (!force && isNight === this.lastNightState) return;
+    this.lastNightState = isNight;
+    const darken = isNight && this.userMode === 'normal';
+    const target = darken ? 'dark' : this.userMode;
+    if (this.mode !== target) {
+      this.applyMode(target, false);
+      this.autoApplied = darken;
+    }
+  }
+
+  normalizeHex(hex) {
+    const raw = String(hex || '').trim().replace('#', '');
+    const expanded = raw.length === 3 ? raw.split('').map(c => c + c).join('') : raw;
+    if (!/^[0-9a-fA-F]{6}$/.test(expanded)) return null;
+    return parseInt(expanded, 16);
   }
 
   lighten(hex, percent) {
-    const num = parseInt(hex.replace('#', ''), 16);
-    const amt = Math.round(2.55 * percent);
-    const R = Math.min(255, (num >> 16) + amt);
-    const G = Math.min(255, ((num >> 8) & 0x00FF) + amt);
-    const B = Math.min(255, (num & 0x0000FF) + amt);
-    return `#${(0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1)}`;
+    return this.shift(hex, percent, 255);
   }
 
   darken(hex, percent) {
-    const num = parseInt(hex.replace('#', ''), 16);
+    return this.shift(hex, -percent, 0);
+  }
+
+  shift(hex, percent, clampTarget) {
+    const num = this.normalizeHex(hex);
+    if (num === null) return typeof hex === 'string' ? hex : '#000000';
     const amt = Math.round(2.55 * percent);
-    const R = Math.max(0, (num >> 16) - amt);
-    const G = Math.max(0, ((num >> 8) & 0x00FF) - amt);
-    const B = Math.max(0, (num & 0x0000FF) - amt);
+    const clamp = (value) => (amt >= 0
+      ? Math.min(clampTarget, value + amt)
+      : Math.max(clampTarget, value + amt));
+    const R = clamp((num >> 16) & 0xFF);
+    const G = clamp((num >> 8) & 0xFF);
+    const B = clamp(num & 0xFF);
     return `#${(0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1)}`;
   }
 
   hexToRgba(hex, alpha) {
-    const num = parseInt(hex.replace('#', ''), 16);
-    const R = (num >> 16) & 255;
-    const G = (num >> 8) & 255;
-    const B = num & 255;
-    return `rgba(${R}, ${G}, ${B}, ${alpha})`;
-  }
-
-  async saveUserTheme(t) {
-    const idx = this.userThemes.findIndex(u => u.id === t.id);
-    if (idx >= 0) this.userThemes[idx] = t; else this.userThemes.push(t);
-    await window.api.themes.writeUser(this.userThemes);
-  }
-
-  async deleteUserTheme(id) {
-    this.userThemes = this.userThemes.filter(u => u.id !== id);
-    await window.api.themes.writeUser(this.userThemes);
+    const num = this.normalizeHex(hex);
+    if (num === null) return `rgba(0, 0, 0, ${alpha})`;
+    return `rgba(${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}, ${alpha})`;
   }
 }
 

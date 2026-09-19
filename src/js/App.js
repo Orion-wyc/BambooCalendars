@@ -6,6 +6,11 @@ import { TaskList } from './TaskList.js';
 import { TaskDetail } from './TaskDetail.js';
 import { Settings } from './Settings.js';
 import { Pomodoro } from './Pomodoro.js';
+import { parseDateTimeLocal } from './Utils.js';
+
+const REMINDER_WINDOW_MS = 60 * 1000;
+const REMINDER_MISSED_GRACE_MS = 10 * 60 * 1000;
+const AUTOSAVE_INTERVAL_MS = 30 * 1000;
 
 class App {
   constructor() {
@@ -17,17 +22,22 @@ class App {
   }
 
   async init() {
-    await store.load();
+    try {
+      await store.load();
+    } catch (e) {
+      this.showFatalError(e);
+      return;
+    }
     await theme.load();
 
     const settings = store.getSettings();
     theme.apply(settings.theme);
     theme.applyMode(settings.mode || 'normal');
-    theme.setAutoNight(!!settings.autoNightMode);
+    theme.setAutoNight(Boolean(settings.autoNightMode));
 
-    if (settings.sideBarHidden) {
-      document.documentElement.classList.add('side-bar-hidden');
-    }
+    const root = document.documentElement;
+    root.classList.toggle('side-bar-hidden', Boolean(settings.sideBarHidden));
+    root.classList.toggle('compact-mode', Boolean(settings.compactMode));
 
     this.sidebar = new Sidebar();
     this.taskList = new TaskList();
@@ -39,17 +49,32 @@ class App {
     this.bindMenuActions();
     this.bindKeyboard();
     this.setupReminderChecker();
+    this.bindLifecycle();
+
+    if (store.saveError) {
+      console.warn('数据读取异常:', store.saveError);
+    }
+  }
+
+  showFatalError(error) {
+    const root = document.getElementById('app');
+    if (!root) return;
+    root.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">⚠</div>
+        <div class="empty-state-title">数据加载失败</div>
+        <div class="empty-state-desc">${error && error.message ? error.message : error}</div>
+      </div>
+    `;
   }
 
   bindEvents() {
     eventBus.on('view:change', ({ view, listId }) => {
       this.taskList.setView(view, listId);
-      if (view === 'pomodoro') {
-        if (!this.pomodoro.visible) this.pomodoro.toggle();
-      } else if (this.pomodoro.visible) {
-        this.pomodoro.toggle();
-      }
+      if (view === 'pomodoro') this.pomodoro.show();
+      else this.pomodoro.hide();
     });
+
     eventBus.on('search:change', (query) => {
       this.taskList.setSearch(query);
     });
@@ -58,37 +83,60 @@ class App {
       this.sidebar.update();
     });
 
-    eventBus.on('task:update', () => {
+    eventBus.on('task:update', (taskId) => {
       this.sidebar.update();
       this.taskList.render();
+      this.taskDetail.refreshIfShowing(taskId);
     });
 
-    eventBus.on('task:delete', () => {
+    eventBus.on('task:deleted', (taskId) => {
+      if (this.taskList.selectedTaskId === taskId) {
+        this.taskList.selectedTaskId = null;
+      }
       this.sidebar.update();
-      this.taskList.render();
-    });
-
-    eventBus.on('list:create', () => {
-      this.sidebar.update();
-    });
-
-    eventBus.on('list:update', () => {
-      this.taskList.render();
-    });
-
-    eventBus.on('list:delete', () => {
       this.taskList.render();
     });
 
     eventBus.on('task:deselect', () => {
+      this.taskList.clearSelection();
+    });
+
+    eventBus.on('list:create', () => {
+      this.sidebar.update();
+      this.taskList.render();
+    });
+
+    eventBus.on('list:update', () => {
+      this.sidebar.update();
+      this.taskList.render();
+      this.taskDetail.refreshIfShowing(this.taskDetail.currentTaskId);
+    });
+
+    eventBus.on('list:delete', () => {
       this.taskList.selectedTaskId = null;
+      this.sidebar.update();
+      this.taskList.render();
+    });
+
+    eventBus.on('tag:delete', (tagId) => {
+      if (this.taskList.filterTagId === tagId) this.taskList.setTagFilter(tagId);
+      this.taskList.render();
+      this.taskDetail.refreshIfShowing(this.taskDetail.currentTaskId);
+    });
+
+    eventBus.on('settings:changed', () => {
+      this.sidebar.update();
       this.taskList.render();
     });
   }
 
   bindMenuActions() {
     window.api.onMenuAction((action, data) => {
-      this.handleAction(action, data);
+      try {
+        this.handleAction(action, data);
+      } catch (e) {
+        console.error('菜单动作执行失败:', action, e);
+      }
     });
   }
 
@@ -122,16 +170,16 @@ class App {
         this.taskList.toggleCompleteSelected();
         break;
       case 'add-my-day':
-        this.taskDetail.toggleMyDay();
+        this.taskList.toggleMyDaySelected();
         break;
       case 'toggle-important':
         this.taskList.toggleImportantSelected();
         break;
       case 'set-reminder':
-        this.taskDetail.focusReminder();
+        this.taskDetail.focusReminder(this.taskList.selectedTaskId);
         break;
       case 'add-due-date':
-        this.taskDetail.focusDueDate();
+        this.taskDetail.focusDueDate(this.taskList.selectedTaskId);
         break;
       case 'my-day':
         this.sidebar.jumpToView('my-day');
@@ -146,7 +194,7 @@ class App {
         this.sidebar.jumpToView('tasks');
         break;
       case 'jump-list':
-        this.sidebar.jumpToList(data);
+        this.sidebar.jumpToList(Number(data));
         break;
       case 'next-list':
         this.sidebar.nextList();
@@ -155,7 +203,7 @@ class App {
         this.sidebar.prevList();
         break;
       case 'return':
-        this.taskDetail.close();
+        this.dismissOverlays();
         break;
       case 'settings':
         this.settings.open();
@@ -164,11 +212,10 @@ class App {
         this.toggleSidebar();
         break;
       case 'always-on-top':
-        store.updateSettings({ alwaysOnTop: data });
+        store.updateSettings({ alwaysOnTop: Boolean(data) });
         break;
       case 'toggle-mode':
-        const mode = theme.toggleMode(data);
-        store.updateSettings({ mode });
+        this.applyMode(theme.toggleMode(data));
         break;
       case 'zoom-in':
         window.api.zoom.in();
@@ -186,23 +233,42 @@ class App {
         this.toggleCompact();
         break;
       case 'compact-mode':
-        document.documentElement.classList.toggle('compact-mode', data);
+        document.documentElement.classList.toggle('compact-mode', Boolean(data));
         break;
       case 'auto-night':
-        theme.setAutoNight(data);
-        store.updateSettings({ autoNightMode: data });
+        theme.setAutoNight(Boolean(data));
+        store.updateSettings({ autoNightMode: Boolean(data), mode: theme.userMode });
         break;
       case 'popup-new-todo':
-        this.taskList.focusInput();
-        window.api.window.show();
+        window.api.window.show().then(() => this.taskList.focusInput());
         break;
       case 'popup-search':
-        this.sidebar.focusSearch();
-        window.api.window.show();
+        window.api.window.show().then(() => this.sidebar.focusSearch());
         break;
       default:
         break;
     }
+  }
+
+  applyMode(mode) {
+    theme.setUserMode(mode);
+    store.updateSettings({ mode });
+  }
+
+  dismissOverlays() {
+    if (this.settings.isOpen) {
+      this.settings.close();
+      return true;
+    }
+    if (this.taskList.contextMenu) {
+      this.taskList.closeContextMenu();
+      return true;
+    }
+    if (this.taskDetail.isOpen()) {
+      this.taskDetail.close();
+      return true;
+    }
+    return false;
   }
 
   toggleSidebar() {
@@ -216,81 +282,140 @@ class App {
     window.api.app.applySetting('compactMode', enabled);
   }
 
+  isEditableTarget(target) {
+    if (!target || !target.closest) return false;
+    return Boolean(target.closest('input, textarea, select, [contenteditable="true"]'));
+  }
+
   bindKeyboard() {
     document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        if (!this.isEditableTarget(e.target)) this.dismissOverlays();
+        return;
+      }
+
       const mod = e.ctrlKey || e.metaKey;
-      if (!mod) return;
+      if (!mod || e.altKey) return;
+      if (this.isEditableTarget(e.target)) return;
+      if (!e.key) return;
 
       const key = e.key.toLowerCase();
 
       if (e.shiftKey) {
         switch (key) {
-          case 'h': this.taskList.toggleHideCompleted(); e.preventDefault(); return;
-          case 'n': this.taskList.toggleCompleteSelected(); e.preventDefault(); return;
-          case 'd': this.sidebar.deleteCurrentList(); e.preventDefault(); return;
-          case 't': this.taskDetail.focusDueDate(); e.preventDefault(); return;
-          case 'e': this.taskDetail.focusReminder(); e.preventDefault(); return;
-          case 'm': this.sidebar.jumpToView('my-day'); e.preventDefault(); return;
-          case 'i': this.sidebar.jumpToView('important'); e.preventDefault(); return;
-          case 'p': this.sidebar.jumpToView('planned'); e.preventDefault(); return;
-          case 'a': this.sidebar.jumpToView('tasks'); e.preventDefault(); return;
+          case 'h': this.taskList.toggleHideCompleted(); break;
+          case 'n': this.taskList.toggleCompleteSelected(); break;
+          case 'd': this.sidebar.deleteCurrentList(); break;
+          case 'y': this.sidebar.renameCurrentList(); break;
+          case 't': this.taskDetail.focusDueDate(this.taskList.selectedTaskId); break;
+          case 'e': this.taskDetail.focusReminder(this.taskList.selectedTaskId); break;
+          case 'm': this.sidebar.jumpToView('my-day'); break;
+          case 'i': this.sidebar.jumpToView('important'); break;
+          case 'p': this.sidebar.jumpToView('planned'); break;
+          case 'a': this.sidebar.jumpToView('tasks'); break;
+          case 'g': this.applyMode(theme.toggleMode('normal')); break;
+          case 'j': this.toggleCompact(); break;
+          case 'o': this.toggleAlwaysOnTop(); break;
+          case 'tab': this.sidebar.prevList(); break;
+          default: return;
         }
+        e.preventDefault();
+        return;
       }
 
       switch (key) {
-        case 'f': this.sidebar.focusSearch(); e.preventDefault(); return;
-        case 'n': this.taskList.focusInput(); e.preventDefault(); return;
-        case 'd': this.taskList.deleteSelectedTask(); e.preventDefault(); return;
-        case 't': this.taskList.renameSelectedTask(); e.preventDefault(); return;
-        case 'l': this.sidebar.addList(); e.preventDefault(); return;
-        case 'y': this.sidebar.renameCurrentList(); e.preventDefault(); return;
-        case 'k': this.taskDetail.toggleMyDay(); e.preventDefault(); return;
-        case 'i': this.taskList.toggleImportantSelected(); e.preventDefault(); return;
-        case 'o': this.toggleSidebar(); e.preventDefault(); return;
-        case ',': this.settings.open(); e.preventDefault(); return;
-        case 'h': theme.toggleMode('dark'); store.updateSettings({ mode: theme.mode }); e.preventDefault(); return;
-        case 'b': theme.toggleMode('black'); store.updateSettings({ mode: theme.mode }); e.preventDefault(); return;
-        case 'g': theme.toggleMode('sepia'); store.updateSettings({ mode: theme.mode }); e.preventDefault(); return;
-        case '0': window.api.zoom.reset(); e.preventDefault(); return;
-        case '-': window.api.zoom.out(); e.preventDefault(); return;
+        case 'f': this.sidebar.focusSearch(); break;
+        case 'n': this.taskList.focusInput(); break;
+        case 'd': this.taskList.deleteSelectedTask(); break;
+        case 't': this.taskList.renameSelectedTask(); break;
+        case 'l': this.sidebar.addList(); break;
+        case 'k': this.taskList.toggleMyDaySelected(); break;
+        case 'i': this.taskList.toggleImportantSelected(); break;
+        case 'o': this.toggleSidebar(); break;
+        case ',': this.settings.open(); break;
+        case 'h': this.applyMode(theme.toggleMode('dark')); break;
+        case 'b': this.applyMode(theme.toggleMode('black')); break;
+        case 'g': this.applyMode(theme.toggleMode('sepia')); break;
+        case '0': window.api.zoom.reset(); break;
+        case '-': window.api.zoom.out(); break;
         case '=':
-        case '+': window.api.zoom.in(); e.preventDefault(); return;
-        case 'tab':
-          e.preventDefault();
-          if (e.shiftKey) this.sidebar.prevList();
-          else this.sidebar.nextList();
-          return;
+        case '+': window.api.zoom.in(); break;
+        case 'tab': this.sidebar.nextList(); break;
+        default: {
+          const n = parseInt(key, 10);
+          if (Number.isNaN(n) || n < 1 || n > 9) return;
+          this.sidebar.jumpToList(n - 1);
+          break;
+        }
       }
-
-      const n = parseInt(key, 10);
-      if (n > 0 && n < 10) {
-        this.sidebar.jumpToList(n - 1);
-        e.preventDefault();
-      }
+      e.preventDefault();
     });
+  }
+
+  toggleAlwaysOnTop() {
+    const enabled = !store.getSettings().alwaysOnTop;
+    store.updateSettings({ alwaysOnTop: enabled });
+    window.api.app.applySetting('alwaysOnTop', enabled);
+  }
+
+  bindLifecycle() {
+    const flush = () => { store.flush(); };
+    window.addEventListener('pagehide', flush);
+    window.addEventListener('beforeunload', flush);
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) flush();
+    });
+    setInterval(() => {
+      if (store.dirty) store.flush();
+    }, AUTOSAVE_INTERVAL_MS);
   }
 
   setupReminderChecker() {
-    setInterval(() => this.checkReminders(), 60000);
+    this.checkReminders();
+    setInterval(() => this.checkReminders(), REMINDER_WINDOW_MS);
   }
 
   checkReminders() {
-    const now = new Date();
-    store.data.tasks.filter(t => !t.completed && t.reminder).forEach(task => {
-      const reminderTime = new Date(task.reminder);
-      const diff = reminderTime - now;
-      if (diff > 0 && diff < 60000) {
-        window.api.notify('任务提醒', `${task.title} - ${this.formatReminder(task)}`);
+    const now = Date.now();
+    let changed = false;
+
+    store.data.tasks.forEach(task => {
+      if (task.completed || !task.reminder || task.reminderNotified) return;
+      const when = parseDateTimeLocal(task.reminder);
+      if (!when) {
+        task.reminderNotified = true;
+        changed = true;
+        return;
       }
+      const diff = when.getTime() - now;
+      if (diff > REMINDER_WINDOW_MS) return;
+
+      if (diff > 0) {
+        this.notifyReminder(task, when, false);
+      } else if (-diff <= REMINDER_MISSED_GRACE_MS) {
+        this.notifyReminder(task, when, true);
+      }
+      task.reminderNotified = true;
+      changed = true;
     });
+
+    if (changed) store.save();
   }
 
-  formatReminder(task) {
-    return new Date(task.reminder).toLocaleString('zh-CN', {
+  notifyReminder(task, when, missed) {
+    const timeText = when.toLocaleString('zh-CN', {
       month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'
     });
+    window.api.notify(
+      missed ? '任务提醒（已错过）' : '任务提醒',
+      `${task.title} - ${timeText}`
+    );
   }
 }
 
 const app = new App();
-app.init();
+app.init().catch(e => {
+  console.error('应用初始化失败:', e);
+});
+
+export { app };

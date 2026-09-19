@@ -1,6 +1,7 @@
-const { app, BrowserWindow, ipcMain, Notification, protocol, net, Menu, Tray, globalShortcut } = require('electron');
+const { app, BrowserWindow, ipcMain, Notification, protocol, net, Menu, Tray, globalShortcut, screen } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { pathToFileURL } = require('url');
 
 protocol.registerSchemesAsPrivileged([
   { scheme: 'app', privileges: { secure: true, standard: true, supportFetchAPI: true } }
@@ -9,9 +10,14 @@ protocol.registerSchemesAsPrivileged([
 const DATA_DIR = path.join(app.getPath('userData'), 'data');
 const STORE_PATH = path.join(DATA_DIR, 'store.json');
 const USER_THEMES_PATH = path.join(DATA_DIR, 'user-themes.json');
+const WINDOW_STATE_PATH = path.join(DATA_DIR, 'window-state.json');
+const APP_STATE_PATH = path.join(DATA_DIR, 'app-state.json');
+const UPDATE_API = 'https://api.github.com/repos/Orion-wyc/BambooCalendars/releases/latest';
 
 let mainWindow = null;
 let tray = null;
+let isQuitting = false;
+let saveWindowStateTimer = null;
 
 function ensureDataDir() {
   if (!fs.existsSync(DATA_DIR)) {
@@ -21,12 +27,16 @@ function ensureDataDir() {
 
 function readJSON(filePath, fallback) {
   try {
-    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    const parsed = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    return parsed && typeof parsed === 'object' ? parsed : fallback;
   } catch { return fallback; }
 }
 
 function writeJSON(filePath, data) {
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+  ensureDataDir();
+  const tmpPath = `${filePath}.tmp`;
+  fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2), 'utf8');
+  fs.renameSync(tmpPath, filePath);
 }
 
 function send(action, data) {
@@ -36,32 +46,64 @@ function send(action, data) {
 }
 
 function applyCompactMode(window, compact) {
-  if (!window) return;
+  if (!window || window.isDestroyed()) return;
   try {
     window.webContents.send('menu-action', { action: 'compact-mode', data: compact });
   } catch {}
 }
 
-function checkUpdate() {
-  const { net } = require('electron');
-  const request = net.request('https://api.github.com/repos/Orion-wyc/BambooCalendars/releases/latest');
-  request.setHeader('User-Agent', 'BambooCalendars');
+function readAppState() {
+  const state = readJSON(APP_STATE_PATH, null);
+  if (state) return state;
+  const settings = readJSON(STORE_PATH, {}).settings || {};
+  return {
+    alwaysOnTop: Boolean(settings.alwaysOnTop),
+    compactMode: Boolean(settings.compactMode),
+    requestExitConfirmation: settings.requestExitConfirmation !== false,
+    checkUpdateOnStartup: settings.checkUpdateOnStartup !== false,
+  };
+}
+
+function writeAppState(patch) {
+  writeJSON(APP_STATE_PATH, { ...readAppState(), ...patch });
+}
+
+function compareVersions(a, b) {
+  const pa = String(a).replace(/^v/i, '').split('.').map(n => parseInt(n, 10) || 0);
+  const pb = String(b).replace(/^v/i, '').split('.').map(n => parseInt(n, 10) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const diff = (pa[i] || 0) - (pb[i] || 0);
+    if (diff !== 0) return diff > 0 ? 1 : -1;
+  }
+  return 0;
+}
+
+function checkUpdate(silent) {
+  const request = net.request(UPDATE_API);
+  request.setHeader('User-Agent', 'Bamboo Todo');
   request.on('response', (res) => {
     let body = '';
     res.on('data', (chunk) => { body += chunk; });
     res.on('end', () => {
       try {
         const release = JSON.parse(body);
-        if (release.tag_name && release.tag_name !== 'v1.0.0') {
+        if (!release.tag_name) return;
+        if (compareVersions(release.tag_name, app.getVersion()) > 0) {
           new Notification({
             title: '发现新版本',
             body: `Bamboo Todo ${release.tag_name} 已发布，请前往 GitHub 查看更新`
           }).show();
+        } else if (!silent) {
+          new Notification({ title: '检查更新', body: `当前 ${app.getVersion()} 已是最新版本` }).show();
         }
-      } catch {}
+      } catch {
+        if (!silent) new Notification({ title: '检查更新', body: '无法解析版本信息' }).show();
+      }
     });
   });
-  request.on('error', () => {});
+  request.on('error', () => {
+    if (!silent) new Notification({ title: '检查更新', body: '网络请求失败' }).show();
+  });
   request.end();
 }
 
@@ -75,10 +117,10 @@ function createMenu() {
         {
           label: '清单', submenu: [
             { label: '新建清单', accelerator: 'CmdOrCtrl+L', click: () => send('new-list') },
-            { label: '重命名清单', accelerator: 'CmdOrCtrl+Y', click: () => send('rename-list') },
+            { label: '重命名清单', accelerator: 'CmdOrCtrl+Shift+Y', click: () => send('rename-list') },
             { label: '删除清单', accelerator: 'CmdOrCtrl+Shift+D', click: () => send('delete-list') },
             { type: 'separator' },
-            { label: '隐藏已完成任务', accelerator: 'CmdOrCtrl+Shift+H', click: () => send('hide-completed') },
+            { label: '折叠/展开已完成任务', accelerator: 'CmdOrCtrl+Shift+H', click: () => send('hide-completed') },
           ]
         },
         {
@@ -109,11 +151,11 @@ function createMenu() {
             })),
           ]
         },
-        { label: '返回待办', accelerator: 'Escape', click: () => send('return') },
+        { label: '返回待办', click: () => send('return') },
         { type: 'separator' },
         { label: '设置', accelerator: 'CmdOrCtrl+,', click: () => send('settings') },
         { type: 'separator' },
-        { label: '退出', accelerator: process.platform === 'darwin' ? 'Cmd+Q' : 'Alt+F4', click: () => app.quit() },
+        { label: '退出', accelerator: process.platform === 'darwin' ? 'Cmd+Q' : 'Alt+F4', click: () => quitApp() },
       ]
     },
     {
@@ -136,7 +178,7 @@ function createMenu() {
             { label: '深色主题', accelerator: 'CmdOrCtrl+H', click: () => send('toggle-mode', 'dark') },
             { label: '黑色主题', accelerator: 'CmdOrCtrl+B', click: () => send('toggle-mode', 'black') },
             { label: '棕褐色主题', accelerator: 'CmdOrCtrl+G', click: () => send('toggle-mode', 'sepia') },
-            { label: '正常模式', accelerator: 'CmdOrCtrl+Shift+N', click: () => send('toggle-mode', 'normal') },
+            { label: '正常模式', accelerator: 'CmdOrCtrl+Shift+G', click: () => send('toggle-mode', 'normal') },
           ]
         },
         { type: 'separator' },
@@ -148,20 +190,24 @@ function createMenu() {
         { label: '上一个清单', accelerator: 'CmdOrCtrl+Shift+Tab', click: () => send('prev-list') },
         { type: 'separator' },
         { label: '切换侧边栏', accelerator: 'CmdOrCtrl+O', click: () => send('toggle-sidebar') },
-        { label: '紧凑模式', accelerator: 'CmdOrCtrl+Shift+M', click: () => send('toggle-compact') },
+        { label: '紧凑模式', accelerator: 'CmdOrCtrl+Shift+J', click: () => send('toggle-compact') },
         {
-          label: '始终置顶', type: 'checkbox', accelerator: 'CmdOrCtrl+Shift+P',
+          label: '始终置顶', id: 'always-on-top', type: 'checkbox', accelerator: 'CmdOrCtrl+Shift+O',
+          checked: Boolean(readAppState().alwaysOnTop),
           click: (item) => {
-            mainWindow.setAlwaysOnTop(item.checked);
-            const data = readJSON(STORE_PATH, { settings: {} });
-            if (!data.settings) data.settings = {};
-            data.settings.alwaysOnTop = item.checked;
-            writeJSON(STORE_PATH, data);
-            mainWindow.webContents.send('menu-action', { action: 'always-on-top', data: item.checked });
+            writeAppState({ alwaysOnTop: item.checked });
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.setAlwaysOnTop(item.checked);
+            }
+            send('always-on-top', item.checked);
           }
         },
         { label: '全屏', accelerator: process.platform === 'darwin' ? 'Ctrl+Command+F' : 'F11',
-          click: () => mainWindow.setFullScreen(!mainWindow.isFullScreen()) },
+          click: () => {
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.setFullScreen(!mainWindow.isFullScreen());
+            }
+          } },
       ]
     },
     {
@@ -174,7 +220,7 @@ function createMenu() {
     {
       label: '帮助',
       submenu: [
-        { label: '检查更新', click: () => checkUpdate() },
+        { label: '检查更新', click: () => checkUpdate(false) },
         { label: '关于 Bamboo Todo', click: () => send('about') },
         { type: 'separator' },
         { role: 'toggleDevTools', label: '开发者工具' },
@@ -200,23 +246,35 @@ function createMenu() {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
+function quitApp() {
+  isQuitting = true;
+  app.quit();
+}
+
+function toggleWindowVisibility() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (mainWindow.isVisible()) {
+    mainWindow.hide();
+  } else {
+    mainWindow.show();
+    mainWindow.focus();
+  }
+}
+
 function createTray() {
-  const iconPath = path.join(__dirname, 'assets', 'icons', 'icon.png');
+  const iconPath = path.join(__dirname, 'assets', 'icons', process.platform === 'win32' ? 'icon.ico' : 'icon@32.png');
   try {
     tray = new Tray(iconPath);
     tray.setToolTip('Bamboo Todo');
     tray.setContextMenu(Menu.buildFromTemplate([
-      { label: '显示窗口', click: () => { mainWindow.show(); mainWindow.focus(); } },
-      { label: '退出', click: () => app.quit() },
-    ]));
-    tray.on('click', () => {
-      if (mainWindow.isVisible()) {
-        mainWindow.hide();
-      } else {
+      { label: '显示窗口', click: () => {
+        if (!mainWindow || mainWindow.isDestroyed()) return;
         mainWindow.show();
         mainWindow.focus();
-      }
-    });
+      } },
+      { label: '退出', click: () => quitApp() },
+    ]));
+    tray.on('click', () => toggleWindowVisibility());
   } catch (e) {
     console.warn('无法创建托盘:', e.message);
   }
@@ -226,36 +284,51 @@ function setupGlobalShortcuts() {
   try {
     globalShortcut.register('CmdOrCtrl+Alt+C', () => send('popup-new-todo'));
     globalShortcut.register('CmdOrCtrl+Alt+F', () => send('popup-search'));
-    globalShortcut.register('CmdOrCtrl+Alt+A', () => {
-      if (mainWindow.isVisible()) {
-        mainWindow.hide();
-      } else {
-        mainWindow.show();
-        mainWindow.focus();
-      }
-    });
-  } catch (e) {}
+    globalShortcut.register('CmdOrCtrl+Alt+A', () => toggleWindowVisibility());
+  } catch (e) {
+    console.warn('全局快捷键注册失败:', e.message);
+  }
 }
 
 function saveWindowState() {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   try {
     const bounds = mainWindow.getBounds();
-    writeJSON(path.join(DATA_DIR, 'window-state.json'), {
+    writeJSON(WINDOW_STATE_PATH, {
       x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height,
       isMaximized: mainWindow.isMaximized(),
     });
   } catch {}
 }
 
+function saveWindowStateDebounced() {
+  if (saveWindowStateTimer) clearTimeout(saveWindowStateTimer);
+  saveWindowStateTimer = setTimeout(() => {
+    saveWindowStateTimer = null;
+    saveWindowState();
+  }, 500);
+}
+
+function isInsideSomeDisplay(bounds) {
+  if (typeof bounds.x !== 'number' || typeof bounds.y !== 'number') return false;
+  return screen.getAllDisplays().some(d => {
+    const { x, y, width, height } = d.workArea;
+    return bounds.x >= x - 100 && bounds.y >= y - 50 &&
+      bounds.x + 100 < x + width && bounds.y + 50 < y + height;
+  });
+}
+
 function restoreWindowState() {
-  const state = readJSON(path.join(DATA_DIR, 'window-state.json'), {});
+  const state = readJSON(WINDOW_STATE_PATH, {});
+  const width = Math.max(900, Number(state.width) || 1200);
+  const height = Math.max(600, Number(state.height) || 800);
+  const visible = isInsideSomeDisplay({ x: state.x, y: state.y, width, height });
   return {
-    width: state.width || 1200,
-    height: state.height || 800,
-    x: state.x,
-    y: state.y,
-    isMaximized: state.isMaximized || false,
+    width,
+    height,
+    x: visible ? state.x : undefined,
+    y: visible ? state.y : undefined,
+    isMaximized: Boolean(state.isMaximized),
   };
 }
 
@@ -277,20 +350,19 @@ function createWindow() {
     }
   });
 
+  const appState = readAppState();
+
+  mainWindow.webContents.once('dom-ready', () => {
+    if (appState.compactMode) applyCompactMode(mainWindow, true);
+    if (appState.checkUpdateOnStartup) checkUpdate(true);
+  });
+
   mainWindow.loadURL('app://./index.html');
   createMenu();
 
-  // Apply saved settings
-  const data = readJSON(STORE_PATH, { settings: {} });
-  if (data.settings && data.settings.alwaysOnTop) {
+  if (appState.alwaysOnTop) {
     mainWindow.setAlwaysOnTop(true);
   }
-  if (data.settings && data.settings.compactMode) {
-    applyCompactMode(mainWindow, true);
-  }
-
-  // Check for updates on startup
-  checkUpdate();
 
   if (state.isMaximized) {
     mainWindow.maximize();
@@ -302,51 +374,69 @@ function createWindow() {
   }
 
   mainWindow.on('close', (e) => {
+    if (saveWindowStateTimer) {
+      clearTimeout(saveWindowStateTimer);
+      saveWindowStateTimer = null;
+    }
     saveWindowState();
-    const data = readJSON(STORE_PATH, { settings: {} });
-    if (data.settings && data.settings.requestExitConfirmation !== false) {
+    if (isQuitting) return;
+    const canMinimize = process.platform === 'darwin' ? Boolean(tray) : true;
+    if (readAppState().requestExitConfirmation && canMinimize) {
       e.preventDefault();
       mainWindow.hide();
+    } else {
+      isQuitting = true;
     }
   });
 
-  mainWindow.on('resize', () => saveWindowState());
-  mainWindow.on('move', () => saveWindowState());
+  mainWindow.on('resize', saveWindowStateDebounced);
+  mainWindow.on('move', saveWindowStateDebounced);
 
-  mainWindow.on('closed', () => { mainWindow = null; });
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+    if (tray) {
+      tray.destroy();
+      tray = null;
+    }
+  });
 }
 
 function setupIPC() {
   ipcMain.handle('store:read', () => readJSON(STORE_PATH, null));
-  ipcMain.handle('store:write', (_, data) => { writeJSON(STORE_PATH, data); return true; });
-  ipcMain.handle('themes:readPresets', () => {
-    const presetsPath = path.join(__dirname, 'src', 'themes', 'presets.js');
+  ipcMain.handle('store:write', (_, data) => {
     try {
-      const content = fs.readFileSync(presetsPath, 'utf8');
-      const match = content.match(/export\s+const\s+THEME_PRESETS\s*=\s*(\[[\s\S]*?\]);/);
-      if (match) {
-        return JSON.parse(match[1].replace(/'/g, '"').replace(/,\s*]/g, ']').replace(/(\w+):/g, '"$1":'));
-      }
-    } catch {}
-    return [];
+      writeJSON(STORE_PATH, data);
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
   });
   ipcMain.handle('themes:readUser', () => readJSON(USER_THEMES_PATH, []));
-  ipcMain.handle('themes:writeUser', (_, data) => { writeJSON(USER_THEMES_PATH, data); return true; });
-  ipcMain.handle('notify', (_, { title, body }) => { new Notification({ title, body }).show(); return true; });
-  ipcMain.handle('window:isMaximized', () => mainWindow && mainWindow.isMaximized());
-  ipcMain.handle('window:show', () => { if (mainWindow) { mainWindow.show(); mainWindow.focus(); } });
-  ipcMain.handle('app:getPath', (_, name) => app.getPath(name));
+  ipcMain.handle('notify', (_, { title, body }) => {
+    if (Notification.isSupported()) new Notification({ title, body }).show();
+    return true;
+  });
+  ipcMain.handle('window:show', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  });
+  ipcMain.handle('app:getVersion', () => app.getVersion());
+  ipcMain.handle('app:getPath', (_, name) => {
+    const allowed = ['userData', 'temp', 'desktop', 'documents', 'downloads'];
+    return allowed.includes(name) ? app.getPath(name) : null;
+  });
+  ipcMain.handle('app:checkUpdate', () => { checkUpdate(false); return true; });
+  ipcMain.handle('app:quit', () => { quitApp(); return true; });
 
   ipcMain.on('menu:apply-setting', (_, { key, value }) => {
-    const data = readJSON(STORE_PATH, { settings: {} });
-    if (!data.settings) data.settings = {};
-    data.settings[key] = value;
-    writeJSON(STORE_PATH, data);
-    if (key === 'alwaysOnTop' && mainWindow) {
-      mainWindow.setAlwaysOnTop(Boolean(value));
-    }
-    if (key === 'compactMode') {
-      applyCompactMode(mainWindow, Boolean(value));
+    const allowed = ['alwaysOnTop', 'compactMode', 'requestExitConfirmation', 'checkUpdateOnStartup'];
+    if (!allowed.includes(key)) return;
+    writeAppState({ [key]: Boolean(value) });
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      if (key === 'alwaysOnTop') mainWindow.setAlwaysOnTop(Boolean(value));
+      if (key === 'compactMode') applyCompactMode(mainWindow, Boolean(value));
     }
   });
 }
@@ -354,23 +444,41 @@ function setupIPC() {
 app.whenReady().then(() => {
   ensureDataDir();
   setupIPC();
+  const srcDir = path.join(__dirname, 'src');
   protocol.handle('app', (request) => {
     const { pathname } = new URL(request.url);
-    const filePath = path.join(__dirname, 'src', pathname.replace(/^\//, ''));
-    return net.fetch('file://' + filePath);
+    let decoded;
+    try {
+      decoded = decodeURIComponent(pathname);
+    } catch {
+      return new Response('Bad Request', { status: 400 });
+    }
+    const filePath = path.join(srcDir, decoded.replace(/^\//, ''));
+    const relative = path.relative(srcDir, filePath);
+    if (relative.startsWith('..') || path.isAbsolute(relative)) {
+      return new Response('Forbidden', { status: 403 });
+    }
+    return net.fetch(pathToFileURL(filePath).toString());
   });
   createWindow();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
-    else if (mainWindow) { mainWindow.show(); mainWindow.focus(); }
+    else if (mainWindow && !mainWindow.isDestroyed()) { mainWindow.show(); mainWindow.focus(); }
   });
 });
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
+  if (process.platform !== 'darwin') quitApp();
 });
 
 app.on('before-quit', () => {
+  isQuitting = true;
   globalShortcut.unregisterAll();
+  if (saveWindowStateTimer) {
+    clearTimeout(saveWindowStateTimer);
+    saveWindowStateTimer = null;
+  }
   saveWindowState();
 });
+
+app.on('will-quit', () => globalShortcut.unregisterAll());

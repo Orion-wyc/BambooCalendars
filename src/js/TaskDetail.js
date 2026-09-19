@@ -1,29 +1,61 @@
 import { store } from './Store.js';
 import { eventBus } from './EventBus.js';
+import { escapeHtml } from './Utils.js';
 
 export class TaskDetail {
   constructor() {
     this.currentTaskId = null;
+    this.selfUpdating = false;
     this.panel = document.getElementById('detail-panel');
     this.bindEvents();
   }
 
+  isOpen() {
+    return Boolean(this.currentTaskId) && !this.panel.classList.contains('hidden');
+  }
+
   open(taskId) {
+    if (!taskId || !store.data.tasks.some(t => t.id === taskId)) return;
     this.currentTaskId = taskId;
     this.panel.classList.remove('hidden');
     this.render();
   }
 
   close() {
+    if (!this.currentTaskId) return;
     this.currentTaskId = null;
     this.panel.classList.add('hidden');
+    this.panel.innerHTML = '';
     eventBus.emit('task:deselect');
   }
 
-  render() {
+  getTask() {
+    if (!this.currentTaskId) return null;
+    return store.data.tasks.find(t => t.id === this.currentTaskId) || null;
+  }
+
+  emitUpdate(taskId) {
+    this.selfUpdating = true;
+    try {
+      eventBus.emit('task:update', taskId);
+    } finally {
+      this.selfUpdating = false;
+    }
+  }
+
+  refreshIfShowing(taskId) {
+    if (this.selfUpdating) return;
     if (!this.currentTaskId) return;
-    
-    const task = store.data.tasks.find(t => t.id === this.currentTaskId);
+    if (taskId && taskId !== this.currentTaskId) return;
+    if (!this.getTask()) {
+      this.close();
+      return;
+    }
+    this.render();
+  }
+
+  render() {
+    const task = this.getTask();
     if (!task) {
       this.close();
       return;
@@ -31,24 +63,25 @@ export class TaskDetail {
 
     const lists = store.getLists();
     const subtaskProgress = this.getSubtaskProgress(task);
+    const completedSubtasks = task.subtasks.filter(s => s.completed).length;
 
     this.panel.innerHTML = `
       <div class="detail-header">
         <div class="detail-title">任务详情</div>
-        <button class="btn-close-detail" id="btn-close-detail">✕</button>
+        <button class="btn-close-detail" data-action="close-detail">✕</button>
       </div>
       <div class="detail-content">
         <div class="detail-section">
-          <input type="text" class="detail-input" id="detail-title" value="${this.escapeHtml(task.title)}" placeholder="任务标题">
+          <input type="text" class="detail-input" id="detail-title" value="${escapeHtml(task.title)}" placeholder="任务标题">
         </div>
 
         <div class="detail-section">
           <div class="detail-section-title">备注</div>
-          <textarea class="detail-textarea" id="detail-note" placeholder="添加备注...">${this.escapeHtml(task.note || '')}</textarea>
+          <textarea class="detail-textarea" id="detail-note" placeholder="添加备注...">${escapeHtml(task.note || '')}</textarea>
         </div>
 
         <div class="detail-section">
-          <div class="detail-toggle" id="toggle-myday">
+          <div class="detail-toggle" data-action="toggle-myday">
             <span>添加到我的一天</span>
             <div class="toggle-switch ${task.inMyDay ? 'active' : ''}"></div>
           </div>
@@ -58,9 +91,9 @@ export class TaskDetail {
           <div class="detail-section-title">优先级</div>
           <div class="priority-selector">
             ${[1, 2, 3, 4].map(p => `
-              <div class="priority-option ${task.priority === p ? 'active' : ''}" data-priority="${p}">
+              <div class="priority-option ${task.priority === p ? 'active' : ''}" data-action="set-priority" data-priority="${p}">
                 <span class="priority-flag" style="background:${this.priorityColor(p)}"></span>
-                <span class="priority-label">${p === 1 ? '紧急' : p === 2 ? '高' : p === 3 ? '中' : '低'}</span>
+                <span class="priority-label">${this.priorityLabel(p)}</span>
               </div>
             `).join('')}
           </div>
@@ -70,35 +103,32 @@ export class TaskDetail {
           <div class="detail-section-title">标签</div>
           <div class="tag-selector">
             ${store.getTags().map(t => `
-              <div class="tag-option ${(task.tags || []).includes(t.id) ? 'active' : ''}" data-tag-id="${t.id}">
-                <span class="tag-dot" style="background:${t.color}"></span>
-                <span class="tag-label">${this.escapeHtml(t.name)}</span>
+              <div class="tag-option ${(task.tags || []).includes(t.id) ? 'active' : ''}" data-action="toggle-tag" data-tag-id="${escapeHtml(t.id)}">
+                <span class="tag-dot" style="background:${escapeHtml(t.color)}"></span>
+                <span class="tag-label">${escapeHtml(t.name)}</span>
               </div>
             `).join('')}
-            ${store.getTags().length === 0 ? '<div style="font-size:12px;color:var(--text-muted);">暂无标签，请在设置中添加</div>' : ''}
+            ${store.getTags().length === 0 ? '<div style="font-size:12px;color:var(--text-muted);">暂无标签，请在设置的「标签」页中添加</div>' : ''}
           </div>
         </div>
 
         <div class="detail-section">
           <div class="detail-field">
             <div class="detail-field-label">截止日期</div>
-            <input type="date" class="detail-input" id="detail-due-date" value="${task.dueDate || ''}">
+            <input type="date" class="detail-input" id="detail-due-date" value="${escapeHtml(task.dueDate || '')}">
           </div>
 
           <div class="detail-field">
             <div class="detail-field-label">提醒</div>
-            <input type="datetime-local" class="detail-input" id="detail-reminder" value="${task.reminder || ''}">
+            <input type="datetime-local" class="detail-input" id="detail-reminder" value="${escapeHtml(task.reminder || '')}">
           </div>
 
           <div class="detail-field">
             <div class="detail-field-label">重复</div>
             <select class="detail-select" id="detail-repeat">
-              <option value="none" ${task.repeat === 'none' ? 'selected' : ''}>不重复</option>
-              <option value="daily" ${task.repeat === 'daily' ? 'selected' : ''}>每天</option>
-              <option value="weekdays" ${task.repeat === 'weekdays' ? 'selected' : ''}>工作日</option>
-              <option value="weekly" ${task.repeat === 'weekly' ? 'selected' : ''}>每周</option>
-              <option value="monthly" ${task.repeat === 'monthly' ? 'selected' : ''}>每月</option>
-              <option value="yearly" ${task.repeat === 'yearly' ? 'selected' : ''}>每年</option>
+              ${[['none', '不重复'], ['daily', '每天'], ['weekdays', '工作日'], ['weekly', '每周'], ['monthly', '每月'], ['yearly', '每年']]
+                .map(([value, label]) => `<option value="${value}" ${task.repeat === value ? 'selected' : ''}>${label}</option>`)
+                .join('')}
             </select>
           </div>
 
@@ -106,7 +136,7 @@ export class TaskDetail {
             <div class="detail-field-label">清单</div>
             <select class="detail-select" id="detail-list">
               ${lists.map(list => `
-                <option value="${list.id}" ${task.listId === list.id ? 'selected' : ''}>${this.escapeHtml(list.name)}</option>
+                <option value="${escapeHtml(list.id)}" ${task.listId === list.id ? 'selected' : ''}>${escapeHtml(list.name)}</option>
               `).join('')}
             </select>
           </div>
@@ -114,7 +144,7 @@ export class TaskDetail {
 
         <div class="detail-section">
           <div class="detail-section-title">
-            步骤 ${task.subtasks.length > 0 ? `(${task.subtasks.filter(s => s.completed).length}/${task.subtasks.length})` : ''}
+            步骤 ${task.subtasks.length > 0 ? `(${completedSubtasks}/${task.subtasks.length})` : ''}
           </div>
           ${subtaskProgress > 0 ? `
             <div class="subtask-progress">
@@ -124,18 +154,18 @@ export class TaskDetail {
           <div class="subtask-list">
             ${task.subtasks.map(subtask => `
               <div class="subtask-item ${subtask.completed ? 'completed' : ''}">
-                <div class="subtask-checkbox ${subtask.completed ? 'checked' : ''}" 
-                     data-action="toggle-subtask" data-subtask-id="${subtask.id}">
+                <div class="subtask-checkbox ${subtask.completed ? 'checked' : ''}"
+                     data-action="toggle-subtask" data-subtask-id="${escapeHtml(subtask.id)}">
                   ${subtask.completed ? '✓' : ''}
                 </div>
-                <div class="subtask-title">${this.escapeHtml(subtask.title)}</div>
-                <button class="btn-delete-subtask" data-action="delete-subtask" data-subtask-id="${subtask.id}">✕</button>
+                <div class="subtask-title">${escapeHtml(subtask.title)}</div>
+                <button class="btn-delete-subtask" data-action="delete-subtask" data-subtask-id="${escapeHtml(subtask.id)}">✕</button>
               </div>
             `).join('')}
           </div>
           <div class="add-subtask-wrapper">
             <input type="text" class="add-subtask-input" id="add-subtask-input" placeholder="添加步骤...">
-            <button class="btn-add-subtask" id="btn-add-subtask">+</button>
+            <button class="btn-add-subtask" data-action="add-subtask">+</button>
           </div>
         </div>
 
@@ -147,191 +177,168 @@ export class TaskDetail {
       </div>
 
       <div class="detail-footer">
-        <button class="btn-delete-task" id="btn-delete-task">删除任务</button>
+        <button class="btn-delete-task" data-action="delete-task">删除任务</button>
       </div>
     `;
-
-    this.bindDetailEvents();
   }
 
-  bindDetailEvents() {
-    // Close button
-    document.getElementById('btn-close-detail').addEventListener('click', () => {
-      this.close();
-    });
-
-    // Title
-    document.getElementById('detail-title').addEventListener('change', (e) => {
-      const title = e.target.value.trim();
-      if (title) {
-        store.updateTask(this.currentTaskId, { title });
-        eventBus.emit('task:update');
-      }
-    });
-
-    // Note
-    document.getElementById('detail-note').addEventListener('change', (e) => {
-      store.updateTask(this.currentTaskId, { note: e.target.value });
-    });
-
-    // My Day toggle
-    document.getElementById('toggle-myday').addEventListener('click', () => {
-      store.toggleMyDay(this.currentTaskId);
-      this.render();
-      eventBus.emit('task:update');
-    });
-
-    // Due date
-    document.getElementById('detail-due-date').addEventListener('change', (e) => {
-      store.updateTask(this.currentTaskId, { dueDate: e.target.value || null });
-      eventBus.emit('task:update');
-    });
-
-    // Reminder
-    document.getElementById('detail-reminder').addEventListener('change', (e) => {
-      store.updateTask(this.currentTaskId, { reminder: e.target.value || null });
-    });
-
-    // Repeat
-    document.getElementById('detail-repeat').addEventListener('change', (e) => {
-      store.updateTask(this.currentTaskId, { repeat: e.target.value });
-    });
-
-    // List
-    document.getElementById('detail-list').addEventListener('change', (e) => {
-      store.updateTask(this.currentTaskId, { listId: e.target.value });
-      eventBus.emit('task:update');
-    });
-
-    // Priority
-    this.panel.querySelectorAll('.priority-option').forEach(el => {
-      el.addEventListener('click', () => {
-        const p = parseInt(el.dataset.priority, 10);
-        store.setPriority(this.currentTaskId, p);
-        this.render();
-        eventBus.emit('task:update');
-      });
-    });
-
-    // Tags
-    this.panel.querySelectorAll('.tag-option').forEach(el => {
-      el.addEventListener('click', () => {
-        const tagId = el.dataset.tagId;
-        const task = store.data.tasks.find(t => t.id === this.currentTaskId);
-        if (task && (task.tags || []).includes(tagId)) {
-          store.removeTagFromTask(this.currentTaskId, tagId);
-        } else {
-          store.addTagToTask(this.currentTaskId, tagId);
-        }
-        this.render();
-        eventBus.emit('task:update');
-      });
-    });
-
-    // Subtasks
-    this.panel.addEventListener('click', (e) => {
-      const action = e.target.dataset.action;
-      const subtaskId = e.target.dataset.subtaskId;
-
-      if (action === 'toggle-subtask') {
-        store.toggleSubtask(this.currentTaskId, subtaskId);
-        this.render();
-        eventBus.emit('task:update');
-      } else if (action === 'delete-subtask') {
-        store.deleteSubtask(this.currentTaskId, subtaskId);
-        this.render();
-        eventBus.emit('task:update');
-      }
-    });
-
-    // Add subtask
-    document.getElementById('btn-add-subtask').addEventListener('click', () => {
-      this.addSubtask();
-    });
-
-    document.getElementById('add-subtask-input').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
+  bindEvents() {
+    this.panel.addEventListener('click', (e) => this.handleClick(e));
+    this.panel.addEventListener('change', (e) => this.handleChange(e));
+    this.panel.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && e.target.id === 'add-subtask-input') {
+        e.preventDefault();
         this.addSubtask();
       }
     });
 
-    // Delete task
-    document.getElementById('btn-delete-task').addEventListener('click', () => {
-      if (confirm('确定删除此任务？')) {
-        store.deleteTask(this.currentTaskId);
-        this.close();
-        eventBus.emit('task:delete');
-      }
+    eventBus.on('task:select', (taskId) => this.open(taskId));
+    eventBus.on('task:deselect', () => this.close());
+    eventBus.on('task:deleted', (taskId) => {
+      if (this.currentTaskId === taskId) this.close();
     });
+    eventBus.on('list:delete', () => {
+      const task = this.getTask();
+      if (!task) this.close();
+      else this.render();
+    });
+  }
+
+  handleClick(e) {
+    const target = e.target.closest('[data-action]');
+    if (!target || !this.panel.contains(target)) return;
+    const action = target.dataset.action;
+    const task = this.getTask();
+    if (!task && action !== 'close-detail') return;
+
+    switch (action) {
+      case 'close-detail':
+        this.close();
+        break;
+      case 'toggle-myday':
+        store.toggleMyDay(task.id);
+        this.render();
+        this.emitUpdate(task.id);
+        break;
+      case 'set-priority':
+        store.setPriority(task.id, parseInt(target.dataset.priority, 10));
+        this.render();
+        this.emitUpdate(task.id);
+        break;
+      case 'toggle-tag':
+        store.toggleTagOnTask(task.id, target.dataset.tagId);
+        this.render();
+        this.emitUpdate(task.id);
+        break;
+      case 'toggle-subtask':
+        store.toggleSubtask(task.id, target.dataset.subtaskId);
+        this.render();
+        this.emitUpdate(task.id);
+        break;
+      case 'delete-subtask':
+        store.deleteSubtask(task.id, target.dataset.subtaskId);
+        this.render();
+        this.emitUpdate(task.id);
+        break;
+      case 'add-subtask':
+        this.addSubtask();
+        break;
+      case 'delete-task':
+        this.deleteCurrentTask();
+        break;
+      default:
+        break;
+    }
+  }
+
+  handleChange(e) {
+    const task = this.getTask();
+    if (!task) return;
+
+    switch (e.target.id) {
+      case 'detail-title': {
+        const title = e.target.value.trim();
+        if (!title) {
+          e.target.value = task.title;
+          return;
+        }
+        store.updateTask(task.id, { title });
+        this.emitUpdate(task.id);
+        break;
+      }
+      case 'detail-note':
+        store.updateTask(task.id, { note: e.target.value });
+        this.emitUpdate(task.id);
+        break;
+      case 'detail-due-date':
+        store.updateTask(task.id, { dueDate: e.target.value || null });
+        this.emitUpdate(task.id);
+        break;
+      case 'detail-reminder':
+        store.updateTask(task.id, { reminder: e.target.value || null, reminderNotified: false });
+        this.emitUpdate(task.id);
+        break;
+      case 'detail-repeat':
+        store.updateTask(task.id, { repeat: e.target.value });
+        this.emitUpdate(task.id);
+        break;
+      case 'detail-list':
+        store.updateTask(task.id, { listId: e.target.value });
+        this.emitUpdate(task.id);
+        break;
+      default:
+        break;
+    }
   }
 
   addSubtask() {
     const input = document.getElementById('add-subtask-input');
+    if (!input) return;
     const title = input.value.trim();
-    if (title) {
-      store.addSubtask(this.currentTaskId, title);
-      input.value = '';
-      this.render();
-      eventBus.emit('task:update');
-    }
+    if (!title || !this.currentTaskId) return;
+    store.addSubtask(this.currentTaskId, title);
+    this.render();
+    const next = document.getElementById('add-subtask-input');
+    if (next) next.focus();
+    this.emitUpdate(this.currentTaskId);
+  }
+
+  deleteCurrentTask() {
+    const task = this.getTask();
+    if (!task) return;
+    if (!confirm(`确定删除任务"${task.title}"？`)) return;
+    const id = task.id;
+    this.currentTaskId = null;
+    this.panel.classList.add('hidden');
+    this.panel.innerHTML = '';
+    store.deleteTask(id);
+    eventBus.emit('task:deleted', id);
   }
 
   getSubtaskProgress(task) {
-    if (task.subtasks.length === 0) return 0;
+    if (!task.subtasks.length) return 0;
     const completed = task.subtasks.filter(s => s.completed).length;
     return (completed / task.subtasks.length) * 100;
   }
 
-  toggleMyDay() {
-    if (!this.currentTaskId) {
-      const first = document.querySelector('.task-item');
-      if (first) {
-        const taskId = first.dataset.taskId;
-        if (taskId) {
-          store.toggleMyDay(taskId);
-          eventBus.emit('task:update');
-        }
-      }
-      return;
-    }
-    store.toggleMyDay(this.currentTaskId);
-    if (this.panel.classList.contains('hidden')) {
-      eventBus.emit('task:update');
-    } else {
-      this.render();
-      eventBus.emit('task:update');
-    }
-  }
-
-  focusReminder() {
-    if (!this.currentTaskId) return;
-    this.open(this.currentTaskId);
-    const input = document.getElementById('detail-reminder');
+  focusField(taskId, fieldId) {
+    const id = taskId || this.currentTaskId;
+    if (!id) return;
+    this.open(id);
+    const input = document.getElementById(fieldId);
     if (input) input.focus();
   }
 
-  focusDueDate() {
-    if (!this.currentTaskId) return;
-    this.open(this.currentTaskId);
-    const input = document.getElementById('detail-due-date');
-    if (input) input.focus();
+  focusReminder(taskId) {
+    this.focusField(taskId, 'detail-reminder');
   }
 
-  bindEvents() {
-    eventBus.on('task:select', (taskId) => {
-      this.open(taskId);
-    });
-
-    eventBus.on('task:deselect', () => {
-      this.close();
-    });
+  focusDueDate(taskId) {
+    this.focusField(taskId, 'detail-due-date');
   }
 
-  escapeHtml(text) {
-    if (text === null || text === undefined) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+  priorityLabel(p) {
+    return { 1: '紧急', 2: '高', 3: '中', 4: '低' }[p] || '低';
   }
 
   priorityColor(p) {

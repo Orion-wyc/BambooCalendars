@@ -494,6 +494,10 @@ html.side-bar-hidden #sidebar {
   color: var(--accent);
 }
 
+.task-due-date.tomorrow {
+  color: var(--text-secondary);
+}
+
 .task-actions {
   display: flex;
   gap: 4px;
@@ -1177,6 +1181,15 @@ mark {
   color: white;
 }
 
+.context-menu-item.disabled {
+  color: var(--text-muted);
+  cursor: default;
+}
+
+.context-menu-item.disabled:hover {
+  background: transparent;
+}
+
 .context-menu-icon {
   width: 20px;
   margin-right: 10px;
@@ -1649,6 +1662,15 @@ html.compact-mode .task-item {
 
 .cal-cell.has-tasks {
   background: var(--bg-panel);
+}
+
+.cal-cell[data-date] {
+  cursor: pointer;
+}
+
+.cal-cell.selected {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
 }
 
 .cal-day-num {

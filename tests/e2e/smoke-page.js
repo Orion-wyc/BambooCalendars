@@ -265,6 +265,38 @@
       $('.detail-content').scrollTop);
     app.taskDetail.close();
 
+    // ---- BUG-52 删除步骤保持滚动位置 ----
+    const delTask = store.createTask({ title: '删除步骤滚动' });
+    for (let i = 1; i <= 20; i++) store.addSubtask(delTask.id, `步骤${i}`);
+    app.taskDetail.open(delTask.id);
+    await sleep(150);
+    $('.detail-content').scrollTop = 300;
+    await sleep(80);
+    const beforeDelete = $('.detail-content').scrollTop;
+    const deleteButtons = $$('[data-action="delete-subtask"]');
+    ok('BUG-52 步骤删除按钮已渲染', deleteButtons.length === 20, deleteButtons.length);
+    deleteButtons[3].click();
+    await sleep(150);
+    ok('BUG-52 删除步骤后保持滚动位置', $('.detail-content').scrollTop === beforeDelete,
+      `${beforeDelete} → ${$('.detail-content').scrollTop}`);
+    ok('BUG-52 删除后焦点落到相邻步骤按钮',
+      document.activeElement && document.activeElement.dataset
+        && document.activeElement.dataset.action === 'delete-subtask',
+      document.activeElement && document.activeElement.tagName);
+
+    const scroller2 = $('.detail-content');
+    scroller2.scrollTop = scroller2.scrollHeight;
+    await sleep(80);
+    const tail = $$('[data-action="delete-subtask"]');
+    tail[tail.length - 1].click();
+    await sleep(150);
+    const scroller3 = $('.detail-content');
+    const maxAfter = scroller3.scrollHeight - scroller3.clientHeight;
+    ok('BUG-52 贴底删除最后一步仍贴底（跟随内容缩短）',
+      Math.abs(scroller3.scrollTop - maxAfter) <= 2, `${scroller3.scrollTop}/${maxAfter}`);
+    app.taskDetail.close();
+    await sleep(50);
+
     // ---- BUG-50 番茄钟时长可配置 ----
     app.settings.open();
     await sleep(80);

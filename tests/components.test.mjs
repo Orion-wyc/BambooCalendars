@@ -521,4 +521,54 @@ test('BUG-50 休息阶段使用休息时长', () => {
   store.updateSettings({ pomodoroWorkMinutes: 25, pomodoroBreakMinutes: 5 });
 });
 
+test('BUG-52 删除步骤保持滚动位置并把焦点交给相邻步骤', () => {
+  const holder = createElement('div');
+  holder.innerHTML = '<div id="detail-panel" class="hidden"></div>';
+  const detail = new TaskDetail();
+  const task = store.createTask({ title: '删除步骤' });
+  ['a', 'b', 'c', 'd'].forEach(name => store.addSubtask(task.id, name));
+  detail.open(task.id);
+
+  detail.panel.querySelector('.detail-content').scrollTop = 220;
+  const buttons = detail.panel.querySelectorAll('[data-action="delete-subtask"]');
+  assert.equal(buttons.length, 4);
+
+  detail.panel.dispatch('click', clickEvent(buttons[1]));
+
+  assert.equal(store.data.tasks.find(t => t.id === task.id).subtasks.length, 3);
+  assert.equal(detail.panel.querySelector('.detail-content').scrollTop, 220, '删除步骤后应保持滚动位置');
+  const remaining = detail.panel.querySelectorAll('[data-action="delete-subtask"]');
+  assert.equal(remaining.length, 3);
+  assert.equal(document.activeElement, remaining[1], '焦点应落到下一个步骤的删除按钮');
+});
+
+test('BUG-52 删除最后一个步骤后焦点落到步骤输入框', () => {
+  const holder = createElement('div');
+  holder.innerHTML = '<div id="detail-panel" class="hidden"></div>';
+  const detail = new TaskDetail();
+  const task = store.createTask({ title: '仅剩一步' });
+  store.addSubtask(task.id, '唯一步骤');
+  detail.open(task.id);
+
+  const only = detail.panel.querySelector('[data-action="delete-subtask"]');
+  detail.panel.dispatch('click', clickEvent(only));
+
+  assert.equal(store.data.tasks.find(t => t.id === task.id).subtasks.length, 0);
+  assert.equal(document.activeElement, document.getElementById('add-subtask-input'));
+});
+
+test('BUG-52 切换任务时详情面板回到顶部', () => {
+  const holder = createElement('div');
+  holder.innerHTML = '<div id="detail-panel" class="hidden"></div>';
+  const detail = new TaskDetail();
+  const a = store.createTask({ title: '任务甲' });
+  const b = store.createTask({ title: '任务乙' });
+  detail.open(a.id);
+  detail.panel.querySelector('.detail-content').scrollTop = 300;
+  detail.render();
+  assert.equal(detail.panel.querySelector('.detail-content').scrollTop, 300);
+  detail.open(b.id);
+  assert.equal(detail.panel.querySelector('.detail-content').scrollTop, 0);
+});
+
 process.exit(await run() ? 1 : 0);

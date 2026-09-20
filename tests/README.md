@@ -23,7 +23,7 @@ tests/
 │   ├── runner.mjs       # 极简测试运行器（注册 / 执行 / 汇总 / 退出码）
 │   └── fakedom.mjs      # 假 DOM 与 window.api mock
 ├── store.test.mjs       # Store / Utils 纯逻辑回归（30 项 × 4 时区）
-├── components.test.mjs  # 组件层回归，基于假 DOM（35 项）
+├── components.test.mjs  # 组件层回归，基于假 DOM（38 项）
 ├── app.test.mjs         # App 编排层：快捷键、提醒、事件流（14 项）
 └── e2e/
     ├── run.cjs          # 启动 Electron 子进程、收集结果、判定退出
@@ -52,6 +52,9 @@ tests/
 - **`src/package.json`**：内容为 `{"type": "module"}`，让 Node 直接把 `src/js/*.js` 当 ES Module 加载，
   从而无需打包或复制即可测试真实源码；根目录 `package.json` 不带 `type` 字段，
   `main.js` / `preload.js` 仍是 CommonJS，Electron 主进程不受影响。
+- **真实点击必须校验命中**：`sendInputEvent` 用的是视口坐标，目标若在可视区外，点击会落空但
+  "滚动位置未变"照样成立，形成假阳性。端到端用例先 `scrollIntoView`，再用
+  `document.elementFromPoint` 断言坐标处确实是目标元素，然后才断言业务结果。
 - **输入法路径必须走真实事件**：`components.test.mjs` 用合成事件对象覆盖 `isComposing`/`keyCode 229`
   分支，`e2e/smoke-page.js` 派发真实 `CompositionEvent`，`e2e/bootstrap.cjs` 再用
   `webContents.sendInputEvent` 走 Chromium 输入管道逐字符键入。仅靠脚本给 `input.value` 赋值

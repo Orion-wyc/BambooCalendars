@@ -67,6 +67,52 @@ async function inputChecks(win) {
   ok('BUG-47 创建后输入框清空可继续输入', last.input === '', JSON.stringify(last));
 }
 
+async function realClickDeleteChecks(win) {
+  const js = (code) => win.webContents.executeJavaScript(code, true);
+  const box = await js(`(async () => {
+    const { app } = await import('app://./js/App.js');
+    const { store } = await import('app://./js/Store.js');
+    app.taskDetail.close();
+    const t = store.createTask({ title: '真实点击删除' });
+    for (let i = 1; i <= 20; i++) store.addSubtask(t.id, '步骤' + i);
+    app.taskDetail.open(t.id);
+    await new Promise(r => setTimeout(r, 200));
+    document.querySelector('.detail-content').scrollTop = 300;
+    await new Promise(r => setTimeout(r, 150));
+    const btn = document.querySelectorAll('[data-action="delete-subtask"]')[6];
+    btn.scrollIntoView({ block: 'center' });
+    await new Promise(r => setTimeout(r, 200));
+    const r = btn.getBoundingClientRect();
+    return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2),
+             inView: r.top >= 0 && r.bottom <= window.innerHeight && r.width > 0,
+             before: document.querySelector('.detail-content').scrollTop };
+  })()`);
+  ok('BUG-52 真实点击目标位于可视区内', box.inView, JSON.stringify(box));
+
+  win.focus();
+  win.webContents.focus();
+  win.webContents.sendInputEvent({ type: 'mouseMove', x: box.x, y: box.y });
+  await sleep(80);
+  const hit = await js(`(() => {
+    const el = document.elementFromPoint(${box.x}, ${box.y});
+    if (!el) return 'null';
+    return el.dataset && el.dataset.action ? el.dataset.action : (el.className || el.tagName);
+  })()`);
+  win.webContents.sendInputEvent({ type: 'mouseDown', x: box.x, y: box.y, button: 'left', clickCount: 1 });
+  win.webContents.sendInputEvent({ type: 'mouseUp', x: box.x, y: box.y, button: 'left', clickCount: 1 });
+  await sleep(400);
+
+  const after = await js(`(() => {
+    const c = document.querySelector('.detail-content');
+    return { top: c.scrollTop, subs: document.querySelectorAll('[data-action="delete-subtask"]').length };
+  })()`);
+  ok('BUG-52 真实鼠标点击删除步骤后保持滚动位置', after.top === box.before,
+    `${box.before} → ${after.top}`);
+  ok('BUG-52 真实点击命中删除按钮', hit === 'delete-subtask', `${box.x},${box.y} → ${hit}`);
+  ok('BUG-52 真实点击确实删除了一个步骤', after.subs === 19, after.subs);
+  await js(`(async () => { const { app } = await import('app://./js/App.js'); app.taskDetail.close(); })()`);
+}
+
 async function mainChecks(win) {
   const dataDir = path.join(app.getPath('userData'), 'data');
   const statePath = path.join(dataDir, 'app-state.json');
@@ -140,6 +186,7 @@ app.whenReady().then(async () => {
   try {
     await rendererChecks(win);
     await inputChecks(win);
+    await realClickDeleteChecks(win);
     await mainChecks(win);
   } catch (e) {
     errors.push(`[smoke] ${(e && e.stack) || e}`);

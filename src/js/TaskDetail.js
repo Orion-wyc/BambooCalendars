@@ -1,6 +1,6 @@
 import { store } from './Store.js';
 import { eventBus } from './EventBus.js';
-import { escapeHtml, isImeKeyEvent } from './Utils.js';
+import { escapeHtml, isImeKeyEvent, preserveScroll } from './Utils.js';
 
 export class TaskDetail {
   constructor() {
@@ -65,13 +65,15 @@ export class TaskDetail {
 
     const lists = store.getLists();
     const subtaskProgress = this.getSubtaskProgress(task);
-    const completedSubtasks = task.subtasks.filter(s => s.completed).length;
 
     const sameTask = this.lastRenderedTaskId === task.id;
-    const scroller = this.panel.querySelector('.detail-content');
-    const scrollTop = sameTask && scroller ? scroller.scrollTop : 0;
     this.lastRenderedTaskId = task.id;
 
+    preserveScroll(sameTask ? this.panel : null, '.detail-content', () => this.paint(task, lists, subtaskProgress));
+  }
+
+  paint(task, lists, subtaskProgress) {
+    const completedSubtasks = task.subtasks.filter(s => s.completed).length;
     this.panel.innerHTML = `
       <div class="detail-header">
         <div class="detail-title">任务详情</div>
@@ -187,11 +189,6 @@ export class TaskDetail {
         <button class="btn-delete-task" data-action="delete-task">删除任务</button>
       </div>
     `;
-
-    if (scrollTop) {
-      const next = this.panel.querySelector('.detail-content');
-      if (next) next.scrollTop = scrollTop;
-    }
   }
 
   bindEvents() {
@@ -247,11 +244,14 @@ export class TaskDetail {
         this.render();
         this.emitUpdate(task.id);
         break;
-      case 'delete-subtask':
+      case 'delete-subtask': {
+        const deletedIndex = task.subtasks.findIndex(s => s.id === target.dataset.subtaskId);
         store.deleteSubtask(task.id, target.dataset.subtaskId);
         this.render();
+        this.focusNeighbour(deletedIndex);
         this.emitUpdate(task.id);
         break;
+      }
       case 'add-subtask':
         this.addSubtask();
         break;
@@ -301,6 +301,14 @@ export class TaskDetail {
       default:
         break;
     }
+  }
+
+  focusNeighbour(deletedIndex) {
+    const buttons = this.panel.querySelectorAll('[data-action="delete-subtask"]');
+    const target = buttons.length
+      ? buttons[Math.max(0, Math.min(deletedIndex, buttons.length - 1))]
+      : this.panel.querySelector('#add-subtask-input');
+    if (target) target.focus({ preventScroll: true });
   }
 
   addSubtask() {

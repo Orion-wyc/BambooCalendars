@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createSuite } from './helpers/runner.mjs';
-import { mock, createElement } from './helpers/fakedom.mjs';
+import { mock, createElement, runtimeErrors } from './helpers/fakedom.mjs';
 
 mock.stored = {
   lists: [{ id: 'tasks', name: '任务', order: 0 }],
@@ -204,6 +204,11 @@ test('BUG-30 数据变更会落盘', async () => {
   assert.equal(await store.flush(), true);
   assert.ok(mock.writes.length > before);
   assert.ok(mock.writes.at(-1).tasks.some(t => t.title === '落盘测试'));
+});
+
+test('运行期间无未处理异常或被吞掉的 Promise 拒绝', async () => {
+  await new Promise(r => setTimeout(r, 30));
+  assert.deepEqual(runtimeErrors, []);
 });
 
 process.exit(await run() ? 1 : 0);

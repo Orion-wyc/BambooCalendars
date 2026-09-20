@@ -142,7 +142,6 @@ function createMenu() {
           label: '跳转到', submenu: [
             { label: '我的一天', accelerator: 'CmdOrCtrl+Shift+M', click: () => send('my-day') },
             { label: '重要', accelerator: 'CmdOrCtrl+Shift+I', click: () => send('important') },
-            { label: '已计划', accelerator: 'CmdOrCtrl+Shift+P', click: () => send('planned') },
             { label: '所有任务', accelerator: 'CmdOrCtrl+Shift+A', click: () => send('tasks') },
             { type: 'separator' },
             ...Array.from({ length: 9 }, (_, i) => ({

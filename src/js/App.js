@@ -6,6 +6,7 @@ import { TaskList } from './TaskList.js';
 import { TaskDetail } from './TaskDetail.js';
 import { Settings } from './Settings.js';
 import { Pomodoro } from './Pomodoro.js';
+import { dialog } from './Dialog.js';
 import { isImeKeyEvent, parseDateTimeLocal } from './Utils.js';
 
 const REMINDER_WINDOW_MS = 60 * 1000;
@@ -191,9 +192,6 @@ class App {
       case 'important':
         this.sidebar.jumpToView('important');
         break;
-      case 'planned':
-        this.sidebar.jumpToView('planned');
-        break;
       case 'tasks':
         this.sidebar.jumpToView('tasks');
         break;
@@ -260,6 +258,10 @@ class App {
   }
 
   dismissOverlays() {
+    if (dialog.isOpen()) {
+      dialog.cancel();
+      return true;
+    }
     if (this.settings.isOpen) {
       this.settings.close();
       return true;
@@ -299,6 +301,7 @@ class App {
         if (!this.isEditableTarget(e.target)) this.dismissOverlays();
         return;
       }
+      if (dialog.isOpen()) return;
 
       const mod = e.ctrlKey || e.metaKey;
       if (!mod || e.altKey) return;
@@ -317,7 +320,6 @@ class App {
           case 'e': this.taskDetail.focusReminder(this.taskList.selectedTaskId); break;
           case 'm': this.sidebar.jumpToView('my-day'); break;
           case 'i': this.sidebar.jumpToView('important'); break;
-          case 'p': this.sidebar.jumpToView('planned'); break;
           case 'a': this.sidebar.jumpToView('tasks'); break;
           case 'g': this.applyMode(theme.toggleMode('normal')); break;
           case 'j': this.toggleCompact(); break;

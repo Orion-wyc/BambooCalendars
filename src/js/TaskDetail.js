@@ -1,5 +1,6 @@
 import { store } from './Store.js';
 import { eventBus } from './EventBus.js';
+import { dialog } from './Dialog.js';
 import { escapeHtml, isImeKeyEvent, preserveScroll } from './Utils.js';
 
 export class TaskDetail {
@@ -323,10 +324,16 @@ export class TaskDetail {
     this.emitUpdate(this.currentTaskId);
   }
 
-  deleteCurrentTask() {
+  async deleteCurrentTask() {
     const task = this.getTask();
     if (!task) return;
-    if (!confirm(`确定删除任务"${task.title}"？`)) return;
+    const confirmed = await dialog.confirm({
+      title: '删除任务',
+      message: `任务"${task.title}"将被永久删除。`,
+      confirmText: '删除',
+      danger: true,
+    });
+    if (!confirmed) return;
     const id = task.id;
     this.currentTaskId = null;
     this.lastRenderedTaskId = null;

@@ -1,5 +1,6 @@
 import { store } from './Store.js';
 import { eventBus } from './EventBus.js';
+import { dialog } from './Dialog.js';
 import {
   addDays, escapeHtml, formatDayLabel, formatDueDateLabel, isImeKeyEvent,
   parseDateKey, startOfToday, toDateKey
@@ -96,7 +97,6 @@ export class TaskList {
 
     if (this.currentView === 'my-day') title = '☀ 我的一天';
     else if (this.currentView === 'important') title = '★ 重要';
-    else if (this.currentView === 'planned') title = '📅 已计划';
     else if (this.currentView === 'next7') title = '🗓 最近 7 天';
     else if (this.currentView === 'calendar') title = '📆 日历';
     else if (this.currentView === 'pomodoro') title = '🍅 番茄钟';
@@ -163,10 +163,6 @@ export class TaskList {
     const area = document.getElementById('task-list-area');
     this.closeContextMenu();
 
-    if (this.currentView === 'planned') {
-      this.renderPlannedView(area);
-      return;
-    }
     if (this.currentView === 'next7') {
       this.renderNext7View(area);
       return;
@@ -346,32 +342,6 @@ export class TaskList {
     `;
   }
 
-  renderPlannedView(area) {
-    const groups = store.getPlannedGroups(this.getFilter());
-    const groupTitles = { overdue: '已过期', today: '今天', tomorrow: '明天', thisWeek: '本周', later: '以后' };
-
-    if (!Object.values(groups).some(g => g.length > 0)) {
-      area.innerHTML = this.emptyState('planned');
-      return;
-    }
-
-    area.innerHTML = Object.keys(groups).map(key => {
-      const tasks = groups[key];
-      if (tasks.length === 0) return '';
-      return `
-        <div class="task-section">
-          <div class="task-section-header">
-            <div class="task-section-title">${groupTitles[key]}</div>
-            <div class="task-section-count">${tasks.length}</div>
-          </div>
-          <div class="task-list">
-            ${tasks.map(t => this.renderTaskItem(t)).join('')}
-          </div>
-        </div>
-      `;
-    }).join('');
-  }
-
   renderMyDayView(area) {
     const allTasks = this.getTasks();
     const activeTasks = allTasks.filter(t => !t.completed);
@@ -430,7 +400,6 @@ export class TaskList {
     const map = {
       'my-day': ['🌤', '我的一天是空的', '添加任务或从建议中选择'],
       'important': ['⭐', '暂无重要任务', '点击任务旁的星标标记重要'],
-      'planned': ['🗓', '暂无已计划任务', '为任务设置截止日期'],
       'next7': ['🗓', '未来 7 天没有任务', '为任务设置截止日期'],
       'tasks': ['📝', '暂无任务', '在上方输入框添加新任务'],
       'list': ['📋', '此清单暂无任务', '在上方输入框添加新任务'],
@@ -690,7 +659,7 @@ export class TaskList {
     const extra = {};
     if (this.currentView === 'my-day') extra.inMyDay = true;
     if (this.currentView === 'important') extra.important = true;
-    if (this.currentView === 'planned' || this.currentView === 'next7') {
+    if (this.currentView === 'next7') {
       extra.dueDate = toDateKey(startOfToday());
     }
     if (this.filterPriority) extra.priority = this.filterPriority;
@@ -886,15 +855,9 @@ export class TaskList {
         store.duplicateTask(taskId);
         break;
       case 'delete':
-        if (confirm('确定删除此任务？')) {
-          store.deleteTask(taskId);
-          if (this.selectedTaskId === taskId) this.selectedTaskId = null;
-          eventBus.emit('task:deleted', taskId);
-          this.closeContextMenu();
-          this.render();
-          return;
-        }
-        break;
+        this.closeContextMenu();
+        this.confirmDeleteTask(taskId);
+        return;
       case 'rename':
         this.closeContextMenu();
         this.startInlineEdit(taskId);
@@ -935,14 +898,26 @@ export class TaskList {
     return store.data.tasks.find(t => t.id === this.selectedTaskId) || null;
   }
 
+  async confirmDeleteTask(taskId) {
+    const task = store.data.tasks.find(t => t.id === taskId);
+    if (!task) return;
+    const confirmed = await dialog.confirm({
+      title: '删除任务',
+      message: `任务"${task.title}"将被永久删除。`,
+      confirmText: '删除',
+      danger: true,
+    });
+    if (!confirmed) return;
+    store.deleteTask(taskId);
+    if (this.selectedTaskId === taskId) this.selectedTaskId = null;
+    eventBus.emit('task:deleted', taskId);
+    this.render();
+  }
+
   deleteSelectedTask() {
     const task = this.getSelectedTask();
     if (!task) return;
-    if (!confirm(`确定删除任务"${task.title}"？`)) return;
-    store.deleteTask(task.id);
-    this.selectedTaskId = null;
-    eventBus.emit('task:deleted', task.id);
-    this.render();
+    this.confirmDeleteTask(task.id);
   }
 
   renameSelectedTask() {

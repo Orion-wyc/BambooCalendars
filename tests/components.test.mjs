@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createSuite } from './helpers/runner.mjs';
-import { mock, tree, createElement } from './helpers/fakedom.mjs';
+import { mock, tree, createElement, runtimeErrors } from './helpers/fakedom.mjs';
 
 const { store } = await import('../src/js/Store.js');
 const { eventBus } = await import('../src/js/EventBus.js');
@@ -9,6 +9,7 @@ const { TaskList } = await import('../src/js/TaskList.js');
 const { Settings } = await import('../src/js/Settings.js');
 const { Pomodoro } = await import('../src/js/Pomodoro.js');
 const { Sidebar } = await import('../src/js/Sidebar.js');
+const { dialog } = await import('../src/js/Dialog.js');
 
 const { test, run } = createSuite('组件层回归（假 DOM）');
 
@@ -303,13 +304,27 @@ test('BUG-20 无选中任务时删除/完成/重要均为 no-op', () => {
   assert.equal(store.data.tasks.length, count);
 });
 
-test('删除任务后发出 task:deleted 并清空选中', () => {
+test('删除任务需经对话框确认，确认后发出 task:deleted 并清空选中', async () => {
   const list = new TaskList();
   const task = store.createTask({ title: '将被删除' });
   list.selectedTaskId = task.id;
   let deletedId = null;
   eventBus.on('task:deleted', id => { deletedId = id; });
+
   list.deleteSelectedTask();
+  await Promise.resolve();
+  assert.equal(dialog.isOpen(), true, '应弹出确认对话框');
+  assert.equal(store.data.tasks.some(t => t.id === task.id), true, '未确认前不应删除');
+
+  dialog.cancel();
+  await Promise.resolve();
+  assert.equal(deletedId, null, '取消后不应删除');
+  assert.equal(store.data.tasks.some(t => t.id === task.id), true);
+
+  list.deleteSelectedTask();
+  await Promise.resolve();
+  dialog.submit();
+  await Promise.resolve();
   assert.equal(deletedId, task.id);
   assert.equal(list.selectedTaskId, null);
   assert.equal(store.data.tasks.some(t => t.id === task.id), false);
@@ -569,6 +584,112 @@ test('BUG-52 切换任务时详情面板回到顶部', () => {
   assert.equal(detail.panel.querySelector('.detail-content').scrollTop, 300);
   detail.open(b.id);
   assert.equal(detail.panel.querySelector('.detail-content').scrollTop, 0);
+});
+
+test('BUG-53 对话框：输入、确认、取消、Esc 与空值拦截', async () => {
+  const inputPromise = dialog.input({ title: '新建清单', label: '清单名称', placeholder: '名称' });
+  assert.equal(dialog.isOpen(), true);
+  assert.equal(dialog.current.type, 'input');
+
+  const field = document.getElementById('dialog-input');
+  field.value = '   ';
+  dialog.overlay.dispatch('click', { target: field.closest('[data-action]') || field });
+  dialog.submit();
+  assert.equal(dialog.isOpen(), true, '空白输入不应提交');
+
+  field.value = '  购物清单  ';
+  dialog.submit();
+  assert.equal(await inputPromise, '购物清单', '应返回去空格后的值');
+  assert.equal(dialog.isOpen(), false);
+
+  const confirmPromise = dialog.confirm({ title: '删除', message: '确定？', danger: true });
+  assert.equal(dialog.current.type, 'confirm');
+  dialog.submit();
+  assert.equal(await confirmPromise, true);
+
+  const cancelPromise = dialog.confirm({ title: '删除', message: '确定？' });
+  dialog.cancel();
+  assert.equal(await cancelPromise, false);
+
+  const escPromise = dialog.confirm({ title: '删除', message: '确定？' });
+  dialog.overlay.dispatch('keydown', { key: 'Escape', preventDefault() {}, stopPropagation() {} });
+  assert.equal(await escPromise, false, 'Esc 应视为取消');
+});
+
+test('BUG-53 对话框：输入法合成态 Enter 不提交', async () => {
+  const p = dialog.input({ title: '重命名清单', value: '工作' });
+  const field = document.getElementById('dialog-input');
+  field.value = 'gong zuo';
+  dialog.overlay.dispatch('keydown', {
+    key: 'Enter', keyCode: 229, isComposing: true, preventDefault() {}, stopPropagation() {},
+  });
+  assert.equal(dialog.isOpen(), true, '合成态 Enter 不应提交');
+  field.value = '工作资料';
+  dialog.overlay.dispatch('keydown', { key: 'Enter', preventDefault() {}, stopPropagation() {} });
+  assert.equal(await p, '工作资料');
+});
+
+test('BUG-53 点击遮罩关闭对话框，点击内容区不关闭', async () => {
+  const p = dialog.confirm({ title: 'x', message: 'y' });
+  dialog.overlay.dispatch('click', { target: dialog.overlay.querySelector('.dialog-modal') });
+  assert.equal(dialog.isOpen(), true);
+  dialog.overlay.dispatch('click', { target: dialog.overlay });
+  assert.equal(await p, false);
+});
+
+test('BUG-53 新建/重命名/删除清单走对话框', async () => {
+  const sidebar = new Sidebar();
+  sidebar.addList();
+  await Promise.resolve();
+  assert.equal(dialog.isOpen(), true, '「新清单」按钮应弹出输入对话框');
+  document.getElementById('dialog-input').value = '收件箱';
+  dialog.submit();
+  await Promise.resolve();
+  const created = store.getLists().find(l => l.name === '收件箱');
+  assert.ok(created, '清单应被创建');
+
+  sidebar.renameList(created.id);
+  await Promise.resolve();
+  assert.equal(document.getElementById('dialog-input').value, '收件箱', '重命名应预填当前名称');
+  document.getElementById('dialog-input').value = '收集箱';
+  dialog.submit();
+  await Promise.resolve();
+  assert.equal(store.getList(created.id).name, '收集箱');
+
+  sidebar.deleteList(created.id);
+  await Promise.resolve();
+  assert.equal(dialog.isOpen(), true, '删除清单应弹出确认框');
+  assert.equal(dialog.current.danger, true);
+  dialog.submit();
+  await Promise.resolve();
+  assert.equal(store.getList(created.id), null, '确认后应删除');
+
+  const builtin = store.createList('内置保护');
+  sidebar.deleteList('tasks');
+  await Promise.resolve();
+  assert.equal(dialog.isOpen(), false, '内置清单不进入删除流程');
+  store.deleteList(builtin.id);
+});
+
+test('BUG-53 内置清单的重命名仍可用', async () => {
+  const sidebar = new Sidebar();
+  sidebar.renameList('tasks');
+  await Promise.resolve();
+  assert.equal(dialog.isOpen(), true);
+  document.getElementById('dialog-input').value = '全部任务';
+  dialog.submit();
+  await Promise.resolve();
+  assert.equal(store.getList('tasks').name, '全部任务');
+  sidebar.renameList('tasks');
+  await Promise.resolve();
+  document.getElementById('dialog-input').value = '任务';
+  dialog.submit();
+  await Promise.resolve();
+});
+
+test('运行期间无未处理异常或被吞掉的 Promise 拒绝', async () => {
+  await new Promise(r => setTimeout(r, 30));
+  assert.deepEqual(runtimeErrors, []);
 });
 
 process.exit(await run() ? 1 : 0);

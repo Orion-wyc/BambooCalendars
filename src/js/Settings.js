@@ -1,6 +1,7 @@
 import { theme } from './Theme.js';
 import { store } from './Store.js';
 import { eventBus } from './EventBus.js';
+import { dialog } from './Dialog.js';
 import { buttonFocusKey, escapeHtml, preserveScroll, restoreFocus } from './Utils.js';
 
 const SORT_OPTIONS = [
@@ -26,9 +27,10 @@ const SHORTCUTS = [
   'Ctrl/Cmd + D 删除任务 · Ctrl/Cmd + T 重命名任务 · Ctrl/Cmd + Shift + N 完成任务',
   'Ctrl/Cmd + K 加入我的一天 · Ctrl/Cmd + I 标记重要',
   'Ctrl/Cmd + Shift + E 设置提醒 · Ctrl/Cmd + Shift + T 设置截止日期',
-  'Ctrl/Cmd + Shift + M/I/P/A 跳转 我的一天/重要/已计划/所有任务',
+  'Ctrl/Cmd + Shift + O 窗口置顶 · Ctrl/Cmd + Shift + J 紧凑模式',
+  'Ctrl/Cmd + Shift + M/I/A 跳转 我的一天/重要/所有任务',
   'Ctrl/Cmd + 1-9 跳转清单 · Ctrl/Cmd + Tab 下一个视图',
-  'Ctrl/Cmd + O 切换侧边栏 · Ctrl/Cmd + Shift + J 紧凑模式 · Ctrl/Cmd + Shift + G 正常模式',
+  'Ctrl/Cmd + O 切换侧边栏 · Ctrl/Cmd + Shift + G 正常模式',
   'Ctrl/Cmd + H/B/G 深色/黑色/棕褐色主题',
   'Ctrl/Cmd + + / - / 0 放大/缩小/重置缩放',
   'Ctrl/Cmd + , 打开设置 · Esc 关闭面板',
@@ -301,7 +303,7 @@ export class Settings {
         window.api.app.checkUpdate();
         break;
       case 'quit-app':
-        if (confirm('确定退出 Bamboo Todo？')) window.api.app.quit();
+        this.quitApp();
         break;
       default:
         break;
@@ -400,13 +402,29 @@ export class Settings {
     if (fresh) fresh.focus();
   }
 
-  deleteTag(tagId) {
+  async deleteTag(tagId) {
     const tag = store.getTag(tagId);
     if (!tag) return;
-    if (!confirm(`确定删除标签"${tag.name}"？`)) return;
+    const used = store.data.tasks.filter(t => (t.tags || []).includes(tagId)).length;
+    const confirmed = await dialog.confirm({
+      title: '删除标签',
+      message: used > 0
+        ? `标签"${tag.name}"正被 ${used} 个任务使用，删除后这些任务会移除该标签。`
+        : `标签"${tag.name}"将被删除。`,
+      confirmText: '删除',
+      danger: true,
+    });
+    if (!confirmed) return;
     store.deleteTag(tagId);
     eventBus.emit('task:update');
     eventBus.emit('tag:delete', tagId);
     this.render();
+  }
+
+  async quitApp() {
+    const confirmed = await dialog.confirm({
+      title: '退出应用', message: '确定退出 Bamboo Todo？', confirmText: '退出', danger: true,
+    });
+    if (confirmed) window.api.app.quit();
   }
 }

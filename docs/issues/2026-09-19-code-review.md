@@ -4,8 +4,9 @@
 > 检视方式：全量静态阅读 + 关键逻辑 Node 实测复现（时区、事件递归、计数覆盖）
 > 状态标记：`[ ]` 待修复 `[x]` 已修复 `[-]` 误报/不修
 >
-> **修复进度：BUG-01 ~ BUG-37（首轮检视）+ BUG-39 ~ BUG-52（修复过程中新发现与用户报告）全部修复完成，
-> BUG-38 复核为误报。合计 51 项修复。回归用例见 `tests/`，验证记录见文末。**
+> **修复进度：BUG-01 ~ BUG-37（首轮检视）+ BUG-39 ~ BUG-55（修复过程中新发现与用户报告）全部修复完成，
+> BUG-38 复核为误报。合计 54 项修复 + 1 项功能变更（移除已计划视图）。
+> 回归用例见 `tests/`，验证记录见文末。**
 
 ---
 
@@ -439,6 +440,60 @@ P2: BUG-21 → 37
 - 回归用例：组件层 3 项 + 端到端 8 项（含真实鼠标点击，并用 `elementFromPoint` 校验确实命中按钮）。
 - 状态：[x]（已修复并加固 + 用例锁定）
 
+### BUG-53 「新清单」「重命名清单」按钮点击无反应（用户报告）
+- 位置：`Sidebar.js` 的 `addList()` / `renameList()`（原实现调用 `window.prompt()`）
+- 根因：**Electron 渲染进程不支持 `window.prompt()`**，调用即抛异常，而异常发生在 click 事件处理器里
+  被静默吞掉，表现为"按钮点了没反应"。实测：
+  ```
+  typeof window.prompt = function
+  prompt() 调用结果: {"threw":"Error: prompt() is and will not be supported."}
+  点击「新清单」按钮: {"点击前清单数":1,"点击后清单数":1,"是否弹出输入框":false}
+  Electron 28.3.3 / Chromium 120.0.6099.291
+  ```
+  该缺陷自首个提交即存在（`prompt` 从一开始就被用于新建/重命名清单），静态阅读不易发现，
+  属于平台能力缺失而非代码逻辑错误。
+- 修复：新增 `src/js/Dialog.js`（应用内模态对话框，`dialog.input()` / `dialog.confirm()`，返回 Promise），
+  配套 `#dialog-overlay` 容器与样式，替换全部 `prompt()` 调用。对话框支持：
+  自动聚焦并全选、Enter 提交（**带输入法合成态守卫**，见 BUG-47）、Esc 取消、点击遮罩取消、
+  空白输入拦截并标红、危险操作红色按钮、同一时刻只允许一个对话框。
+- 状态：[x]
+
+### BUG-54 `confirm()` 使用原生阻塞对话框，主题不一致且无法自动化验证
+- 位置：`TaskList.js`（删除任务 ×2）、`TaskDetail.js`（删除任务）、`Sidebar.js`（删除清单）、
+  `Settings.js`（删除标签、退出应用）
+- 现象：`window.confirm()` 在 Electron 中弹出**原生同步阻塞**对话框：不跟随应用主题（深色模式下割裂）、
+  阻塞整个渲染进程、且无法被自动化测试驱动。实测在 xvfb 下调用后渲染进程 2.5s 未返回：
+  ```
+  confirm() 结果（2503ms）: {"blocked":"渲染进程被原生对话框阻塞（2.5s 未返回）"}
+  ```
+  这也解释了为何此前端到端用例完全没有覆盖任何删除流程——一旦触发就会永久挂住。
+- 修复：全部改为 `await dialog.confirm(...)`，相关方法转为 async；`handleContextAction` 的 delete
+  分支拆出 `confirmDeleteTask()` 以保持 switch 结构同步。删除确认文案统一为陈述句并标注影响范围
+  （如"清单"X"及其中的 N 个任务将被永久删除"、"标签"X"正被 N 个任务使用"）。
+- 副作用（正向）：删除清单/删除任务/删除标签/退出应用四条流程首次获得端到端覆盖。
+- 状态：[x]
+
+### BUG-55 Sidebar 漏掉 Dialog 导入，async 函数内的 ReferenceError 被吞
+- 位置：`Sidebar.js` 顶部 import
+- 现象：批量替换 `prompt()` 时 Sidebar 的 import 未插入成功，`addList()` 内 `dialog is not defined`。
+  由于是 async 函数且调用方不 await，异常变成 **unhandled rejection**，UI 依旧"点击无反应"，
+  与 BUG-53 症状完全相同，肉眼难以区分。
+- 发现方式：组件层用例断言"点击后对话框应打开"失败；调试脚本打印出
+  `ReferenceError: dialog is not defined`。
+- 修复：补上 import；并在 `tests/helpers/fakedom.mjs` 注册 `unhandledRejection` /
+  `uncaughtExceptionMonitor` 收集器，三个 Node 套件末尾统一断言"运行期间无未处理异常"，
+  使这类被吞掉的错误无法再蒙混过关。端到端侧原有 renderer console 错误捕获同样会记录。
+- 状态：[x]
+
+### 功能变更：移除「已计划」视图（用户要求）
+- 位置：`Sidebar.js`（导航项）、`TaskList.js`（视图分支 / `renderPlannedView` / 标题 / 空状态 / 新建任务继承）、
+  `Store.js`（`getPlannedGroups`、`_matchesView` 的 planned 分支、`getCounts().views.planned`）、
+  `App.js`（菜单动作与 `Ctrl+Shift+P`）、`main.js`（菜单项）、`Settings.js`（快捷键说明）、`README.md`
+- 说明：日期维度的需求由「最近 7 天」与「日历」两个视图覆盖，「已计划」与之重复。
+  `Ctrl+Shift+P` 随之释放，窗口置顶仍为 `Ctrl+Shift+O`（菜单与设置页说明已同步）。
+  `store.getPlannedGroups()` 一并删除，避免留下死代码；数据层 `dueDate` 字段不受影响。
+- 状态：[x]
+
 ### BUG-45 设置项缺少白名单，脏数据可污染配置
 - 位置：`Store.js:330-333`（原 `updateSettings`）
 - 现象：`Object.assign(this.data.settings, updates)` 接受任意键；`settings` 缺失时直接抛错。
@@ -471,6 +526,11 @@ P2: BUG-21 → 37
 | `src/js/{Store,Pomodoro,Settings,App}.js` | 番茄钟时长可配置（含钳制、空闲即时生效、进行中不打断） | 50 |
 | `src/js/Sidebar.js`、`src/css/main.css` | 侧边栏标题结构化为图标+文字，紧凑模式只留图标并防溢出 | 51 |
 | `src/js/TaskDetail.js` | 复用 `preserveScroll`；删除步骤后焦点移交相邻步骤 | 52 |
+| `src/js/Dialog.js` | **新增**：应用内模态对话框（input/confirm），替代 prompt/confirm | 53 54 |
+| `src/index.html`、`src/css/main.css` | 新增 `#dialog-overlay` 容器与对话框样式 | 53 |
+| `src/js/{Sidebar,TaskList,TaskDetail,Settings}.js` | 全部 prompt/confirm 调用改为 await 对话框 | 53 54 55 |
+| `Sidebar/TaskList/Store/App/main.js` | 移除「已计划」视图及其分组逻辑 | 功能变更 |
+| `tests/helpers/fakedom.mjs` | 收集 unhandledRejection / uncaughtException，套件末尾统一断言 | 55 |
 | `src/package.json` | **新增** `{"type":"module"}`，使 Node 可直接加载 src 下 ESM 源码用于测试 | - |
 | `tests/**` | **新增** 零依赖测试套件（逻辑/组件/编排/端到端） | 全部 |
 | `package.json` | 新增 `test` / `test:logic` / `test:e2e` 脚本 | - |
@@ -482,37 +542,37 @@ P2: BUG-21 → 37
 
 无既有测试框架，本次以 Node 直跑 + Electron 真实渲染进程两种方式回归。
 
-### 1. Store / Utils 逻辑回归（30 项 × 4 时区）
+### 1. Store / Utils 逻辑回归（32 项 × 4 时区）
 覆盖：结构归一化、损坏数据回退、旧版字段补齐、去重、日期 key、日历取月、已计划分组边界、
 截止标签、计数命名空间、内置清单保护、tags 数组独立性、重复任务边沿与追赶、工作日/月末/闰年推进、
 拖拽 order、入参校验、筛选贯通、排序、转义、番茄会话跨天、写盘失败上报。
 
 ```
-TZ=Asia/Shanghai      共 30 项，失败 0 项
-TZ=UTC                共 30 项，失败 0 项
-TZ=America/New_York   共 30 项，失败 0 项
-TZ=Pacific/Kiritimati 共 30 项，失败 0 项
+TZ=Asia/Shanghai      共 32 项，失败 0 项
+TZ=UTC                共 32 项，失败 0 项
+TZ=America/New_York   共 32 项，失败 0 项
+TZ=Pacific/Kiritimati 共 32 项，失败 0 项
 ```
 
-### 2. 组件层回归（假 DOM，38 项）
+### 2. 组件层回归（假 DOM，44 项）
 覆盖：详情面板关闭不递归、面板/设置监听器不累积、子任务单次切换、标题点击命中、
 右键重命名保留输入框、内联编辑提交与回退、排序 change 生效、侧边栏计数与内置清单保护、
 搜索框不被重渲染清空、标签页、开关同步主进程、番茄钟计时、无选中不误删、XSS 转义。
 
 ```
-共 38 项，失败 0 项
+共 44 项，失败 0 项
 ```
 
-### 3. App 编排层回归（14 项）
+### 3. App 编排层回归（15 项）
 覆盖：启动恢复紧凑模式/侧边栏/主题、输入框内不触发快捷键、Alt 组合不拦截、
 快捷键映射（Ctrl+1-9 → 清单，Shift+M/G/J/O）、Esc 分层关闭、提醒只通知一次、
 错过补发与久远静默、菜单动作分发、add-my-day 只作用选中项、删除清单关闭详情、变更落盘。
 
 ```
-共 14 项，失败 0 项
+共 15 项，失败 0 项
 ```
 
-### 4. Electron 端到端（xvfb 真实运行，106 项）
+### 4. Electron 端到端（xvfb 真实运行，127 项）
 在真实 Chromium DOM 中执行完整用户流程：新建任务 → 点击标题开详情 → 加子任务并连续勾选两次 →
 关闭面板 → 右键重命名 → 注入 `<img onerror>`/`<script>` 标题 → 日历"今天"格子命中 →
 最近 7 天首组为今天 → 分组视图搜索 → 搜索框内容保持 → 设置面板点击只渲染一次 →
@@ -520,9 +580,14 @@ TZ=Pacific/Kiritimati 共 30 项，失败 0 项
 拖拽 order → 番茄钟跨视图不中断。
 
 ```
-共 106 项，失败 0 项
+共 127 项，失败 0 项
 退出码: 0
 ```
+
+其中 BUG-53/54 相关 21 项，覆盖真实 UI 流程：点击「新清单」弹框、自动聚焦、空白名拦截、
+回车创建、侧边栏出现新清单、重命名预填与保存、Esc 取消、删除清单取消/确认、
+删除任务取消/确认；另有 1 项断言「已计划」导航项已移除。
+这些流程在改用应用内对话框之前**无法自动化**（原生 `confirm()` 会永久阻塞渲染进程）。
 
 其中 BUG-49/50/51 相关 21 项：按钮文字行数（Range.getClientRects）、按钮尺寸与溢出、
 时长读写与钳制回显、面板倒计时文本、输入框不被重建、紧凑模式侧边栏宽度与标题溢出
@@ -562,7 +627,7 @@ PASS  BUG-43 置顶写入 app-state.json 且渲染进程同步
 用例已随仓库落地在 `tests/`，详见 `tests/README.md`：
 
 ```bash
-npm test              # 全量：30×4 时区 + 38 组件 + 14 编排 + 106 端到端
+npm test              # 全量：32×4 时区 + 44 组件 + 15 编排 + 127 端到端
 npm run test:logic    # 仅 Node 层，约 2 秒
 npm run test:e2e      # 仅 Electron 端到端（自动使用 xvfb-run）
 SKIP_E2E=1 npm test   # 跳过端到端

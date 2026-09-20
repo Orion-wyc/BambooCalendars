@@ -301,7 +301,6 @@ export class Store {
   _matchesView(task, view) {
     if (view === 'my-day') return Boolean(task.inMyDay);
     if (view === 'important') return Boolean(task.important);
-    if (view === 'planned') return Boolean(task.dueDate);
     return true;
   }
 
@@ -604,7 +603,6 @@ export class Store {
     const views = {
       myDay: active.filter(t => t.inMyDay).length,
       important: active.filter(t => t.important).length,
-      planned: active.filter(t => t.dueDate).length,
       tasks: active.length,
     };
     const lists = {};
@@ -641,31 +639,6 @@ export class Store {
       const due = parseDateKey(t.dueDate);
       return Boolean(due) && due <= today;
     });
-  }
-
-  getPlannedGroups(filter = {}) {
-    const today = startOfToday();
-    const tomorrow = addDays(today, 1);
-    const weekEnd = addDays(today, 7);
-    const groups = { overdue: [], today: [], tomorrow: [], thisWeek: [], later: [] };
-
-    this.data.tasks.forEach(t => {
-      if (t.completed || !t.dueDate) return;
-      if (!this._matchesView(t, 'planned') || !this._matches(t, filter)) return;
-      const due = parseDateKey(t.dueDate);
-      if (!due) return;
-      if (due < today) groups.overdue.push(t);
-      else if (due.getTime() === today.getTime()) groups.today.push(t);
-      else if (due.getTime() === tomorrow.getTime()) groups.tomorrow.push(t);
-      else if (due <= weekEnd) groups.thisWeek.push(t);
-      else groups.later.push(t);
-    });
-
-    const sortBy = filter.sortBy || this.data.settings.sortBy || 'created';
-    Object.keys(groups).forEach(key => {
-      groups[key] = this._sortTasks(groups[key], sortBy === 'manual' ? 'manual' : sortBy);
-    });
-    return groups;
   }
 
   getNext7Days(filter = {}) {

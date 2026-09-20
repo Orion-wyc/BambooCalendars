@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createSuite } from './helpers/runner.mjs';
-import { mock } from './helpers/fakedom.mjs';
+import { mock, runtimeErrors } from './helpers/fakedom.mjs';
 
 const { Store } = await import('../src/js/Store.js');
 const U = await import('../src/js/Utils.js');
@@ -79,23 +79,26 @@ test('BUG-05 日历按月取任务不再漏掉 1 号', () => {
   assert.deepEqual(s.getCalendarTasks(2026, 8).map(t => t.id).sort(), ['a', 'b']);
 });
 
-test('BUG-05 已计划分组边界正确', () => {
+test('BUG-05 最近 7 天分组边界正确', () => {
   const day = n => U.toDateKey(U.addDays(new Date(), n));
   const s = freshStore({
     tasks: [
-      { id: 'o', title: 'o', dueDate: day(-1) },
+      { id: 'y', title: 'y', dueDate: day(-1) },
       { id: 't', title: 't', dueDate: day(0) },
       { id: 'm', title: 'm', dueDate: day(1) },
       { id: 'w', title: 'w', dueDate: day(3) },
-      { id: 'l', title: 'l', dueDate: day(30) },
+      { id: 'l', title: 'l', dueDate: day(6) },
+      { id: 'o', title: 'o', dueDate: day(7) },
+      { id: 'd', title: 'd', dueDate: day(2), completed: true },
     ],
   });
-  const g = s.getPlannedGroups();
-  assert.deepEqual(g.overdue.map(t => t.id), ['o']);
-  assert.deepEqual(g.today.map(t => t.id), ['t']);
-  assert.deepEqual(g.tomorrow.map(t => t.id), ['m']);
-  assert.deepEqual(g.thisWeek.map(t => t.id), ['w']);
-  assert.deepEqual(g.later.map(t => t.id), ['l']);
+  const groups = s.getNext7Days();
+  assert.equal(groups.length, 7);
+  assert.deepEqual(groups[0].tasks.map(t => t.id), ['t']);
+  assert.deepEqual(groups[1].tasks.map(t => t.id), ['m']);
+  assert.deepEqual(groups[3].tasks.map(t => t.id), ['w']);
+  assert.deepEqual(groups[6].tasks.map(t => t.id), ['l']);
+  assert.equal(groups.reduce((n, g) => n + g.tasks.length, 0), 4, '昨天、第 8 天与已完成任务都不应计入');
 });
 
 test('BUG-05 截止日期标签：今天/明天/昨天/已过期/N 天后', () => {
@@ -107,6 +110,14 @@ test('BUG-05 截止日期标签：今天/明天/昨天/已过期/N 天后', () =
   assert.equal(U.formatDueDateLabel(day(3)), '3 天后');
   assert.equal(U.formatDueDateLabel(null), '');
   assert.equal(U.formatDueDateLabel('garbage'), '');
+});
+
+test('已计划视图已移除', () => {
+  const s = freshStore(null);
+  s.createTask({ title: 'x', dueDate: U.toDateKey(new Date()) });
+  assert.equal('planned' in s.getCounts().views, false);
+  assert.equal(typeof s.getPlannedGroups, 'undefined');
+  assert.equal(s._matchesView({ dueDate: '2026-01-01' }, 'planned'), true, '未知视图不再做过滤');
 });
 
 test('BUG-13 视图计数不再被内置清单覆盖', () => {
@@ -245,15 +256,15 @@ test('BUG-45 updateSettings 忽略未知键', () => {
   assert.equal('evil' in s.data.settings, false);
 });
 
-test('BUG-17 搜索/标签/优先级筛选贯通分组视图', () => {
+test('BUG-17 搜索/标签/优先级筛选贯通各视图', () => {
   const s = freshStore({ tags: [{ id: 't1', name: 'A', color: '#123456' }] });
   const today = U.toDateKey(new Date());
   s.createTask({ title: '买牛奶', dueDate: today, priority: 1 });
   s.createTask({ title: '写周报', dueDate: today, priority: 4, tags: ['t1'] });
   assert.equal(s.getNext7Days({ search: '牛奶' })[0].tasks.length, 1);
-  assert.equal(s.getPlannedGroups({ search: '周报' }).today.length, 1);
+  assert.equal(s.getNext7Days({ priority: 1 })[0].tasks.length, 1);
   assert.equal(s.getCalendarTasks(new Date().getFullYear(), new Date().getMonth(), { tagId: 't1' }).length, 1);
-  assert.equal(s.getTasks({ view: 'planned', priority: 1 }).length, 1);
+  assert.equal(s.getTasksByDate(today, { search: '周报' }).length, 1);
   assert.equal(s.getMyDaySuggestions({ search: '不存在' }).length, 0);
 });
 
@@ -362,6 +373,11 @@ test('BUG-50 番茄钟时长默认值与越界钳制', () => {
   assert.equal(s.data.settings.pomodoroWorkMinutes, 50, '字符串数字可接受');
   s.updateSettings({ pomodoroWorkMinutes: 0 });
   assert.equal(s.data.settings.pomodoroWorkMinutes, 1);
+});
+
+test('运行期间无未处理异常或被吞掉的 Promise 拒绝', async () => {
+  await new Promise(r => setTimeout(r, 30));
+  assert.deepEqual(runtimeErrors, []);
 });
 
 process.exit(await run() ? 1 : 0);

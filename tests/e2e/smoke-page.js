@@ -15,7 +15,8 @@
   const { app } = await import('app://./js/App.js');
 
   try {
-    ok('启动完成，侧边栏导航已渲染', $$('#sidebar-nav .nav-item').length >= 7, $$('#sidebar-nav .nav-item').length);
+    ok('启动完成，侧边栏导航已渲染', $$('#sidebar-nav .nav-item').length >= 6, $$('#sidebar-nav .nav-item').length);
+    ok('已计划视图已移除', !$('#sidebar-nav [data-view="planned"]'));
     ok('启动完成，任务输入框存在', Boolean($('#task-input')));
     ok('启动完成，内置清单已渲染', $$('#sidebar-lists .list-item').length >= 1);
 
@@ -384,6 +385,82 @@
     ok('BUG-49 今天按钮比翻页按钮宽', btnRect.width > navRect.width, `${btnRect.width}/${navRect.width}`);
     click($('#sidebar-nav [data-view="tasks"]'));
     await sleep(50);
+
+    // ---- BUG-53 清单/任务增删改走应用内对话框 ----
+    const dialogHidden = () => $('#dialog-overlay').classList.contains('hidden');
+    const listCountBefore = store.getLists().length;
+    click($('#btn-add-list'));
+    await sleep(120);
+    ok('BUG-53 点击「新清单」弹出对话框', !dialogHidden());
+    ok('BUG-53 对话框自动聚焦输入框',
+      document.activeElement && document.activeElement.id === 'dialog-input',
+      document.activeElement && document.activeElement.id);
+
+    $('#dialog-input').value = '   ';
+    click($('[data-action="dialog-ok"]'));
+    await sleep(80);
+    ok('BUG-53 空白名称不允许提交', !dialogHidden());
+
+    $('#dialog-input').value = '工作';
+    key($('#dialog-input'), 'Enter');
+    await sleep(150);
+    ok('BUG-53 回车创建清单', store.getLists().length === listCountBefore + 1, store.getLists().length);
+    ok('BUG-53 新清单出现在侧边栏',
+      $$('#sidebar-lists .list-item').some(el => el.textContent.includes('工作')));
+    ok('BUG-53 创建后对话框关闭', dialogHidden());
+
+    const workList = store.getLists().find(l => l.name === '工作');
+    ok('BUG-53 新清单带重命名/删除按钮',
+      Boolean($(`.btn-rename-list[data-list-id="${workList.id}"]`)) &&
+      Boolean($(`.btn-delete-list[data-list-id="${workList.id}"]`)));
+
+    click($(`.btn-rename-list[data-list-id="${workList.id}"]`));
+    await sleep(120);
+    ok('BUG-53 点击重命名按钮弹出对话框并预填名称',
+      !dialogHidden() && $('#dialog-input').value === '工作', $('#dialog-input').value);
+    $('#dialog-input').value = '工作安排';
+    click($('[data-action="dialog-ok"]'));
+    await sleep(150);
+    ok('BUG-53 重命名生效', store.getList(workList.id).name === '工作安排', store.getList(workList.id).name);
+    ok('BUG-53 侧边栏显示新名称',
+      $$('#sidebar-lists .list-item').some(el => el.textContent.includes('工作安排')));
+
+    click($(`.btn-rename-list[data-list-id="${workList.id}"]`));
+    await sleep(100);
+    key($('#dialog-input'), 'Escape');
+    await sleep(120);
+    ok('BUG-53 Esc 取消对话框', dialogHidden());
+    ok('BUG-53 取消后名称未变', store.getList(workList.id).name === '工作安排');
+
+    click($(`.btn-delete-list[data-list-id="${workList.id}"]`));
+    await sleep(120);
+    ok('BUG-53 删除清单弹出确认框', !dialogHidden());
+    ok('BUG-53 确认框文案含清单名',
+      $('.dialog-message').textContent.includes('工作安排'), $('.dialog-message').textContent);
+    click($('[data-action="dialog-cancel"]'));
+    await sleep(120);
+    ok('BUG-53 取消后清单保留', Boolean(store.getList(workList.id)));
+
+    click($(`.btn-delete-list[data-list-id="${workList.id}"]`));
+    await sleep(100);
+    click($('[data-action="dialog-ok"]'));
+    await sleep(150);
+    ok('BUG-53 确认后清单被删除', store.getList(workList.id) === null);
+
+    const victim = store.createTask({ title: '待删除任务' });
+    app.taskList.selectedTaskId = victim.id;
+    app.taskList.deleteSelectedTask();
+    await sleep(120);
+    ok('BUG-53 删除任务弹出确认框', !dialogHidden());
+    click($('[data-action="dialog-cancel"]'));
+    await sleep(120);
+    ok('BUG-53 取消后任务保留', Boolean(store.data.tasks.find(t => t.id === victim.id)));
+    app.taskList.deleteSelectedTask();
+    await sleep(120);
+    click($('[data-action="dialog-ok"]'));
+    await sleep(150);
+    ok('BUG-53 确认后任务被删除', !store.data.tasks.some(t => t.id === victim.id));
+    ok('BUG-53 对话框已关闭', dialogHidden());
   } catch (e) {
     results.push({ name: '渲染进程冒烟异常中断', pass: false, extra: String((e && e.stack) || e) });
   }

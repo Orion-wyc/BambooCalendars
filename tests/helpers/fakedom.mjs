@@ -202,6 +202,15 @@ globalThis.api = {
   onMenuAction: (cb) => { globalThis.__menuAction = cb; },
 };
 
+export const runtimeErrors = [];
+
+process.on('unhandledRejection', (reason) => {
+  runtimeErrors.push(`unhandledRejection: ${(reason && reason.stack) || reason}`);
+});
+process.on('uncaughtExceptionMonitor', (e) => {
+  runtimeErrors.push(`uncaughtException: ${(e && e.stack) || e}`);
+});
+
 export function emitMenuAction(action, data) {
   if (globalThis.__menuAction) globalThis.__menuAction(action, data);
 }

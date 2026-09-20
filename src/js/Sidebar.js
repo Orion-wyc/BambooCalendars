@@ -1,11 +1,11 @@
 import { store } from './Store.js';
 import { eventBus } from './EventBus.js';
+import { dialog } from './Dialog.js';
 import { escapeHtml, isImeKeyEvent } from './Utils.js';
 
 const NAV_ITEMS = [
   { view: 'my-day', icon: '☀', label: '我的一天', countKey: 'myDay' },
   { view: 'important', icon: '★', label: '重要', countKey: 'important' },
-  { view: 'planned', icon: '📅', label: '已计划', countKey: 'planned' },
   { view: 'next7', icon: '🗓', label: '最近 7 天' },
   { view: 'tasks', icon: '✓', label: '任务', countKey: 'tasks' },
   { view: 'calendar', icon: '📆', label: '日历' },
@@ -165,33 +165,46 @@ export class Sidebar {
     this.render();
   }
 
-  addList() {
-    const name = prompt('新清单名称:');
-    if (!name || !name.trim()) return;
-    const list = store.createList(name.trim());
+  async addList() {
+    const name = await dialog.input({
+      title: '新建清单',
+      label: '清单名称',
+      placeholder: '例如：工作、购物清单',
+      confirmText: '创建',
+    });
+    if (!name) return;
+    const list = store.createList(name);
     this.render();
     eventBus.emit('list:create', list);
   }
 
-  renameList(listId) {
+  async renameList(listId) {
     const list = store.getList(listId);
     if (!list) return;
-    const newName = prompt('重命名清单:', list.name);
-    if (!newName || !newName.trim() || newName.trim() === list.name) return;
-    store.updateList(listId, { name: newName.trim() });
+    const newName = await dialog.input({
+      title: '重命名清单',
+      label: '清单名称',
+      value: list.name,
+      confirmText: '保存',
+    });
+    if (!newName || newName === list.name) return;
+    store.updateList(listId, { name: newName });
     this.render();
     eventBus.emit('list:update');
   }
 
-  deleteList(listId) {
+  async deleteList(listId) {
     if (store.isBuiltinList(listId)) return;
     const list = store.getList(listId);
     if (!list) return;
     const taskCount = store.data.tasks.filter(t => t.listId === listId).length;
     const message = taskCount > 0
-      ? `确定删除清单"${list.name}"及其 ${taskCount} 个任务？`
-      : `确定删除清单"${list.name}"？`;
-    if (!confirm(message)) return;
+      ? `清单"${list.name}"及其中的 ${taskCount} 个任务将被永久删除。`
+      : `清单"${list.name}"将被删除。`;
+    const confirmed = await dialog.confirm({
+      title: '删除清单', message, confirmText: '删除', danger: true,
+    });
+    if (!confirmed) return;
     store.deleteList(listId);
     if (this.currentListId === listId) {
       this.currentView = 'tasks';

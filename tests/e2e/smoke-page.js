@@ -366,6 +366,51 @@
     document.documentElement.classList.remove('compact-mode');
     await sleep(450);
 
+    // ---- BUG-56 侧边栏底部图标对齐 ----
+    const iconCenter = (sel) => {
+      const b = document.querySelector(sel).getBoundingClientRect();
+      return { cx: b.left + b.width / 2, w: b.width };
+    };
+    const probeAlign = () => ({
+      add: iconCenter('.btn-add-list-icon'),
+      settings: iconCenter('#btn-settings .nav-item-icon'),
+      nav: iconCenter('#sidebar-nav .nav-item .nav-item-icon'),
+      sidebar: (() => {
+        const b = document.getElementById('sidebar').getBoundingClientRect();
+        return { left: b.left, width: b.width, center: b.left + b.width / 2 };
+      })(),
+      overflow: (() => {
+        const sb = document.getElementById('sidebar');
+        return sb.scrollWidth > sb.clientWidth + 1;
+      })(),
+    });
+
+    document.documentElement.classList.remove('compact-mode');
+    await sleep(450);
+    const normalAlign = probeAlign();
+    ok('BUG-56 常规模式新清单图标与设置图标对齐',
+      Math.abs(normalAlign.add.cx - normalAlign.settings.cx) <= 0.5,
+      `${normalAlign.add.cx} vs ${normalAlign.settings.cx}`);
+    ok('BUG-56 常规模式新清单图标与导航图标对齐',
+      Math.abs(normalAlign.add.cx - normalAlign.nav.cx) <= 0.5,
+      `${normalAlign.add.cx} vs ${normalAlign.nav.cx}`);
+    ok('BUG-56 常规模式侧边栏无横向溢出', normalAlign.overflow === false);
+
+    document.documentElement.classList.add('compact-mode');
+    await sleep(450);
+    const compactAlign = probeAlign();
+    ok('BUG-56 紧凑模式新清单图标与设置图标对齐',
+      Math.abs(compactAlign.add.cx - compactAlign.settings.cx) <= 0.5,
+      `${compactAlign.add.cx} vs ${compactAlign.settings.cx}`);
+    ok('BUG-56 紧凑模式新清单加号居中（偏离侧边栏中心 ≤1px）',
+      Math.abs(compactAlign.add.cx - compactAlign.sidebar.center) <= 1,
+      `${compactAlign.add.cx} vs 中心 ${compactAlign.sidebar.center}`);
+    ok('BUG-56 紧凑模式图标未被 flex 压缩', compactAlign.add.w >= 19,
+      `宽 ${compactAlign.add.w}`);
+    ok('BUG-56 紧凑模式侧边栏无横向溢出', compactAlign.overflow === false);
+    document.documentElement.classList.remove('compact-mode');
+    await sleep(450);
+
     // ---- BUG-49 日历「今天」按钮 ----
     click($('#sidebar-nav [data-view="calendar"]'));
     await sleep(200);

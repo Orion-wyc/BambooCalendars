@@ -4,8 +4,8 @@
 > 检视方式：全量静态阅读 + 关键逻辑 Node 实测复现（时区、事件递归、计数覆盖）
 > 状态标记：`[ ]` 待修复 `[x]` 已修复 `[-]` 误报/不修
 >
-> **修复进度：BUG-01 ~ BUG-37（首轮检视）+ BUG-39 ~ BUG-55（修复过程中新发现与用户报告）全部修复完成，
-> BUG-38 复核为误报。合计 54 项修复 + 1 项功能变更（移除已计划视图）。
+> **修复进度：BUG-01 ~ BUG-37（首轮检视）+ BUG-39 ~ BUG-56（修复过程中新发现与用户报告）全部修复完成，
+> BUG-38 复核为误报。合计 55 项修复 + 1 项功能变更（移除已计划视图）。
 > 回归用例见 `tests/`，验证记录见文末。**
 
 ---
@@ -494,6 +494,39 @@ P2: BUG-21 → 37
   `store.getPlannedGroups()` 一并删除，避免留下死代码；数据层 `dueDate` 字段不受影响。
 - 状态：[x]
 
+### BUG-56 侧边栏「新清单」图标与「设置」图标未对齐（用户报告）
+- 位置：`main.css:280`（`.btn-add-list`）、`main.css:297`（`.btn-add-list-icon`）、
+  `main.css:1416`（`html.compact-mode .btn-add-list`）
+- 现象与根因（真实 Electron 实测）：
+  1. **常规模式偏差 3px**：`.nav-item` / `.list-item` 都带 `border-left: 3px solid transparent`，
+     唯独 `.btn-add-list` 没有，图标起点 16px vs 19px。
+     实测：新清单加号中心 `x=26`，设置齿轮/导航图标/清单图标均为 `x=29`。
+  2. **紧凑模式加号偏离中心 6.5px**：紧凑模式给 `.nav-item-icon`、`.list-item-icon` 都写了
+     `margin-right: 0`，**漏了 `.btn-add-list-icon`**，它仍带 12px 右边距；
+     `justify-content: center` 于是把"图标+12px 边距"整体居中，加号被推到左侧。
+     实测：加号中心 `x=23.5`，侧边栏中心 `x=30`，齿轮 `x=29.5`。
+  3. **紧凑模式图标被压扁**：`.btn-add-list` 保留 `padding: 10px 16px`，60px 侧边栏下内容盒仅 27px，
+     装不下 20px 图标 + 12px 边距，flex 默认收缩把图标压到 **15px** 宽。
+  4. 附带：`.btn-add-list` 是 `<button>`，只设了 `font-size` 未设 `font-family`，
+     "新清单"文字用的是浏览器默认字体而非应用字体栈；行高也不同导致按钮高 40px vs 设置项 41px。
+- 修复：
+  - `.btn-add-list` 补 `border-left: 3px solid transparent`（全局 `box-sizing: border-box`，不会撑出滚动条）、
+    `font-family: inherit`、`line-height: 1.5`、`text-align: left`；
+  - `.btn-add-list-icon` 补 `flex: none` 防压缩；
+  - `html.compact-mode .btn-add-list` 补 `padding: 12px 8px; border-left-width: 0`，
+    新增 `html.compact-mode .btn-add-list-icon { margin-right: 0; font-size: 18px }`，
+    与 `.nav-item` / `.list-item` 的紧凑模式规则完全对齐。
+- 修复后实测：
+  ```
+  常规模式: 加号 x=29.0 = 齿轮 = 导航图标 = 清单图标（偏差 0.0px），按钮高 41px 与设置项一致
+  紧凑模式: 加号 x=29.5 = 齿轮 = 导航图标，偏离侧边栏中心 0.5px（来自 #sidebar 的 1px 右边框，
+            所有图标同偏移，相互对齐），图标宽度恢复 20px
+  ```
+  剩余 0.5px 属既有布局特征（内容盒 59px 而侧边栏 60px），全部图标一致，不再单独处理。
+- 回归：端到端新增 7 项（常规/紧凑两种模式下的图标中心对齐、居中偏差、图标未被压缩、无横向溢出）。
+  已用 `git stash` 还原 CSS 验证这 7 项中 5 项会失败，失败信息即上述实测偏差值。
+- 状态：[x]
+
 ### BUG-45 设置项缺少白名单，脏数据可污染配置
 - 位置：`Store.js:330-333`（原 `updateSettings`）
 - 现象：`Object.assign(this.data.settings, updates)` 接受任意键；`settings` 缺失时直接抛错。
@@ -531,6 +564,7 @@ P2: BUG-21 → 37
 | `src/js/{Sidebar,TaskList,TaskDetail,Settings}.js` | 全部 prompt/confirm 调用改为 await 对话框 | 53 54 55 |
 | `Sidebar/TaskList/Store/App/main.js` | 移除「已计划」视图及其分组逻辑 | 功能变更 |
 | `tests/helpers/fakedom.mjs` | 收集 unhandledRejection / uncaughtException，套件末尾统一断言 | 55 |
+| `src/css/main.css` | 新清单按钮补齐左边框/字体/紧凑模式边距，图标禁止 flex 压缩 | 56 |
 | `src/package.json` | **新增** `{"type":"module"}`，使 Node 可直接加载 src 下 ESM 源码用于测试 | - |
 | `tests/**` | **新增** 零依赖测试套件（逻辑/组件/编排/端到端） | 全部 |
 | `package.json` | 新增 `test` / `test:logic` / `test:e2e` 脚本 | - |
@@ -572,7 +606,7 @@ TZ=Pacific/Kiritimati 共 32 项，失败 0 项
 共 15 项，失败 0 项
 ```
 
-### 4. Electron 端到端（xvfb 真实运行，127 项）
+### 4. Electron 端到端（xvfb 真实运行，134 项）
 在真实 Chromium DOM 中执行完整用户流程：新建任务 → 点击标题开详情 → 加子任务并连续勾选两次 →
 关闭面板 → 右键重命名 → 注入 `<img onerror>`/`<script>` 标题 → 日历"今天"格子命中 →
 最近 7 天首组为今天 → 分组视图搜索 → 搜索框内容保持 → 设置面板点击只渲染一次 →
@@ -580,9 +614,12 @@ TZ=Pacific/Kiritimati 共 32 项，失败 0 项
 拖拽 order → 番茄钟跨视图不中断。
 
 ```
-共 127 项，失败 0 项
+共 134 项，失败 0 项
 退出码: 0
 ```
+
+BUG-56 的 7 项布局断言已反向验证：`git stash` 还原 CSS 后其中 5 项失败，
+失败信息为 `26 vs 29`、`23.5 vs 29.5`、`23.5 vs 中心 30`、`宽 15`，与实测偏差一致。
 
 其中 BUG-53/54 相关 21 项，覆盖真实 UI 流程：点击「新清单」弹框、自动聚焦、空白名拦截、
 回车创建、侧边栏出现新清单、重命名预填与保存、Esc 取消、删除清单取消/确认、
@@ -627,7 +664,7 @@ PASS  BUG-43 置顶写入 app-state.json 且渲染进程同步
 用例已随仓库落地在 `tests/`，详见 `tests/README.md`：
 
 ```bash
-npm test              # 全量：32×4 时区 + 44 组件 + 15 编排 + 127 端到端
+npm test              # 全量：32×4 时区 + 44 组件 + 15 编排 + 134 端到端
 npm run test:logic    # 仅 Node 层，约 2 秒
 npm run test:e2e      # 仅 Electron 端到端（自动使用 xvfb-run）
 SKIP_E2E=1 npm test   # 跳过端到端

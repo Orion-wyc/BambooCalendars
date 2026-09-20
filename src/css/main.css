@@ -285,9 +285,13 @@ html.side-bar-hidden #sidebar {
   transition: background var(--transition-fast);
   width: 100%;
   border: none;
+  border-left: 3px solid transparent;
   background: transparent;
   color: var(--sidebar-text);
+  font-family: inherit;
   font-size: 14px;
+  line-height: 1.5;
+  text-align: left;
 }
 
 .btn-add-list:hover {
@@ -297,6 +301,7 @@ html.side-bar-hidden #sidebar {
 .btn-add-list-icon {
   width: 20px;
   height: 20px;
+  flex: none;
   margin-right: 12px;
   display: flex;
   align-items: center;
@@ -1415,6 +1420,13 @@ html.compact-mode .list-item-icon {
 
 html.compact-mode .btn-add-list {
   justify-content: center;
+  padding: 12px 8px;
+  border-left-width: 0;
+}
+
+html.compact-mode .btn-add-list-icon {
+  margin-right: 0;
+  font-size: 18px;
 }
 
 html.compact-mode #list-header {

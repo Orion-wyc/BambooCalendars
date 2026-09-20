@@ -203,6 +203,24 @@
     await sleep(50);
     ok('BUG-21 切换视图不中断计时', app.pomodoro.isRunning === true);
     app.pomodoro.stop();
+
+    const ime = $('#task-input');
+    ime.focus();
+    ime.value = 'mai cai';
+    ime.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true, data: 'mai cai' }));
+    ime.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'Enter', code: 'Enter', keyCode: 229, which: 229,
+      isComposing: true, bubbles: true, cancelable: true,
+    }));
+    await sleep(80);
+    ok('BUG-47 合成态 Enter 不创建拼音任务', !store.data.tasks.some(t => t.title === 'mai cai'));
+    ok('BUG-47 合成态 Enter 不清空输入框', $('#task-input').value === 'mai cai', $('#task-input').value);
+    ime.dispatchEvent(new CompositionEvent('compositionend', { bubbles: true, data: '买菜' }));
+    ime.value = '买菜';
+    ime.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+    await sleep(100);
+    ok('BUG-47 合成结束后 Enter 正常提交中文任务', store.data.tasks.some(t => t.title === '买菜'));
+    ok('BUG-47 提交后输入框已清空', $('#task-input').value === '', $('#task-input').value);
   } catch (e) {
     results.push({ name: '渲染进程冒烟异常中断', pass: false, extra: String((e && e.stack) || e) });
   }

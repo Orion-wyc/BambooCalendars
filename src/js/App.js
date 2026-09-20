@@ -6,7 +6,7 @@ import { TaskList } from './TaskList.js';
 import { TaskDetail } from './TaskDetail.js';
 import { Settings } from './Settings.js';
 import { Pomodoro } from './Pomodoro.js';
-import { parseDateTimeLocal } from './Utils.js';
+import { isImeKeyEvent, parseDateTimeLocal } from './Utils.js';
 
 const REMINDER_WINDOW_MS = 60 * 1000;
 const REMINDER_MISSED_GRACE_MS = 10 * 60 * 1000;
@@ -289,6 +289,8 @@ class App {
 
   bindKeyboard() {
     document.addEventListener('keydown', (e) => {
+      if (isImeKeyEvent(e)) return;
+
       if (e.key === 'Escape') {
         if (!this.isEditableTarget(e.target)) this.dismissOverlays();
         return;

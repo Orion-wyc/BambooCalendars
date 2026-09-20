@@ -26,6 +26,47 @@ async function rendererChecks(win) {
   (out && out.results ? out.results : []).forEach(r => results.push(r));
 }
 
+async function inputChecks(win) {
+  const js = (code) => win.webContents.executeJavaScript(code, true);
+  const countTasks = () => js(
+    "(async () => { const { store } = await import('app://./js/Store.js'); return store.data.tasks.length; })()");
+
+  ok('任务输入框存在', await js(`!!document.getElementById('task-input')`));
+  const before = await countTasks();
+  const box = await js(`(() => {
+    const r = document.getElementById('task-input').getBoundingClientRect();
+    return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) };
+  })()`);
+
+  win.webContents.focus();
+  win.webContents.sendInputEvent({ type: 'mouseDown', x: box.x, y: box.y, button: 'left', clickCount: 1 });
+  win.webContents.sendInputEvent({ type: 'mouseUp', x: box.x, y: box.y, button: 'left', clickCount: 1 });
+  await sleep(250);
+  ok('BUG-47 真实鼠标点击可聚焦输入框',
+    (await js(`document.activeElement && document.activeElement.id`)) === 'task-input',
+    await js(`document.activeElement && (document.activeElement.id || document.activeElement.tagName)`));
+
+  for (const ch of 'abc') {
+    win.webContents.sendInputEvent({ type: 'keyDown', keyCode: ch.toUpperCase() });
+    win.webContents.sendInputEvent({ type: 'char', keyCode: ch, text: ch });
+    win.webContents.sendInputEvent({ type: 'keyUp', keyCode: ch.toUpperCase() });
+    await sleep(50);
+  }
+  const typed = await js(`document.getElementById('task-input').value`);
+  ok('BUG-47 真实键盘输入落入输入框', typed === 'abc', typed);
+
+  win.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Enter' });
+  win.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Enter' });
+  await sleep(350);
+  const after = await countTasks();
+  const last = await js(`(async () => {
+    const { store } = await import('app://./js/Store.js');
+    return { title: store.data.tasks.at(-1).title, input: document.getElementById('task-input').value };
+  })()`);
+  ok('BUG-47 真实回车创建任务', after === before + 1 && last.title === 'abc', JSON.stringify({ after, before, last }));
+  ok('BUG-47 创建后输入框清空可继续输入', last.input === '', JSON.stringify(last));
+}
+
 async function mainChecks(win) {
   const dataDir = path.join(app.getPath('userData'), 'data');
   const statePath = path.join(dataDir, 'app-state.json');
@@ -98,6 +139,7 @@ app.whenReady().then(async () => {
   await sleep(1800);
   try {
     await rendererChecks(win);
+    await inputChecks(win);
     await mainChecks(win);
   } catch (e) {
     errors.push(`[smoke] ${(e && e.stack) || e}`);

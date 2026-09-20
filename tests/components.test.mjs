@@ -15,6 +15,9 @@ const { test, run } = createSuite('组件层回归（假 DOM）');
 store.data = store.normalize(null);
 
 const clickEvent = (target) => ({ target, stopPropagation() {}, preventDefault() {} });
+const keyEvent = (target, key, opts = {}) => ({
+  target, key, stopPropagation() {}, preventDefault() {}, ...opts,
+});
 
 test('BUG-02 关闭详情面板不再无限递归', () => {
   const detail = new TaskDetail();
@@ -356,6 +359,86 @@ test('BUG-17 搜索无结果时展示搜索空状态', () => {
   list.setSearch('绝对不存在的关键词zzz');
   assert.match(document.getElementById('task-list-area').innerHTML, /未找到匹配任务/);
   list.setSearch('');
+});
+
+test('BUG-47 输入法合成态 Enter 不提交任务、不清空输入框', () => {
+  const list = new TaskList();
+  const area = document.getElementById('task-input-area');
+  list.render();
+  const input = document.getElementById('task-input');
+  input.value = 'mai cai';
+  const before = store.data.tasks.length;
+
+  area.dispatch('keydown', keyEvent(input, 'Enter', { keyCode: 229, isComposing: true }));
+  assert.equal(store.data.tasks.length, before, '合成态 Enter 不应创建任务');
+  assert.equal(document.getElementById('task-input').value, 'mai cai', '合成态 Enter 不应清空输入框');
+
+  input.value = '买菜';
+  area.dispatch('keydown', keyEvent(input, 'Enter'));
+  assert.equal(store.data.tasks.length, before + 1, '合成结束后 Enter 应正常提交');
+  assert.equal(store.data.tasks.at(-1).title, '买菜');
+});
+
+test('BUG-47 子任务输入框同样忽略合成态 Enter', () => {
+  const holder = createElement('div');
+  holder.innerHTML = '<div id="detail-panel" class="hidden"></div>';
+  const detail = new TaskDetail();
+  const task = store.createTask({ title: 'IME 子任务' });
+  detail.open(task.id);
+  const subInput = document.getElementById('add-subtask-input');
+  subInput.value = 'xi zao';
+  detail.panel.appendChild(subInput);
+
+  detail.panel.dispatch('keydown', keyEvent(subInput, 'Enter', { keyCode: 229, isComposing: true }));
+  assert.equal(store.data.tasks.find(t => t.id === task.id).subtasks.length, 0);
+
+  detail.panel.dispatch('keydown', keyEvent(subInput, 'Enter'));
+  assert.deepEqual(store.data.tasks.find(t => t.id === task.id).subtasks.map(s => s.title), ['xi zao']);
+});
+
+test('BUG-47 内联编辑合成态 Enter 不提交、Esc 不取消', () => {
+  const list = new TaskList();
+  const task = store.createTask({ title: '内联IME' });
+  list.startInlineEdit(task.id);
+  const area = document.getElementById('task-list-area');
+  const input = createElement('input');
+  input.dataset.inlineEdit = task.id;
+  input.value = 'gai ming';
+
+  area.dispatch('keydown', keyEvent(input, 'Enter', { keyCode: 229, isComposing: true }));
+  assert.equal(store.data.tasks.find(t => t.id === task.id).title, '内联IME');
+  assert.equal(list.editingTaskId, task.id, '合成态 Enter 不应结束编辑');
+
+  area.dispatch('keydown', keyEvent(input, 'Escape', { keyCode: 229, isComposing: true }));
+  assert.equal(list.editingTaskId, task.id, '合成态 Esc 应交给输入法取消候选');
+
+  input.value = '改名';
+  area.dispatch('keydown', keyEvent(input, 'Enter'));
+  assert.equal(store.data.tasks.find(t => t.id === task.id).title, '改名');
+});
+
+test('BUG-47 搜索框合成态 Esc 不清空关键词', () => {
+  const sidebar = new Sidebar();
+  const input = document.getElementById('search-input');
+  input.value = 'guan jian ci';
+  input.dispatch('keydown', keyEvent(input, 'Escape', { keyCode: 229, isComposing: true }));
+  assert.equal(input.value, 'guan jian ci');
+  input.dispatch('keydown', keyEvent(input, 'Escape'));
+  assert.equal(input.value, '');
+});
+
+test('BUG-47 重渲染不重建输入框，合成状态不被打断', () => {
+  const list = new TaskList();
+  list.render();
+  const input = document.getElementById('task-input');
+  input.value = '正在输入';
+  input.focus();
+  list.render();
+  list.render();
+  assert.equal(document.getElementById('task-input'), input, '输入框元素应保持不变');
+  assert.equal(document.getElementById('task-input').value, '正在输入');
+  assert.equal(document.activeElement, input, '焦点应保持在输入框');
+  document.getElementById('task-input').value = '';
 });
 
 process.exit(await run() ? 1 : 0);

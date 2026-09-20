@@ -22,8 +22,8 @@ tests/
 ├── helpers/
 │   ├── runner.mjs       # 极简测试运行器（注册 / 执行 / 汇总 / 退出码）
 │   └── fakedom.mjs      # 假 DOM 与 window.api mock
-├── store.test.mjs       # Store / Utils 纯逻辑回归（29 项）
-├── components.test.mjs  # 组件层回归，基于假 DOM（25 项）
+├── store.test.mjs       # Store / Utils 纯逻辑回归（29 项 × 4 时区）
+├── components.test.mjs  # 组件层回归，基于假 DOM（30 项）
 ├── app.test.mjs         # App 编排层：快捷键、提醒、事件流（14 项）
 └── e2e/
     ├── run.cjs          # 启动 Electron 子进程、收集结果、判定退出
@@ -37,9 +37,9 @@ tests/
 | 套件 | 运行环境 | 覆盖 |
 |------|---------|------|
 | `store.test.mjs` | Node | 数据归一化、日期与时区、重复任务、计数、排序、筛选、转义、落盘 |
-| `components.test.mjs` | Node + 假 DOM | 事件委托、监听器绑定次数、内联编辑、渲染转义、设置交互 |
+| `components.test.mjs` | Node + 假 DOM | 事件委托、监听器绑定次数、内联编辑、渲染转义、设置交互、输入法合成态 |
 | `app.test.mjs` | Node + 假 DOM | 启动状态恢复、快捷键守卫与映射、Esc 分层、提醒去重、事件编排 |
-| `e2e/` | 真实 Electron | 完整用户流程 + 主进程行为（托盘关闭、菜单、窗口状态、协议安全、退出） |
+| `e2e/` | 真实 Electron | 完整用户流程 + 真实键鼠输入（`sendInputEvent`）+ 主进程行为（托盘关闭、菜单、窗口状态、协议安全、退出） |
 
 ## 时区矩阵
 
@@ -52,6 +52,10 @@ tests/
 - **`src/package.json`**：内容为 `{"type": "module"}`，让 Node 直接把 `src/js/*.js` 当 ES Module 加载，
   从而无需打包或复制即可测试真实源码；根目录 `package.json` 不带 `type` 字段，
   `main.js` / `preload.js` 仍是 CommonJS，Electron 主进程不受影响。
+- **输入法路径必须走真实事件**：`components.test.mjs` 用合成事件对象覆盖 `isComposing`/`keyCode 229`
+  分支，`e2e/smoke-page.js` 派发真实 `CompositionEvent`，`e2e/bootstrap.cjs` 再用
+  `webContents.sendInputEvent` 走 Chromium 输入管道逐字符键入。仅靠脚本给 `input.value` 赋值
+  会绕过输入法路径，正是 BUG-47 当初漏网的原因。
 - **端到端不改动产品代码**：`bootstrap.cjs` 通过 `require('../../main.js')` 加载真实主进程逻辑，
   再在 `app.whenReady()` 之后附加检查；`--user-data-dir` 指向临时目录，并预置
   `app-state.json`（关闭启动更新检查），测试结束后清理。

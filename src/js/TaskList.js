@@ -1,7 +1,7 @@
 import { store } from './Store.js';
 import { eventBus } from './EventBus.js';
 import {
-  addDays, escapeHtml, formatDayLabel, formatDueDateLabel,
+  addDays, escapeHtml, formatDayLabel, formatDueDateLabel, isImeKeyEvent,
   parseDateKey, startOfToday, toDateKey
 } from './Utils.js';
 
@@ -28,6 +28,7 @@ export class TaskList {
     this.calendarMonth = startOfToday();
     this.calendarSelectedDate = null;
     this.editingTaskId = null;
+    this.lastFilterHtml = null;
     this.notice = '';
     this.render();
     this.bindEvents();
@@ -126,10 +127,15 @@ export class TaskList {
     const area = document.getElementById('task-input-area');
     if (this.currentView === 'calendar') {
       area.innerHTML = '';
+      this.lastFilterHtml = null;
       return;
     }
 
+    const filterHtml = this.renderFilterBar();
     const previous = document.getElementById('task-input');
+    if (previous && this.lastFilterHtml === filterHtml) return;
+    this.lastFilterHtml = filterHtml;
+
     const draft = previous ? previous.value : '';
     const hadFocus = previous ? previous === document.activeElement : false;
     const caret = previous ? previous.selectionStart : 0;
@@ -139,7 +145,7 @@ export class TaskList {
         <div class="task-input-icon">+</div>
         <input type="text" class="task-input" id="task-input" placeholder="添加任务..." autocomplete="off">
       </div>
-      ${this.renderFilterBar()}
+      ${filterHtml}
     `;
 
     const input = document.getElementById('task-input');
@@ -521,7 +527,7 @@ export class TaskList {
     const inputArea = document.getElementById('task-input-area');
 
     inputArea.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && e.target.id === 'task-input') {
+      if (e.key === 'Enter' && e.target.id === 'task-input' && !isImeKeyEvent(e)) {
         this.createTaskFromInput(e.target);
       }
     });
@@ -554,6 +560,7 @@ export class TaskList {
     area.addEventListener('keydown', (e) => {
       const input = e.target.closest('[data-inline-edit]');
       if (!input) return;
+      if (isImeKeyEvent(e)) return;
       if (e.key === 'Enter') {
         e.preventDefault();
         this.commitInlineEdit(input);

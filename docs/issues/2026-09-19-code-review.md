@@ -4,8 +4,8 @@
 > 检视方式：全量静态阅读 + 关键逻辑 Node 实测复现（时区、事件递归、计数覆盖）
 > 状态标记：`[ ]` 待修复 `[x]` 已修复 `[-]` 误报/不修
 >
-> **修复进度：BUG-01 ~ BUG-37（首轮检视）+ BUG-39 ~ BUG-46（修复过程中新发现）全部修复完成，
-> BUG-38 复核为误报。合计 45 项修复。回归用例见 `tests/`，验证记录见文末。**
+> **修复进度：BUG-01 ~ BUG-37（首轮检视）+ BUG-39 ~ BUG-47（修复过程中新发现与用户报告）全部修复完成，
+> BUG-38 复核为误报。合计 46 项修复。回归用例见 `tests/`，验证记录见文末。**
 
 ---
 
@@ -301,6 +301,35 @@ P2: BUG-21 → 37
 - 发现方式：端到端测试捕获渲染进程控制台告警。
 - 状态：[x]
 
+### BUG-47 输入法合成态 Enter 被当作提交，中文任务无法输入（用户报告）
+- 位置：`TaskList.js`（任务输入框 keydown、内联编辑 keydown）、`TaskDetail.js`（子任务输入框 keydown）、
+  `Sidebar.js`（搜索框 Esc）、`App.js`（全局 Esc）
+- 现象：所有 Enter / Esc 处理只判断 `e.key`，未判断输入法合成状态。中文用户按 Enter **确认候选词**时，
+  事件同样带 `key === 'Enter'`（`isComposing: true`、`keyCode: 229`），于是：
+  - 拼音被当成任务标题直接提交（实测生成任务 `"mai cai"`），输入框随即被 `value = ''` 清空并重建；
+  - 用户观感即"输入框打不进字 / 无法新建任务"——每次按 Enter 选词，内容就消失一次；
+  - 子任务输入框同样会把拼音提交成步骤；内联编辑会把未上屏的拼音写回标题；
+    搜索框的合成态 Esc（取消候选）会连带清空关键词。
+- 复现（修复前，真实 Electron）：
+  ```
+  场景一 合成态 Enter: {"tasksAfterImeEnter":["mai cai"],"inputValueAfter":""}
+  场景三 子任务合成态 Enter: {"subtasks":["xi zao"]}
+  ```
+- 修复：`Utils.js` 新增 `isImeKeyEvent(e)`（`e.isComposing || e.keyCode === 229`），
+  上述五处按键处理统一加守卫，合成态按键交还给输入法；
+  同时 `renderInput()` 在筛选栏 HTML 未变化时不再重建输入框，
+  避免重渲染打断焦点与正在进行的合成（原实现每次 `render()` 都会销毁并重建 `#task-input`）。
+- 修复后：
+  ```
+  场景一 合成态 Enter: {"tasksAfterImeEnter":[],"inputValueAfter":"mai cai"}
+  场景二 正常 Enter:   {"tasks":["买蔬菜"]}
+  场景三 子任务合成态 Enter: {"subtasks":[]}
+  ```
+- 备注：该缺陷自首个提交即存在，非本轮修复引入；端到端用例原先以脚本直接赋值 `input.value`
+  触发 Enter，绕过了输入法合成路径，因此未能发现。现已补充合成事件用例与
+  `sendInputEvent` 真实键鼠用例各一组。
+- 状态：[x]
+
 ### BUG-45 设置项缺少白名单，脏数据可污染配置
 - 位置：`Store.js:330-333`（原 `updateSettings`）
 - 现象：`Object.assign(this.data.settings, updates)` 接受任意键；`settings` 缺失时直接抛错。
@@ -315,7 +344,7 @@ P2: BUG-21 → 37
 |------|------|---------|
 | `main.js` | 重写窗口/菜单/托盘/协议/持久化逻辑 | 01 06 09 10 24 25 26 35 36 42 43 |
 | `preload.js` | 精简 IPC 面，补齐 app 接口，缩放钳制收敛 | 36 |
-| `src/js/Utils.js` | **新增**：日期（本地时区）与 HTML 转义工具 | 05 15 |
+| `src/js/Utils.js` | **新增**：日期（本地时区）、HTML 转义、输入法事件判定 | 05 15 47 |
 | `src/js/Store.js` | 重写：结构归一化、日期、重复任务、计数、排序 | 05 06 11 12 13 14 17 18 29 30 36 45 |
 | `src/js/TaskList.js` | 重写：事件委托、转义、筛选贯通、内联编辑 | 04 05 07 15 17 18 20 31 39 44 |
 | `src/js/TaskDetail.js` | 重写：递归保护、监听器单次绑定、转义 | 02 03 15 32 33 34 41 |
@@ -327,6 +356,7 @@ P2: BUG-21 → 37
 | `src/js/EventBus.js` | emit 遍历副本 | 36 |
 | `src/css/main.css` | 补充 `.cal-cell.selected`、`.task-due-date.tomorrow`、`.context-menu-item.disabled` 样式 | 05 31 |
 | `src/index.html` | 加入 CSP meta | 46 |
+| `src/js/{TaskList,TaskDetail,Sidebar,App}.js` | Enter/Esc 增加输入法合成态守卫；输入框按需重建 | 47 |
 | `src/package.json` | **新增** `{"type":"module"}`，使 Node 可直接加载 src 下 ESM 源码用于测试 | - |
 | `tests/**` | **新增** 零依赖测试套件（逻辑/组件/编排/端到端） | 全部 |
 | `package.json` | 新增 `test` / `test:logic` / `test:e2e` 脚本 | - |
@@ -350,13 +380,13 @@ TZ=America/New_York   共 29 项，失败 0 项
 TZ=Pacific/Kiritimati 共 29 项，失败 0 项
 ```
 
-### 2. 组件层回归（假 DOM，25 项）
+### 2. 组件层回归（假 DOM，30 项）
 覆盖：详情面板关闭不递归、面板/设置监听器不累积、子任务单次切换、标题点击命中、
 右键重命名保留输入框、内联编辑提交与回退、排序 change 生效、侧边栏计数与内置清单保护、
 搜索框不被重渲染清空、标签页、开关同步主进程、番茄钟计时、无选中不误删、XSS 转义。
 
 ```
-共 25 项，失败 0 项
+共 30 项，失败 0 项
 ```
 
 ### 3. App 编排层回归（14 项）
@@ -368,7 +398,7 @@ TZ=Pacific/Kiritimati 共 29 项，失败 0 项
 共 14 项，失败 0 项
 ```
 
-### 4. Electron 端到端（xvfb 真实运行，62 项 = 渲染进程 45 + 主进程 17）
+### 4. Electron 端到端（xvfb 真实运行，71 项）
 在真实 Chromium DOM 中执行完整用户流程：新建任务 → 点击标题开详情 → 加子任务并连续勾选两次 →
 关闭面板 → 右键重命名 → 注入 `<img onerror>`/`<script>` 标题 → 日历"今天"格子命中 →
 最近 7 天首组为今天 → 分组视图搜索 → 搜索框内容保持 → 设置面板点击只渲染一次 →
@@ -376,9 +406,12 @@ TZ=Pacific/Kiritimati 共 29 项，失败 0 项
 拖拽 order → 番茄钟跨视图不中断。
 
 ```
-共 62 项，失败 0 项
+共 71 项，失败 0 项
 退出码: 0
 ```
+
+其中 BUG-47 相关 8 项：合成态 Enter 不提交/不清空、合成结束后中文正常提交、
+以及经 `webContents.sendInputEvent` 走真实输入管道的鼠标聚焦、逐字符键入、回车建单。
 
 ### 5. 主进程端到端明细（含在上表 62 项内）
 覆盖：窗口显示、resize 防抖落盘、尺寸一致、**点击关闭 → 隐藏到托盘**、菜单快捷键无重复、
@@ -403,7 +436,7 @@ PASS  BUG-43 置顶写入 app-state.json 且渲染进程同步
 用例已随仓库落地在 `tests/`，详见 `tests/README.md`：
 
 ```bash
-npm test              # 全量：29×4 时区 + 25 组件 + 14 编排 + 62 端到端
+npm test              # 全量：29×4 时区 + 30 组件 + 14 编排 + 71 端到端
 npm run test:logic    # 仅 Node 层，约 2 秒
 npm run test:e2e      # 仅 Electron 端到端（自动使用 xvfb-run）
 SKIP_E2E=1 npm test   # 跳过端到端

@@ -1,6 +1,6 @@
 import { store } from './Store.js';
 import { eventBus } from './EventBus.js';
-import { escapeHtml } from './Utils.js';
+import { escapeHtml, isImeKeyEvent } from './Utils.js';
 
 const NAV_ITEMS = [
   { view: 'my-day', icon: '☀', label: '我的一天', countKey: 'myDay' },
@@ -122,7 +122,7 @@ export class Sidebar {
       eventBus.emit('search:change', e.target.value);
     });
     input.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && input.value) {
+      if (e.key === 'Escape' && input.value && !isImeKeyEvent(e)) {
         e.stopPropagation();
         input.value = '';
         eventBus.emit('search:change', '');

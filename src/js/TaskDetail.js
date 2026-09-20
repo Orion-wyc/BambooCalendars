@@ -1,6 +1,6 @@
 import { store } from './Store.js';
 import { eventBus } from './EventBus.js';
-import { escapeHtml } from './Utils.js';
+import { escapeHtml, isImeKeyEvent } from './Utils.js';
 
 export class TaskDetail {
   constructor() {
@@ -186,7 +186,7 @@ export class TaskDetail {
     this.panel.addEventListener('click', (e) => this.handleClick(e));
     this.panel.addEventListener('change', (e) => this.handleChange(e));
     this.panel.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && e.target.id === 'add-subtask-input') {
+      if (e.key === 'Enter' && e.target.id === 'add-subtask-input' && !isImeKeyEvent(e)) {
         e.preventDefault();
         this.addSubtask();
       }

@@ -13,6 +13,11 @@ export function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, ch => HTML_ESCAPES[ch]);
 }
 
+export function isImeKeyEvent(event) {
+  if (!event) return false;
+  return Boolean(event.isComposing) || event.keyCode === 229;
+}
+
 export function toDateKey(date) {
   const d = date instanceof Date ? date : new Date(date);
   if (Number.isNaN(d.getTime())) return '';

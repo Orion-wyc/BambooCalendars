@@ -18,6 +18,33 @@ export function isImeKeyEvent(event) {
   return Boolean(event.isComposing) || event.keyCode === 229;
 }
 
+export function preserveScroll(root, selector, mutate) {
+  const before = root ? root.querySelector(selector) : null;
+  const top = before ? before.scrollTop : 0;
+  mutate();
+  if (!top) return;
+  const after = root ? root.querySelector(selector) : null;
+  if (after) after.scrollTop = top;
+}
+
+export function buttonFocusKey(element, root) {
+  if (!element || element.tagName !== 'BUTTON') return null;
+  if (root && !root.contains(element)) return null;
+  const d = element.dataset || {};
+  if (d.action && d.tab) return `[data-action="${d.action}"][data-tab="${d.tab}"]`;
+  if (d.action && d.setting) return `[data-action="${d.action}"][data-setting="${d.setting}"]`;
+  if (d.action && d.themeId) return `[data-action="${d.action}"][data-theme-id="${d.themeId}"]`;
+  if (d.action && d.tagId) return `[data-action="${d.action}"][data-tag-id="${d.tagId}"]`;
+  if (element.id) return `#${element.id}`;
+  return null;
+}
+
+export function restoreFocus(root, selector) {
+  if (!root || !selector) return;
+  const el = root.querySelector(selector);
+  if (el) el.focus();
+}
+
 export function toDateKey(date) {
   const d = date instanceof Date ? date : new Date(date);
   if (Number.isNaN(d.getTime())) return '';

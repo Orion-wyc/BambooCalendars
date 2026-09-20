@@ -5,6 +5,7 @@ import { escapeHtml, isImeKeyEvent } from './Utils.js';
 export class TaskDetail {
   constructor() {
     this.currentTaskId = null;
+    this.lastRenderedTaskId = null;
     this.selfUpdating = false;
     this.panel = document.getElementById('detail-panel');
     this.bindEvents();
@@ -24,6 +25,7 @@ export class TaskDetail {
   close() {
     if (!this.currentTaskId) return;
     this.currentTaskId = null;
+    this.lastRenderedTaskId = null;
     this.panel.classList.add('hidden');
     this.panel.innerHTML = '';
     eventBus.emit('task:deselect');
@@ -64,6 +66,11 @@ export class TaskDetail {
     const lists = store.getLists();
     const subtaskProgress = this.getSubtaskProgress(task);
     const completedSubtasks = task.subtasks.filter(s => s.completed).length;
+
+    const sameTask = this.lastRenderedTaskId === task.id;
+    const scroller = this.panel.querySelector('.detail-content');
+    const scrollTop = sameTask && scroller ? scroller.scrollTop : 0;
+    this.lastRenderedTaskId = task.id;
 
     this.panel.innerHTML = `
       <div class="detail-header">
@@ -180,6 +187,11 @@ export class TaskDetail {
         <button class="btn-delete-task" data-action="delete-task">删除任务</button>
       </div>
     `;
+
+    if (scrollTop) {
+      const next = this.panel.querySelector('.detail-content');
+      if (next) next.scrollTop = scrollTop;
+    }
   }
 
   bindEvents() {
@@ -309,6 +321,7 @@ export class TaskDetail {
     if (!confirm(`确定删除任务"${task.title}"？`)) return;
     const id = task.id;
     this.currentTaskId = null;
+    this.lastRenderedTaskId = null;
     this.panel.classList.add('hidden');
     this.panel.innerHTML = '';
     store.deleteTask(id);

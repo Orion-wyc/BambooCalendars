@@ -1,7 +1,7 @@
 import { theme } from './Theme.js';
 import { store } from './Store.js';
 import { eventBus } from './EventBus.js';
-import { escapeHtml } from './Utils.js';
+import { buttonFocusKey, escapeHtml, preserveScroll, restoreFocus } from './Utils.js';
 
 const SORT_OPTIONS = [
   ['created', '按创建时间'],
@@ -39,6 +39,7 @@ export class Settings {
   constructor() {
     this.overlay = document.getElementById('settings-overlay');
     this.currentTab = 'general';
+    this.lastRenderedTab = null;
     this.isOpen = false;
     this.appVersion = '';
     this.dataDir = '';
@@ -59,6 +60,7 @@ export class Settings {
   open(tab = 'general') {
     this.isOpen = true;
     this.currentTab = tab;
+    this.lastRenderedTab = null;
     this.overlay.classList.remove('hidden');
     this.render();
   }
@@ -70,6 +72,7 @@ export class Settings {
   close() {
     if (!this.isOpen) return;
     this.isOpen = false;
+    this.lastRenderedTab = null;
     this.overlay.classList.add('hidden');
     this.overlay.innerHTML = '';
   }
@@ -77,22 +80,32 @@ export class Settings {
   render() {
     if (!this.isOpen) return;
     const tabs = [['general', '常规'], ['tags', '标签'], ['about', '关于']];
-    this.overlay.innerHTML = `
-      <div class="settings-modal">
-        <div class="settings-header">
-          <div class="settings-title">设置</div>
-          <button class="btn-close-settings" data-action="close-settings">✕</button>
+    const sameTab = this.lastRenderedTab === this.currentTab;
+    const focusKey = buttonFocusKey(document.activeElement, this.overlay);
+    this.lastRenderedTab = this.currentTab;
+
+    const rebuild = () => {
+      this.overlay.innerHTML = `
+        <div class="settings-modal">
+          <div class="settings-header">
+            <div class="settings-title">设置</div>
+            <button class="btn-close-settings" data-action="close-settings">✕</button>
+          </div>
+          <div class="settings-tabs">
+            ${tabs.map(([id, label]) => `
+              <button class="settings-tab ${this.currentTab === id ? 'active' : ''}" data-action="switch-tab" data-tab="${id}">${label}</button>
+            `).join('')}
+          </div>
+          <div class="settings-content">
+            ${this.renderTab(this.currentTab)}
+          </div>
         </div>
-        <div class="settings-tabs">
-          ${tabs.map(([id, label]) => `
-            <button class="settings-tab ${this.currentTab === id ? 'active' : ''}" data-action="switch-tab" data-tab="${id}">${label}</button>
-          `).join('')}
-        </div>
-        <div class="settings-content">
-          ${this.renderTab(this.currentTab)}
-        </div>
-      </div>
-    `;
+      `;
+    };
+
+    if (sameTab) preserveScroll(this.overlay, '.settings-content', rebuild);
+    else rebuild();
+    restoreFocus(this.overlay, focusKey);
   }
 
   renderTab(tab) {

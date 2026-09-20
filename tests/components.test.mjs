@@ -441,4 +441,45 @@ test('BUG-47 重渲染不重建输入框，合成状态不被打断', () => {
   document.getElementById('task-input').value = '';
 });
 
+test('BUG-48 设置面板重渲染保持滚动位置', () => {
+  const settings = new Settings();
+  settings.open();
+  settings.overlay.querySelector('.settings-content').scrollTop = 300;
+  settings.render();
+  assert.equal(settings.overlay.querySelector('.settings-content').scrollTop, 300, '同页签重渲染应保持滚动位置');
+  settings.render();
+  assert.equal(settings.overlay.querySelector('.settings-content').scrollTop, 300);
+
+  settings.currentTab = 'tags';
+  settings.render();
+  assert.equal(settings.overlay.querySelector('.settings-content').scrollTop, 0, '切换页签应回到顶部');
+  settings.close();
+});
+
+test('BUG-48 设置面板重新打开回到顶部', () => {
+  const settings = new Settings();
+  settings.open();
+  settings.overlay.querySelector('.settings-content').scrollTop = 200;
+  settings.close();
+  settings.open();
+  assert.equal(settings.overlay.querySelector('.settings-content').scrollTop, 0);
+  settings.close();
+});
+
+test('BUG-48 详情面板同任务重渲染保持滚动位置，换任务回到顶部', () => {
+  const holder = createElement('div');
+  holder.innerHTML = '<div id="detail-panel" class="hidden"></div>';
+  const detail = new TaskDetail();
+  const a = store.createTask({ title: '滚动A' });
+  const b = store.createTask({ title: '滚动B' });
+
+  detail.open(a.id);
+  detail.panel.querySelector('.detail-content').scrollTop = 180;
+  detail.render();
+  assert.equal(detail.panel.querySelector('.detail-content').scrollTop, 180, '同任务重渲染应保持滚动位置');
+
+  detail.open(b.id);
+  assert.equal(detail.panel.querySelector('.detail-content').scrollTop, 0, '切换到其他任务应回到顶部');
+});
+
 process.exit(await run() ? 1 : 0);

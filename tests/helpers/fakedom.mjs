@@ -84,6 +84,7 @@ export class FakeElement {
     this.value = '';
     this.id = '';
     this.selectionStart = 0;
+    this.scrollTop = 0;
     this.focused = false;
   }
   get innerHTML() { return this._html; }

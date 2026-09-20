@@ -4,8 +4,8 @@
 > 检视方式：全量静态阅读 + 关键逻辑 Node 实测复现（时区、事件递归、计数覆盖）
 > 状态标记：`[ ]` 待修复 `[x]` 已修复 `[-]` 误报/不修
 >
-> **修复进度：BUG-01 ~ BUG-37（首轮检视）+ BUG-39 ~ BUG-47（修复过程中新发现与用户报告）全部修复完成，
-> BUG-38 复核为误报。合计 46 项修复。回归用例见 `tests/`，验证记录见文末。**
+> **修复进度：BUG-01 ~ BUG-37（首轮检视）+ BUG-39 ~ BUG-48（修复过程中新发现与用户报告）全部修复完成，
+> BUG-38 复核为误报。合计 47 项修复。回归用例见 `tests/`，验证记录见文末。**
 
 ---
 
@@ -330,6 +330,38 @@ P2: BUG-21 → 37
   `sendInputEvent` 真实键鼠用例各一组。
 - 状态：[x]
 
+### BUG-48 设置面板操作后滚动位置与焦点丢失（用户报告）
+- 位置：`Settings.js:render()`、`TaskDetail.js:render()`
+- 现象：切换主题、显示模式或任意开关后，设置对话框跳回顶部，用户需要重新滚动才能继续调整相邻选项。
+- 根因：`render()` 用 `this.overlay.innerHTML = ...` 整体重建对话框，**滚动容器 `.settings-content`
+  本身被销毁重建**，`scrollTop` 随旧节点一起消失；`document.activeElement` 也随旧节点失效，
+  键盘操作（Tab 到页签/按钮后回车）每次都要重新定位。
+  详情面板同理：`.detail-content` 被重建，勾选靠下的步骤后视图跳回顶部。
+- 对比：`#task-list-area`、`#sidebar-lists` 自身常驻、仅替换 innerHTML，Chromium 在同一同步任务内
+  重新布局，scrollTop 不受影响（实测 400 → 400），因此只有被重建的容器会跳。
+- 复现（修复前，真实 Electron）：
+  ```
+  切换主题:       scrollTop=300 → 0   ← 跳回顶部
+  切换显示模式:   scrollTop=300 → 0   ← 跳回顶部
+  切换紧凑模式:   scrollTop=300 → 0   ← 跳回顶部
+  切换置顶:       scrollTop=300 → 0   ← 跳回顶部
+  详情面板勾步骤: scrollTop=200 → 0   ← 跳回顶部
+  ```
+- 修复：`Utils.js` 新增 `preserveScroll(root, selector, mutate)`、`buttonFocusKey()`、`restoreFocus()`。
+  - 设置面板：同一页签内重渲染时保留 `.settings-content` 的 `scrollTop`，并把焦点还原到操作前的按钮；
+    **切换页签、重新打开时仍回到顶部**（内容已变，属于预期行为）。
+  - 详情面板：同一任务内重渲染保留 `.detail-content` 的 `scrollTop`；**切换到其他任务时回到顶部**。
+- 修复后：
+  ```
+  切换主题/模式/开关: scrollTop=300 → 300  OK
+  切换页签:           scrollTop → 0        OK（预期）
+  重新打开:           scrollTop → 0        OK（预期）
+  页签点击后焦点:     about                OK
+  详情面板勾步骤:     scrollTop=150 → 150  OK
+  切换到另一任务:     scrollTop → 0        OK（预期）
+  ```
+- 状态：[x]
+
 ### BUG-45 设置项缺少白名单，脏数据可污染配置
 - 位置：`Store.js:330-333`（原 `updateSettings`）
 - 现象：`Object.assign(this.data.settings, updates)` 接受任意键；`settings` 缺失时直接抛错。
@@ -344,7 +376,7 @@ P2: BUG-21 → 37
 |------|------|---------|
 | `main.js` | 重写窗口/菜单/托盘/协议/持久化逻辑 | 01 06 09 10 24 25 26 35 36 42 43 |
 | `preload.js` | 精简 IPC 面，补齐 app 接口，缩放钳制收敛 | 36 |
-| `src/js/Utils.js` | **新增**：日期（本地时区）、HTML 转义、输入法事件判定 | 05 15 47 |
+| `src/js/Utils.js` | **新增**：日期（本地时区）、HTML 转义、输入法事件判定、滚动/焦点保持 | 05 15 47 48 |
 | `src/js/Store.js` | 重写：结构归一化、日期、重复任务、计数、排序 | 05 06 11 12 13 14 17 18 29 30 36 45 |
 | `src/js/TaskList.js` | 重写：事件委托、转义、筛选贯通、内联编辑 | 04 05 07 15 17 18 20 31 39 44 |
 | `src/js/TaskDetail.js` | 重写：递归保护、监听器单次绑定、转义 | 02 03 15 32 33 34 41 |
@@ -357,6 +389,7 @@ P2: BUG-21 → 37
 | `src/css/main.css` | 补充 `.cal-cell.selected`、`.task-due-date.tomorrow`、`.context-menu-item.disabled` 样式 | 05 31 |
 | `src/index.html` | 加入 CSP meta | 46 |
 | `src/js/{TaskList,TaskDetail,Sidebar,App}.js` | Enter/Esc 增加输入法合成态守卫；输入框按需重建 | 47 |
+| `src/js/Settings.js`、`src/js/TaskDetail.js` | 重渲染保留滚动容器位置与按钮焦点 | 48 |
 | `src/package.json` | **新增** `{"type":"module"}`，使 Node 可直接加载 src 下 ESM 源码用于测试 | - |
 | `tests/**` | **新增** 零依赖测试套件（逻辑/组件/编排/端到端） | 全部 |
 | `package.json` | 新增 `test` / `test:logic` / `test:e2e` 脚本 | - |
@@ -380,13 +413,13 @@ TZ=America/New_York   共 29 项，失败 0 项
 TZ=Pacific/Kiritimati 共 29 项，失败 0 项
 ```
 
-### 2. 组件层回归（假 DOM，30 项）
+### 2. 组件层回归（假 DOM，33 项）
 覆盖：详情面板关闭不递归、面板/设置监听器不累积、子任务单次切换、标题点击命中、
 右键重命名保留输入框、内联编辑提交与回退、排序 change 生效、侧边栏计数与内置清单保护、
 搜索框不被重渲染清空、标签页、开关同步主进程、番茄钟计时、无选中不误删、XSS 转义。
 
 ```
-共 30 项，失败 0 项
+共 33 项，失败 0 项
 ```
 
 ### 3. App 编排层回归（14 项）
@@ -398,7 +431,7 @@ TZ=Pacific/Kiritimati 共 29 项，失败 0 项
 共 14 项，失败 0 项
 ```
 
-### 4. Electron 端到端（xvfb 真实运行，71 项）
+### 4. Electron 端到端（xvfb 真实运行，77 项）
 在真实 Chromium DOM 中执行完整用户流程：新建任务 → 点击标题开详情 → 加子任务并连续勾选两次 →
 关闭面板 → 右键重命名 → 注入 `<img onerror>`/`<script>` 标题 → 日历"今天"格子命中 →
 最近 7 天首组为今天 → 分组视图搜索 → 搜索框内容保持 → 设置面板点击只渲染一次 →
@@ -406,9 +439,12 @@ TZ=Pacific/Kiritimati 共 29 项，失败 0 项
 拖拽 order → 番茄钟跨视图不中断。
 
 ```
-共 71 项，失败 0 项
+共 77 项，失败 0 项
 退出码: 0
 ```
+
+其中 BUG-48 相关 6 项：设置内容可滚动、切换主题/开关后保持滚动位置、切换页签回到顶部、
+页签点击后焦点不丢失、详情面板勾选步骤后保持滚动位置。
 
 其中 BUG-47 相关 8 项：合成态 Enter 不提交/不清空、合成结束后中文正常提交、
 以及经 `webContents.sendInputEvent` 走真实输入管道的鼠标聚焦、逐字符键入、回车建单。
@@ -436,7 +472,7 @@ PASS  BUG-43 置顶写入 app-state.json 且渲染进程同步
 用例已随仓库落地在 `tests/`，详见 `tests/README.md`：
 
 ```bash
-npm test              # 全量：29×4 时区 + 30 组件 + 14 编排 + 71 端到端
+npm test              # 全量：29×4 时区 + 33 组件 + 14 编排 + 77 端到端
 npm run test:logic    # 仅 Node 层，约 2 秒
 npm run test:e2e      # 仅 Electron 端到端（自动使用 xvfb-run）
 SKIP_E2E=1 npm test   # 跳过端到端

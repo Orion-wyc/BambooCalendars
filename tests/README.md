@@ -23,7 +23,7 @@ tests/
 │   ├── runner.mjs       # 极简测试运行器（注册 / 执行 / 汇总 / 退出码）
 │   └── fakedom.mjs      # 假 DOM 与 window.api mock
 ├── store.test.mjs       # Store / Utils 纯逻辑回归（29 项 × 4 时区）
-├── components.test.mjs  # 组件层回归，基于假 DOM（30 项）
+├── components.test.mjs  # 组件层回归，基于假 DOM（33 项）
 ├── app.test.mjs         # App 编排层：快捷键、提醒、事件流（14 项）
 └── e2e/
     ├── run.cjs          # 启动 Electron 子进程、收集结果、判定退出

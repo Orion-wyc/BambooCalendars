@@ -221,6 +221,49 @@
     await sleep(100);
     ok('BUG-47 合成结束后 Enter 正常提交中文任务', store.data.tasks.some(t => t.title === '买菜'));
     ok('BUG-47 提交后输入框已清空', $('#task-input').value === '', $('#task-input').value);
+
+    app.settings.open();
+    await sleep(80);
+    const scroller = $('.settings-content');
+    ok('BUG-48 设置内容可滚动', scroller.scrollHeight > scroller.clientHeight,
+      `${scroller.scrollHeight}/${scroller.clientHeight}`);
+    scroller.scrollTop = 300;
+    click($('.theme-card'));
+    await sleep(80);
+    ok('BUG-48 切换主题后保持滚动位置', $('.settings-content').scrollTop === 300,
+      $('.settings-content').scrollTop);
+    click($('[data-action="toggle-setting"][data-setting="compactMode"]'));
+    await sleep(80);
+    ok('BUG-48 切换开关后保持滚动位置', $('.settings-content').scrollTop === 300,
+      $('.settings-content').scrollTop);
+    click($('[data-action="switch-tab"][data-tab="tags"]'));
+    await sleep(80);
+    ok('BUG-48 切换页签回到顶部', $('.settings-content').scrollTop === 0,
+      $('.settings-content').scrollTop);
+    click($('[data-action="switch-tab"][data-tab="general"]'));
+    await sleep(80);
+    const tabFocus = await (async () => {
+      $('[data-action="switch-tab"][data-tab="about"]').focus();
+      $('[data-action="switch-tab"][data-tab="about"]').click();
+      await sleep(80);
+      return document.activeElement && document.activeElement.dataset
+        ? document.activeElement.dataset.tab : document.activeElement.tagName;
+    })();
+    ok('BUG-48 页签点击后焦点不丢失', tabFocus === 'about', tabFocus);
+    app.settings.close();
+    await sleep(50);
+
+    const detailTask = store.data.tasks[0];
+    for (let i = 0; i < 20; i++) store.addSubtask(detailTask.id, `步骤${i}`);
+    app.taskDetail.open(detailTask.id);
+    await sleep(80);
+    const detailScroller = $('.detail-content');
+    detailScroller.scrollTop = 160;
+    click($('[data-action="toggle-subtask"]'));
+    await sleep(80);
+    ok('BUG-48 详情面板勾选步骤后保持滚动位置', $('.detail-content').scrollTop === 160,
+      $('.detail-content').scrollTop);
+    app.taskDetail.close();
   } catch (e) {
     results.push({ name: '渲染进程冒烟异常中断', pass: false, extra: String((e && e.stack) || e) });
   }

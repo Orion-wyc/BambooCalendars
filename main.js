@@ -1,7 +1,10 @@
-const { app, BrowserWindow, ipcMain, Notification, protocol, net, Menu, Tray, globalShortcut, screen } = require('electron');
+const { app, BrowserWindow, ipcMain, Notification, protocol, net, Menu, Tray, globalShortcut, screen, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { pathToFileURL } = require('url');
+const { initStorage, getDb, getReport } = require('./src/main/storage-init');
+const repositories = require('./src/main/repositories');
+const { exportDbToJson } = require('./src/main/export-json');
 
 protocol.registerSchemesAsPrivileged([
   { scheme: 'app', privileges: { secure: true, standard: true, supportFetchAPI: true } }
@@ -222,6 +225,8 @@ function createMenu() {
         { label: '检查更新', click: () => checkUpdate(false) },
         { label: '关于 Bamboo Todo', click: () => send('about') },
         { type: 'separator' },
+        { label: '导出数据库为 JSON（降级旧版用）', click: () => exportJsonDialog() },
+        { type: 'separator' },
         { role: 'toggleDevTools', label: '开发者工具' },
       ]
     },
@@ -248,6 +253,23 @@ function createMenu() {
 function quitApp() {
   isQuitting = true;
   app.quit();
+}
+
+async function exportJsonDialog() {
+  const db = getDb();
+  if (!db) return;
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: '选择导出目录',
+    defaultPath: app.getPath('documents'),
+    properties: ['openDirectory', 'createDirectory'],
+  });
+  if (result.canceled || !result.filePaths[0]) return;
+  try {
+    const files = exportDbToJson(db, result.filePaths[0]);
+    new Notification({ title: '导出完成', body: `已导出到 ${files[0]}` }).show();
+  } catch (e) {
+    new Notification({ title: '导出失败', body: e.message }).show();
+  }
 }
 
 function toggleWindowVisibility() {
@@ -401,16 +423,26 @@ function createWindow() {
 }
 
 function setupIPC() {
-  ipcMain.handle('store:read', () => readJSON(STORE_PATH, null));
+  ipcMain.handle('store:read', () => {
+    const db = getDb();
+    if (!db) return null;
+    return repositories.readStore(db);
+  });
   ipcMain.handle('store:write', (_, data) => {
+    const db = getDb();
+    if (!db) return { ok: false, error: '数据库未初始化' };
     try {
-      writeJSON(STORE_PATH, data);
-      return { ok: true };
+      return repositories.writeStore(db, data);
     } catch (e) {
       return { ok: false, error: e.message };
     }
   });
-  ipcMain.handle('themes:readUser', () => readJSON(USER_THEMES_PATH, []));
+  ipcMain.handle('themes:readUser', () => {
+    const db = getDb();
+    if (!db) return [];
+    const mapper = require('./src/main/mapper');
+    return mapper.assembleThemes(repositories.themes.selectAll(db));
+  });
   ipcMain.handle('notify', (_, { title, body }) => {
     if (Notification.isSupported()) new Notification({ title, body }).show();
     return true;
@@ -442,6 +474,18 @@ function setupIPC() {
 
 app.whenReady().then(() => {
   ensureDataDir();
+  const { report } = initStorage(DATA_DIR, { appVersion: app.getVersion() });
+  if (report.action === 'migrate' && !report.error) {
+    const c = report.counts || {};
+    queueMicrotask(() => {
+      if (Notification.isSupported()) {
+        new Notification({
+          title: '数据迁移完成',
+          body: `已将旧版 JSON 数据迁移到 SQLite（任务 ${c.tasks || 0} 条 / 清单 ${c.lists || 0} 个），原文件已归档`
+        }).show();
+      }
+    });
+  }
   setupIPC();
   const srcDir = path.join(__dirname, 'src');
   protocol.handle('app', (request) => {
@@ -480,4 +524,10 @@ app.on('before-quit', () => {
   saveWindowState();
 });
 
-app.on('will-quit', () => globalShortcut.unregisterAll());
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll();
+  const db = getDb();
+  if (db) {
+    try { db.close(); } catch {}
+  }
+});

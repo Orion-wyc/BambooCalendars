@@ -6,6 +6,7 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
+    "postinstall": "electron-builder install-app-deps",
     "test": "node tests/run.cjs",
     "test:logic": "node tests/store.test.mjs && node tests/components.test.mjs && node tests/app.test.mjs",
     "test:e2e": "node tests/e2e/run.cjs",
@@ -13,6 +14,9 @@
     "build:win": "electron-builder --win",
     "build:mac": "electron-builder --mac",
     "build:linux": "electron-builder --linux"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.10.0"
   },
   "devDependencies": {
     "electron": "^28.0.0",
@@ -23,6 +27,10 @@
     "productName": "Bamboo Todo",
     "compression": "maximum",
     "asar": true,
+    "asarUnpack": [
+      "**/*.node"
+    ],
+    "npmRebuild": true,
     "electronLanguages": ["zh-CN"],
     "files": [
       "main.js",

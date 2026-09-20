@@ -25,10 +25,20 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
+    - name: Rebuild native modules for Electron
+      run: npx electron-builder install-app-deps
+
     - name: Build Windows installer
       run: npm run build:win
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Verify native module packaged
+      run: |
+        $p = "dist/win-unpacked/resources/app.asar.unpacked/node_modules/better-sqlite3"
+        if (-not (Test-Path "$p/build/Release/better-sqlite3.node")) {
+          throw "better-sqlite3 native binary missing in package"
+        }
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4

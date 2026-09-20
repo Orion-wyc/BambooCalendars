@@ -11,7 +11,7 @@ TIMEZONES.forEach(tz => jobs.push({
   args: [path.join(HERE, 'store.test.mjs')],
   env: { ...process.env, TZ: tz },
 }));
-['components.test.mjs', 'app.test.mjs'].forEach(file => jobs.push({
+['components.test.mjs', 'app.test.mjs', 'migration.test.mjs'].forEach(file => jobs.push({
   name: file,
   cmd: process.execPath,
   args: [path.join(HERE, file)],
@@ -22,6 +22,12 @@ if (!process.env.SKIP_E2E) {
     name: 'e2e/run.cjs (Electron + xvfb)',
     cmd: process.execPath,
     args: [path.join(HERE, 'e2e', 'run.cjs')],
+    env: process.env,
+  });
+  jobs.push({
+    name: 'e2e/migration-run.cjs (JSON→SQLite 迁移演练)',
+    cmd: process.execPath,
+    args: [path.join(HERE, 'e2e', 'migration-run.cjs')],
     env: process.env,
   });
 }

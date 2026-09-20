@@ -117,7 +117,8 @@ async function mainChecks(win) {
   const dataDir = path.join(app.getPath('userData'), 'data');
   const statePath = path.join(dataDir, 'app-state.json');
   const wsPath = path.join(dataDir, 'window-state.json');
-  const storePath = path.join(dataDir, 'store.json');
+  const storageInit = require(path.join(REPO_ROOT, 'src', 'main', 'storage-init.js'));
+  const repositories = require(path.join(REPO_ROOT, 'src', 'main', 'repositories'));
 
   ok('窗口已显示', win.isVisible());
 
@@ -151,11 +152,11 @@ async function mainChecks(win) {
     ok('BUG-43 置顶状态写入 app-state.json', readJson(statePath, {}).alwaysOnTop === true,
       JSON.stringify(readJson(statePath, {})));
     ok('窗口已置顶', win.isAlwaysOnTop());
-    const storeJson = readJson(storePath, {});
-    ok('渲染进程同步了置顶设置', Boolean(storeJson.settings) && storeJson.settings.alwaysOnTop === true,
-      JSON.stringify(storeJson.settings));
-    ok('BUG-06 store.json 结构完整',
-      Array.isArray(storeJson.tasks) && Array.isArray(storeJson.lists) && Array.isArray(storeJson.tags));
+    const dbStore = repositories.readStore(storageInit.getDb()) || {};
+    ok('BUG-43 置顶状态写入 SQLite settings', Boolean(dbStore.settings) && dbStore.settings.alwaysOnTop === true,
+      JSON.stringify(dbStore.settings));
+    ok('BUG-06 SQLite 存储结构完整',
+      Array.isArray(dbStore.tasks) && Array.isArray(dbStore.lists) && Array.isArray(dbStore.tags));
     top.click({}, top, win);
     await sleep(300);
     ok('取消置顶生效', win.isAlwaysOnTop() === false);

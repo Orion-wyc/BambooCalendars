@@ -7,8 +7,14 @@ const BUILTIN_LIST_ID = 'tasks';
 
 const SETTING_KEYS = [
   'theme', 'mode', 'autoNightMode', 'sideBarHidden', 'requestExitConfirmation',
-  'compactMode', 'sortBy', 'alwaysOnTop', 'checkUpdateOnStartup'
+  'compactMode', 'sortBy', 'alwaysOnTop', 'checkUpdateOnStartup',
+  'pomodoroWorkMinutes', 'pomodoroBreakMinutes'
 ];
+
+const POMODORO_LIMITS = {
+  pomodoroWorkMinutes: { min: 1, max: 180, fallback: 25 },
+  pomodoroBreakMinutes: { min: 1, max: 60, fallback: 5 },
+};
 
 const REPEAT_VALUES = ['none', 'daily', 'weekdays', 'weekly', 'monthly', 'yearly'];
 
@@ -23,6 +29,8 @@ function defaultSettings() {
     sortBy: 'created',
     alwaysOnTop: false,
     checkUpdateOnStartup: true,
+    pomodoroWorkMinutes: 25,
+    pomodoroBreakMinutes: 5,
   };
 }
 
@@ -36,6 +44,12 @@ function defaultData() {
     settings: defaultSettings(),
     stats: { pomodoroDate: '', pomodoroSessions: 0 },
   };
+}
+
+function clampSettingNumber(value, rule) {
+  const num = parseInt(value, 10);
+  if (!Number.isFinite(num)) return rule.fallback;
+  return Math.min(rule.max, Math.max(rule.min, num));
 }
 
 export class Store {
@@ -110,6 +124,9 @@ export class Store {
         if (saved.settings[key] !== undefined) settings[key] = saved.settings[key];
       });
     }
+    Object.keys(POMODORO_LIMITS).forEach(key => {
+      settings[key] = clampSettingNumber(settings[key], POMODORO_LIMITS[key]);
+    });
 
     const stats = saved.stats && typeof saved.stats === 'object' ? saved.stats : {};
     return {
@@ -531,7 +548,10 @@ export class Store {
   updateSettings(updates) {
     if (!this.data.settings) this.data.settings = defaultSettings();
     Object.keys(updates || {}).forEach(key => {
-      if (SETTING_KEYS.includes(key)) this.data.settings[key] = updates[key];
+      if (!SETTING_KEYS.includes(key)) return;
+      this.data.settings[key] = POMODORO_LIMITS[key]
+        ? clampSettingNumber(updates[key], POMODORO_LIMITS[key])
+        : updates[key];
     });
     this.save();
   }
@@ -716,4 +736,4 @@ export class Store {
 }
 
 export const store = new Store();
-export { BUILTIN_LIST_ID };
+export { BUILTIN_LIST_ID, POMODORO_LIMITS };

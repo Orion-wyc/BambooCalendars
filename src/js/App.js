@@ -124,6 +124,10 @@ class App {
       this.taskDetail.refreshIfShowing(this.taskDetail.currentTaskId);
     });
 
+    eventBus.on('pomodoro:settings', () => {
+      this.pomodoro.applySettings();
+    });
+
     eventBus.on('settings:changed', () => {
       this.sidebar.update();
       this.taskList.render();

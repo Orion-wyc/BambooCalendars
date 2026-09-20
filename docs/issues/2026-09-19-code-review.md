@@ -4,8 +4,8 @@
 > 检视方式：全量静态阅读 + 关键逻辑 Node 实测复现（时区、事件递归、计数覆盖）
 > 状态标记：`[ ]` 待修复 `[x]` 已修复 `[-]` 误报/不修
 >
-> **修复进度：BUG-01 ~ BUG-37（首轮检视）+ BUG-39 ~ BUG-48（修复过程中新发现与用户报告）全部修复完成，
-> BUG-38 复核为误报。合计 47 项修复。回归用例见 `tests/`，验证记录见文末。**
+> **修复进度：BUG-01 ~ BUG-37（首轮检视）+ BUG-39 ~ BUG-51（修复过程中新发现与用户报告）全部修复完成，
+> BUG-38 复核为误报。合计 50 项修复。回归用例见 `tests/`，验证记录见文末。**
 
 ---
 
@@ -362,6 +362,59 @@ P2: BUG-21 → 37
   ```
 - 状态：[x]
 
+### BUG-49 日历「今天」按钮文字折成两行（用户报告）
+- 位置：`TaskList.js:255`（原 `<button class="btn-calendar-nav" id="cal-today">今天</button>`）、
+  `main.css:1600`（`.btn-calendar-nav { width: 32px; height: 32px; font-size: 16px }`）
+- 现象：「今天」按钮复用了给 `‹` `›` 箭头设计的 32×32 方形图标按钮样式，两个 16px 汉字加内边距
+  远超 32px 宽度，被挤成两行并撑破按钮。
+- 复现（修复前，真实 Electron）：
+  ```
+  今天按钮: {"行数":2,"宽":32,"高":32}
+  ```
+- 修复：新增 `.btn-calendar-today`（`width:auto; min-width:56px; padding:0 12px; font-size:13px;
+  line-height:30px; white-space:nowrap; flex:none`），与箭头按钮共存两个 class，
+  箭头按钮保持 32×32 方形不受影响。
+- 修复后：`行数=1`，高度 32，`scrollWidth <= clientWidth`，宽度大于翻页按钮。
+- 状态：[x]
+
+### BUG-50 番茄钟时长固定 25/5 分钟，无法调节（用户报告）
+- 位置：`Pomodoro.js:9-10`（`workDuration = 25 * 60`、`breakDuration = 5 * 60` 硬编码）
+- 现象：专注与休息时长写死在构造函数里，没有任何设置入口，用户无法按自己的节奏调整。
+- 复现（修复前）：`{"专注时长输入框":false,"workDuration":1500,"breakDuration":300}`，
+  store 中无对应配置项。
+- 修复：
+  - `Store.js` 新增设置项 `pomodoroWorkMinutes`（1-180，默认 25）、`pomodoroBreakMinutes`（1-60，默认 5），
+    纳入 `SETTING_KEYS` 白名单，读写与 `normalize()` 统一走 `clampSettingNumber()` 钳制，
+    非法值回退默认；
+  - `Pomodoro.js` 构造时 `applySettings()` 从 store 读取时长，新增 `applySettings()` /
+    `minutesOf()`：**空闲时调整立即生效**（重算 `remaining` 并重绘），
+    **进行中的番茄不被打断**，新时长从下一段开始生效；面板底部显示当前 `专注/休息` 时长；
+  - `Settings.js` 常规页新增「番茄钟」区块（两个 number 输入，带 min/max/step），
+    `change` 时写入 store、回显钳制后的值，并发 `pomodoro:settings` 事件；
+    **不触发整页重渲染**，避免输入框被重建（参见 BUG-48/BUG-39）；
+  - `App.js` 监听 `pomodoro:settings` → `pomodoro.applySettings()`。
+- 修复后：50/10 生效、面板显示 `50:00`、9999 钳制为 180 并回显、0 钳制为 1、恢复 25/5 后显示 `25:00`。
+- 状态：[x]
+
+### BUG-51 紧凑模式下侧边栏标题溢出边界（用户报告）
+- 位置：`Sidebar.js:21`（`#sidebar-user` 直接写入纯文本 `📋 Bamboo Todo`）、
+  `main.css:97`、`main.css:1243`（紧凑模式 `#sidebar { width: 60px }` + `#sidebar-user { padding:12px 8px }`）
+- 现象：紧凑模式把侧边栏收窄到 60px，导航项的文字都通过 `.nav-item-label { display:none }` 隐藏了，
+  但标题是**裸文本节点**，没有可隐藏的子元素，"Bamboo" 单词比 44px 的内容宽度更宽，
+  横向溢出侧边栏边界（`#sidebar` 没有 `overflow:hidden`，直接画到外面）。
+- 复现（修复前，等待宽度过渡结束后测量）：
+  ```
+  紧凑模式侧边栏: {"侧边栏宽":60,"scrollWidth":64,"clientWidth":59,"文本":"📋 Bamboo Todo"}
+  ```
+  `scrollWidth 64 > clientWidth 59` 即内容溢出。
+- 修复：标题改为 `<span class="sidebar-user-icon">📋</span><span class="sidebar-user-label">Bamboo Todo</span>`
+  结构，与导航项一致；紧凑模式隐藏 `.sidebar-user-label` 只留图标并居中；
+  `#sidebar-user` 补 `display:flex; overflow:hidden; white-space:nowrap`，
+  `.sidebar-user-label` 补 `text-overflow:ellipsis`，常规模式过窄时也只省略号截断而不溢出。
+- 修复后：常规与紧凑模式下 `scrollWidth <= clientWidth`，标题右边界不越过侧边栏。
+- 备注：测量需等待 `--transition-normal: 0.3s` 的宽度过渡结束，否则读到中间值（首次实测得到 74px）。
+- 状态：[x]
+
 ### BUG-45 设置项缺少白名单，脏数据可污染配置
 - 位置：`Store.js:330-333`（原 `updateSettings`）
 - 现象：`Object.assign(this.data.settings, updates)` 接受任意键；`settings` 缺失时直接抛错。
@@ -390,6 +443,9 @@ P2: BUG-21 → 37
 | `src/index.html` | 加入 CSP meta | 46 |
 | `src/js/{TaskList,TaskDetail,Sidebar,App}.js` | Enter/Esc 增加输入法合成态守卫；输入框按需重建 | 47 |
 | `src/js/Settings.js`、`src/js/TaskDetail.js` | 重渲染保留滚动容器位置与按钮焦点 | 48 |
+| `src/css/main.css`、`src/js/TaskList.js` | 日历「今天」按钮独立样式，不再复用方形图标按钮 | 49 |
+| `src/js/{Store,Pomodoro,Settings,App}.js` | 番茄钟时长可配置（含钳制、空闲即时生效、进行中不打断） | 50 |
+| `src/js/Sidebar.js`、`src/css/main.css` | 侧边栏标题结构化为图标+文字，紧凑模式只留图标并防溢出 | 51 |
 | `src/package.json` | **新增** `{"type":"module"}`，使 Node 可直接加载 src 下 ESM 源码用于测试 | - |
 | `tests/**` | **新增** 零依赖测试套件（逻辑/组件/编排/端到端） | 全部 |
 | `package.json` | 新增 `test` / `test:logic` / `test:e2e` 脚本 | - |
@@ -401,25 +457,25 @@ P2: BUG-21 → 37
 
 无既有测试框架，本次以 Node 直跑 + Electron 真实渲染进程两种方式回归。
 
-### 1. Store / Utils 逻辑回归（29 项 × 4 时区）
+### 1. Store / Utils 逻辑回归（30 项 × 4 时区）
 覆盖：结构归一化、损坏数据回退、旧版字段补齐、去重、日期 key、日历取月、已计划分组边界、
 截止标签、计数命名空间、内置清单保护、tags 数组独立性、重复任务边沿与追赶、工作日/月末/闰年推进、
 拖拽 order、入参校验、筛选贯通、排序、转义、番茄会话跨天、写盘失败上报。
 
 ```
-TZ=Asia/Shanghai      共 29 项，失败 0 项
-TZ=UTC                共 29 项，失败 0 项
-TZ=America/New_York   共 29 项，失败 0 项
-TZ=Pacific/Kiritimati 共 29 项，失败 0 项
+TZ=Asia/Shanghai      共 30 项，失败 0 项
+TZ=UTC                共 30 项，失败 0 项
+TZ=America/New_York   共 30 项，失败 0 项
+TZ=Pacific/Kiritimati 共 30 项，失败 0 项
 ```
 
-### 2. 组件层回归（假 DOM，33 项）
+### 2. 组件层回归（假 DOM，35 项）
 覆盖：详情面板关闭不递归、面板/设置监听器不累积、子任务单次切换、标题点击命中、
 右键重命名保留输入框、内联编辑提交与回退、排序 change 生效、侧边栏计数与内置清单保护、
 搜索框不被重渲染清空、标签页、开关同步主进程、番茄钟计时、无选中不误删、XSS 转义。
 
 ```
-共 33 项，失败 0 项
+共 35 项，失败 0 项
 ```
 
 ### 3. App 编排层回归（14 项）
@@ -431,7 +487,7 @@ TZ=Pacific/Kiritimati 共 29 项，失败 0 项
 共 14 项，失败 0 项
 ```
 
-### 4. Electron 端到端（xvfb 真实运行，77 项）
+### 4. Electron 端到端（xvfb 真实运行，98 项）
 在真实 Chromium DOM 中执行完整用户流程：新建任务 → 点击标题开详情 → 加子任务并连续勾选两次 →
 关闭面板 → 右键重命名 → 注入 `<img onerror>`/`<script>` 标题 → 日历"今天"格子命中 →
 最近 7 天首组为今天 → 分组视图搜索 → 搜索框内容保持 → 设置面板点击只渲染一次 →
@@ -439,9 +495,13 @@ TZ=Pacific/Kiritimati 共 29 项，失败 0 项
 拖拽 order → 番茄钟跨视图不中断。
 
 ```
-共 77 项，失败 0 项
+共 98 项，失败 0 项
 退出码: 0
 ```
+
+其中 BUG-49/50/51 相关 21 项：按钮文字行数（Range.getClientRects）、按钮尺寸与溢出、
+时长读写与钳制回显、面板倒计时文本、输入框不被重建、紧凑模式侧边栏宽度与标题溢出
+（断言前等待 0.3s 宽度过渡结束，避免读到中间值）。
 
 其中 BUG-48 相关 6 项：设置内容可滚动、切换主题/开关后保持滚动位置、切换页签回到顶部、
 页签点击后焦点不丢失、详情面板勾选步骤后保持滚动位置。
@@ -472,7 +532,7 @@ PASS  BUG-43 置顶写入 app-state.json 且渲染进程同步
 用例已随仓库落地在 `tests/`，详见 `tests/README.md`：
 
 ```bash
-npm test              # 全量：29×4 时区 + 33 组件 + 14 编排 + 77 端到端
+npm test              # 全量：30×4 时区 + 35 组件 + 14 编排 + 98 端到端
 npm run test:logic    # 仅 Node 层，约 2 秒
 npm run test:e2e      # 仅 Electron 端到端（自动使用 xvfb-run）
 SKIP_E2E=1 npm test   # 跳过端到端

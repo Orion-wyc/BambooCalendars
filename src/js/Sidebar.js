@@ -29,7 +29,10 @@ export class Sidebar {
   }
 
   renderStatic() {
-    this.el.user.innerHTML = '📋 Bamboo Todo';
+    this.el.user.innerHTML = `
+      <span class="sidebar-user-icon">📋</span>
+      <span class="sidebar-user-label">Bamboo Todo</span>
+    `;
     this.el.search.innerHTML = `<input type="text" id="search-input" placeholder="搜索任务...">`;
     this.el.footer.innerHTML = `
       <button class="btn-add-list" id="btn-add-list">

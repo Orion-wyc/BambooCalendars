@@ -292,7 +292,7 @@ export class TaskList {
           <button class="btn-calendar-nav" id="cal-prev">‹</button>
           <div class="calendar-title">${monthName}</div>
           <button class="btn-calendar-nav" id="cal-next">›</button>
-          <button class="btn-calendar-nav" id="cal-today">今天</button>
+          <button class="btn-calendar-nav btn-calendar-today" id="cal-today">今天</button>
         </div>
         <div class="calendar-weekdays">
           ${weekdays.map(d => `<div class="cal-weekday">${d}</div>`).join('')}

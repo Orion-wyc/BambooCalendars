@@ -482,4 +482,43 @@ test('BUG-48 详情面板同任务重渲染保持滚动位置，换任务回到�
   assert.equal(detail.panel.querySelector('.detail-content').scrollTop, 0, '切换到其他任务应回到顶部');
 });
 
+test('BUG-50 番茄钟时长按设置生效并可调整', () => {
+  store.updateSettings({ pomodoroWorkMinutes: 50, pomodoroBreakMinutes: 10 });
+  const p = new Pomodoro();
+  assert.equal(p.workDuration, 50 * 60);
+  assert.equal(p.breakDuration, 10 * 60);
+  assert.equal(p.remaining, 50 * 60);
+  assert.equal(p.formatTime(p.remainingSeconds()), '50:00');
+
+  store.updateSettings({ pomodoroWorkMinutes: 30 });
+  assert.equal(p.applySettings(), true);
+  assert.equal(p.workDuration, 30 * 60);
+  assert.equal(p.remaining, 30 * 60, '空闲时调整应立即生效');
+  assert.equal(p.applySettings(), false, '无变化时不重复渲染');
+
+  p.start();
+  store.updateSettings({ pomodoroWorkMinutes: 45 });
+  p.applySettings();
+  assert.equal(p.workDuration, 45 * 60);
+  assert.ok(p.remainingSeconds() > 29 * 60, '进行中的番茄不应被打断');
+  p.stop();
+  assert.equal(p.remaining, 45 * 60, '重置后使用新时长');
+
+  store.updateSettings({ pomodoroWorkMinutes: 25, pomodoroBreakMinutes: 5 });
+  p.applySettings();
+});
+
+test('BUG-50 休息阶段使用休息时长', () => {
+  store.updateSettings({ pomodoroWorkMinutes: 1, pomodoroBreakMinutes: 7 });
+  const p = new Pomodoro();
+  p.start();
+  p.endsAt = Date.now() - 10;
+  p.tick();
+  assert.equal(p.isWork, false);
+  assert.equal(p.remaining, 7 * 60);
+  assert.equal(p.formatTime(p.remainingSeconds()), '07:00');
+  p.stop();
+  store.updateSettings({ pomodoroWorkMinutes: 25, pomodoroBreakMinutes: 5 });
+});
+
 process.exit(await run() ? 1 : 0);

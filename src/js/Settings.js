@@ -178,6 +178,25 @@ export class Settings {
       </div>
 
       <div class="settings-section">
+        <div class="settings-section-title">番茄钟</div>
+        <div class="settings-field-row">
+          <div class="settings-field">
+            <div class="detail-field-label">专注时长（分钟）</div>
+            <input type="number" class="detail-input settings-number" id="setting-pomodoro-work"
+                   min="1" max="180" step="1" value="${settings.pomodoroWorkMinutes}">
+          </div>
+          <div class="settings-field">
+            <div class="detail-field-label">休息时长（分钟）</div>
+            <input type="number" class="detail-input settings-number" id="setting-pomodoro-break"
+                   min="1" max="60" step="1" value="${settings.pomodoroBreakMinutes}">
+          </div>
+        </div>
+        <div class="settings-toggle-desc" style="margin-top: 8px;">
+          保存后立即作用于尚未开始的计时；进行中的番茄不受影响，将在下一段生效
+        </div>
+      </div>
+
+      <div class="settings-section">
         <div class="settings-section-title">快捷键</div>
         <div style="color: var(--text-secondary); font-size: 13px; line-height: 2;">
           ${SHORTCUTS.map(s => `<div>${s}</div>`).join('')}
@@ -293,6 +312,15 @@ export class Settings {
     if (e.target.id === 'setting-sort-by') {
       store.updateSettings({ sortBy: e.target.value });
       eventBus.emit('task:update');
+      return;
+    }
+    if (e.target.id === 'setting-pomodoro-work' || e.target.id === 'setting-pomodoro-break') {
+      const key = e.target.id === 'setting-pomodoro-work'
+        ? 'pomodoroWorkMinutes' : 'pomodoroBreakMinutes';
+      store.updateSettings({ [key]: e.target.value });
+      const normalized = store.getSettings()[key];
+      if (String(normalized) !== String(e.target.value)) e.target.value = normalized;
+      eventBus.emit('pomodoro:settings');
       return;
     }
     if (e.target.classList.contains('tag-manager-name')) {

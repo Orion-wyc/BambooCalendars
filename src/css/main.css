@@ -95,10 +95,24 @@ html.side-bar-hidden #sidebar {
 }
 
 #sidebar-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 20px 16px;
   font-size: 18px;
   font-weight: 600;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.sidebar-user-icon {
+  flex: none;
+}
+
+.sidebar-user-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 #sidebar-search {
@@ -1241,9 +1255,15 @@ html.compact-mode #sidebar {
 }
 
 html.compact-mode #sidebar-user {
-  padding: 12px 8px;
-  font-size: 14px;
+  justify-content: center;
+  gap: 0;
+  padding: 12px 0;
+  font-size: 16px;
   text-align: center;
+}
+
+html.compact-mode .sidebar-user-label {
+  display: none;
 }
 
 html.compact-mode #sidebar-search {
@@ -1614,6 +1634,16 @@ html.compact-mode .task-item {
   color: var(--accent);
 }
 
+.btn-calendar-today {
+  width: auto;
+  min-width: 56px;
+  padding: 0 12px;
+  font-size: 13px;
+  line-height: 30px;
+  white-space: nowrap;
+  flex: none;
+}
+
 .calendar-weekdays {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -1741,6 +1771,17 @@ html.compact-mode .task-item {
   text-align: center;
 }
 
+.settings-number {
+  width: 96px;
+  padding: 6px 8px;
+}
+
+.settings-field-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
 /* Pomodoro */
 #pomodoro-panel {
   position: fixed;
@@ -1754,6 +1795,13 @@ html.compact-mode .task-item {
   z-index: 1500;
   border: 1px solid var(--border);
   animation: slideInRight var(--transition-normal);
+}
+
+.pomodoro-hint {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
 }
 
 .pomodoro-header {

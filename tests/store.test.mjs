@@ -345,4 +345,23 @@ test('BUG-30 load 从持久化数据恢复', async () => {
   assert.equal(s.saveError, null);
 });
 
+test('BUG-50 番茄钟时长默认值与越界钳制', () => {
+  const d = freshStore(null);
+  assert.equal(d.data.settings.pomodoroWorkMinutes, 25);
+  assert.equal(d.data.settings.pomodoroBreakMinutes, 5);
+
+  const s = freshStore({ settings: { pomodoroWorkMinutes: 9999, pomodoroBreakMinutes: -3 } });
+  assert.equal(s.data.settings.pomodoroWorkMinutes, 180, '超上限钳制到 180');
+  assert.equal(s.data.settings.pomodoroBreakMinutes, 1, '低于下限钳制到 1');
+
+  const g = freshStore({ settings: { pomodoroWorkMinutes: 'abc', pomodoroBreakMinutes: null } });
+  assert.equal(g.data.settings.pomodoroWorkMinutes, 25, '非法值回退默认');
+  assert.equal(g.data.settings.pomodoroBreakMinutes, 5);
+
+  s.updateSettings({ pomodoroWorkMinutes: '50' });
+  assert.equal(s.data.settings.pomodoroWorkMinutes, 50, '字符串数字可接受');
+  s.updateSettings({ pomodoroWorkMinutes: 0 });
+  assert.equal(s.data.settings.pomodoroWorkMinutes, 1);
+});
+
 process.exit(await run() ? 1 : 0);

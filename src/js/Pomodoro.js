@@ -16,8 +16,31 @@ export class Pomodoro {
     this.timer = null;
     this.visible = false;
     this.lastRenderedSecond = -1;
+    this.applySettings();
     this.render();
     this.bindEvents();
+  }
+
+  applySettings() {
+    const settings = store.getSettings();
+    const work = this.minutesOf(settings.pomodoroWorkMinutes, 25);
+    const rest = this.minutesOf(settings.pomodoroBreakMinutes, 5);
+    if (work === this.workDuration && rest === this.breakDuration) return false;
+
+    this.workDuration = work;
+    this.breakDuration = rest;
+    if (!this.isRunning) {
+      this.remaining = this.duration();
+      this.lastRenderedSecond = -1;
+      this.render();
+    }
+    return true;
+  }
+
+  minutesOf(value, fallback) {
+    const minutes = parseInt(value, 10);
+    if (!Number.isFinite(minutes) || minutes <= 0) return fallback * 60;
+    return minutes * 60;
   }
 
   toggle(force) {
@@ -170,6 +193,7 @@ export class Pomodoro {
         <button class="pomodoro-btn" id="pomo-stop">重置</button>
       </div>
       <div class="pomodoro-sessions">今日完成: ${this.sessions} 个</div>
+      <div class="pomodoro-hint">${this.workDuration / 60} / ${this.breakDuration / 60} 分钟 · 时长可在设置中调整</div>
     `;
   }
 

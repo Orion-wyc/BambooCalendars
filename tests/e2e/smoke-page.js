@@ -264,6 +264,94 @@
     ok('BUG-48 详情面板勾选步骤后保持滚动位置', $('.detail-content').scrollTop === 160,
       $('.detail-content').scrollTop);
     app.taskDetail.close();
+
+    // ---- BUG-50 番茄钟时长可配置 ----
+    app.settings.open();
+    await sleep(80);
+    const workInput = $('#setting-pomodoro-work');
+    const breakInput = $('#setting-pomodoro-break');
+    ok('BUG-50 设置页提供专注/休息时长输入', Boolean(workInput) && Boolean(breakInput));
+    ok('BUG-50 默认时长为 25/5', workInput && workInput.value === '25' && breakInput.value === '5',
+      workInput && `${workInput.value}/${breakInput.value}`);
+    workInput.value = '50';
+    workInput.dispatchEvent(new Event('change', { bubbles: true }));
+    breakInput.value = '10';
+    breakInput.dispatchEvent(new Event('change', { bubbles: true }));
+    await sleep(100);
+    ok('BUG-50 时长写入 store',
+      store.getSettings().pomodoroWorkMinutes === 50 && store.getSettings().pomodoroBreakMinutes === 10,
+      JSON.stringify(store.getSettings().pomodoroWorkMinutes));
+    ok('BUG-50 番茄钟应用新时长',
+      app.pomodoro.workDuration === 50 * 60 && app.pomodoro.breakDuration === 10 * 60,
+      `${app.pomodoro.workDuration}/${app.pomodoro.breakDuration}`);
+    ok('BUG-50 面板倒计时按新时长显示', $('#pomo-time').textContent === '50:00', $('#pomo-time').textContent);
+    ok('BUG-50 编辑时长不重渲染设置页（焦点/输入保留）',
+      $('#setting-pomodoro-work') === workInput, '输入框被重建');
+
+    workInput.value = '9999';
+    workInput.dispatchEvent(new Event('change', { bubbles: true }));
+    await sleep(80);
+    ok('BUG-50 超范围输入被钳制到上限', store.getSettings().pomodoroWorkMinutes === 180,
+      store.getSettings().pomodoroWorkMinutes);
+    ok('BUG-50 输入框回显钳制后的值', $('#setting-pomodoro-work').value === '180',
+      $('#setting-pomodoro-work').value);
+    workInput.value = '0';
+    workInput.dispatchEvent(new Event('change', { bubbles: true }));
+    await sleep(80);
+    ok('BUG-50 非法输入回退到下限', store.getSettings().pomodoroWorkMinutes === 1,
+      store.getSettings().pomodoroWorkMinutes);
+    const reset = $('#setting-pomodoro-work');
+    reset.value = '25';
+    reset.dispatchEvent(new Event('change', { bubbles: true }));
+    $('#setting-pomodoro-break').value = '5';
+    $('#setting-pomodoro-break').dispatchEvent(new Event('change', { bubbles: true }));
+    await sleep(80);
+    ok('BUG-50 恢复默认时长', app.pomodoro.workDuration === 25 * 60 && $('#pomo-time').textContent === '25:00',
+      $('#pomo-time').textContent);
+    app.settings.close();
+    await sleep(50);
+
+    // ---- BUG-51 紧凑模式侧边栏标题 ----
+    document.documentElement.classList.remove('compact-mode');
+    await sleep(400);
+    const userBlock = $('#sidebar-user');
+    ok('BUG-51 常规模式标题不溢出', userBlock.scrollWidth <= userBlock.clientWidth + 1,
+      `${userBlock.scrollWidth}/${userBlock.clientWidth}`);
+    document.documentElement.classList.add('compact-mode');
+    await sleep(450);
+    const sidebarRect = $('#sidebar').getBoundingClientRect();
+    const userRect = $('#sidebar-user').getBoundingClientRect();
+    ok('BUG-51 紧凑模式侧边栏收窄', sidebarRect.width <= 80, sidebarRect.width);
+    ok('BUG-51 紧凑模式标题未超出侧边栏边界',
+      userRect.right <= sidebarRect.right + 0.5 && userRect.left >= sidebarRect.left - 0.5,
+      `user ${userRect.left.toFixed(1)}~${userRect.right.toFixed(1)} / sidebar ${sidebarRect.left.toFixed(1)}~${sidebarRect.right.toFixed(1)}`);
+    ok('BUG-51 紧凑模式标题内容不溢出',
+      $('#sidebar-user').scrollWidth <= $('#sidebar-user').clientWidth + 1,
+      `${$('#sidebar-user').scrollWidth}/${$('#sidebar-user').clientWidth}`);
+    ok('BUG-51 紧凑模式隐藏标题文字仅留图标',
+      getComputedStyle($('#sidebar-user .sidebar-user-label')).display === 'none');
+    document.documentElement.classList.remove('compact-mode');
+    await sleep(450);
+
+    // ---- BUG-49 日历「今天」按钮 ----
+    click($('#sidebar-nav [data-view="calendar"]'));
+    await sleep(200);
+    const todayBtn = $('#cal-today');
+    ok('BUG-49 今天按钮存在', Boolean(todayBtn));
+    const btnRect = todayBtn.getBoundingClientRect();
+    const range = document.createRange();
+    range.selectNodeContents(todayBtn);
+    const lines = range.getClientRects().length;
+    ok('BUG-49 今天按钮文字单行显示', lines === 1, `行数=${lines}`);
+    ok('BUG-49 今天按钮高度正常（未撑高）', btnRect.height >= 28 && btnRect.height <= 40, btnRect.height);
+    ok('BUG-49 今天按钮文字未溢出', todayBtn.scrollWidth <= todayBtn.clientWidth + 1,
+      `${todayBtn.scrollWidth}/${todayBtn.clientWidth}`);
+    const navRect = $('#cal-prev').getBoundingClientRect();
+    ok('BUG-49 翻页按钮仍为方形图标按钮', Math.abs(navRect.width - navRect.height) < 2,
+      `${navRect.width}x${navRect.height}`);
+    ok('BUG-49 今天按钮比翻页按钮宽', btnRect.width > navRect.width, `${btnRect.width}/${navRect.width}`);
+    click($('#sidebar-nav [data-view="tasks"]'));
+    await sleep(50);
   } catch (e) {
     results.push({ name: '渲染进程冒烟异常中断', pass: false, extra: String((e && e.stack) || e) });
   }

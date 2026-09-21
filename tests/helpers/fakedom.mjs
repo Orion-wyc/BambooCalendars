@@ -181,6 +181,7 @@ globalThis.removeEventListener = () => {};
 globalThis.dispatchWindow = (type, ev) => (windowListeners[type] || []).slice().forEach(fn => fn(ev));
 
 globalThis.api = {
+  platform: 'linux',
   store: {
     read: async () => (mock.stored ? JSON.parse(JSON.stringify(mock.stored)) : null),
     write: async (data) => {
@@ -191,7 +192,12 @@ globalThis.api = {
   },
   themes: { readUser: async () => [] },
   notify: async (title, body) => { mock.notifications.push(`${title}|${body}`); return true; },
-  window: { show: async () => {}, getPath: async () => mock.userDataPath },
+  window: {
+    show: async () => {},
+    getPath: async () => mock.userDataPath,
+    toggleFullscreen: async () => false,
+  },
+  titlebar: { setOverlay: () => {} },
   app: {
     applySetting: (k, v) => { mock.appliedSettings.push([k, v]); },
     getVersion: async () => mock.version,

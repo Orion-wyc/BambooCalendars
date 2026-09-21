@@ -1,4 +1,5 @@
 import { THEME_PRESETS } from '../themes/presets.js';
+import { syncTitlebarOverlay } from './TitleBar.js';
 
 const NIGHT_START_HOUR = 19;
 const NIGHT_END_HOUR = 7;
@@ -64,6 +65,7 @@ export class Theme {
     const root = document.documentElement;
     Object.values(MODE_CLASSES).forEach(cls => root.classList.remove(cls));
     if (MODE_CLASSES[next]) root.classList.add(MODE_CLASSES[next]);
+    syncTitlebarOverlay();
     return this.mode;
   }
 

@@ -66,6 +66,8 @@
   --transition-fast: 0.15s ease;
   --transition-normal: 0.3s ease;
   --transition-slow: 0.5s ease;
+  --titlebar-h: 36px;
+  --titlebar-controls-w: 138px;
   --font-family: 'Segoe UI', 'Segoe UI Web (West European)', -apple-system, BlinkMacSystemFont, Roboto, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
   --font-family-mono: Consolas, 'Courier New', Courier, monospace;
 }
@@ -127,10 +129,56 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+#titlebar {
+  height: var(--titlebar-h);
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  background: var(--bg-panel);
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  user-select: none;
+  -webkit-app-region: drag;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+html.platform-darwin #titlebar {
+  padding-left: 84px;
+}
+
+html.platform-win32 #titlebar,
+html.platform-linux #titlebar {
+  padding-right: var(--titlebar-controls-w);
+}
+
+html.fullscreen #titlebar {
+  display: none;
+}
+
+.titlebar-icon {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  pointer-events: none;
+}
+
+.titlebar-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 #app {
   display: flex;
-  height: 100vh;
+  height: calc(100vh - var(--titlebar-h));
   width: 100vw;
+}
+
+html.fullscreen #app {
+  height: 100vh;
 }
 
 /* Scrollbar Styles */
@@ -173,6 +221,7 @@ html.side-bar-hidden #sidebar {
   align-items: center;
   gap: 8px;
   padding: 20px 16px;
+  min-height: 80px;
   font-size: 18px;
   font-weight: 600;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -1441,6 +1490,7 @@ html.compact-mode #sidebar-user {
   justify-content: center;
   gap: 0;
   padding: 12px 0;
+  min-height: 60px;
   font-size: 16px;
   text-align: center;
 }

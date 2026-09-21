@@ -1,162 +1,142 @@
 # BambooCalendars 实现任务清单
 
-> 基于 ao 功能分析，分阶段实现 Fluent Design 风格的离线待办桌面应用
+> 基于 ao 功能分析制定；2026-09-20 更新：同步实际完成状态，汇总遗留问题
+>
+> 状态标记：`[x]` 已完成 · `[ ]` 未完成 · `[-]` 已取消（按"增量改造、不推倒重来"原则调整）
 
 ---
 
-## Phase 1: Fluent Design UI 重写
+## Phase 1: UI 风格（调整为增量改造）
 
-### 1.1 设计令牌系统（Design Tokens）
-- [ ] 建立 Fluent Design 色板（Neutral #F3F2F1, Accent #0078D4, Text #323130）
-- [ ] 定义阴影层级 Elevation（4/8/16/64）
-- [ ] 定义圆角标准（2px/4px/8px）
-- [ ] 定义动画曲线（Fluent 缓动函数）
-- [ ] 定义字体系统（Segoe UI 优先）
+> 原"Fluent Design 全量重写"按用户要求调整为基于现有 UI 扩充，重写类条目取消。
 
-### 1.2 布局重写
-- [ ] 三栏布局改用 Fluent NavigationView 模式
-- [ ] 侧边栏改用窄图标模式（可展开）
-- [ ] CommandBar 顶部操作栏
-- [ ] 内容区域内边距与间距标准化
-
-### 1.3 组件重写
-- [ ] 按钮：Fluent Button（无边框、填充样式）
-- [ ] 复选框：Fluent Checkbox（圆形→方形）
-- [ ] 输入框：Fluent TextField（下划线样式）
-- [ ] 切换开关：Fluent ToggleSwitch
-- [ ] 日期选择器：Fluent DatePicker
-- [ ] 选择器：Fluent Dropdown
-- [ ] 弹出面板：Fluent Panel（右侧滑出）
-- [ ] 对话框：Fluent ContentDialog
-- [ ] 任务项：Fluent ListItem（带 Reveal 高亮）
-
-### 1.4 动画与过渡
-- [ ] 面板滑入缓动曲线（Fluent Motion）
-- [ ] 任务完成动画（XAML 风格）
-- [ ] 主题切换过渡
-- [ ] 悬停高亮 Reveal 效果
-
----
+- [-] 全量 Fluent 色板/阴影/圆角/动画令牌（改为保留现有设计令牌体系）
+- [-] NavigationView 布局重写 / CommandBar 重写
+- [x] 三栏布局保留并扩充（筛选栏、日历视图、番茄钟浮层、Dialog 对话框）
+- [x] 新增组件：Fluent 风格 ContentDialog（`src/js/Dialog.js`）、日历网格、番茄钟面板
+- [x] 面板滑入/主题切换过渡动画
+- [ ] 悬停高亮 Reveal 效果（未做）
+- [ ] 任务完成动画（未做，现为删除线 + 透明度）
 
 ## Phase 2: 菜单栏 + 快捷键系统
 
 ### 2.1 主菜单栏
-- [ ] **File 菜单**：搜索 | 清单操作 | 任务操作 | 清单跳转 | 退出
-- [ ] **Edit 菜单**：撤销/重做 | 剪切/复制/粘贴 | 全选
-- [ ] **View 菜单**：主题切换 | 导航 | 缩放 | 始终置顶 | 全屏
-- [ ] **Window 菜单**：最小化 | 切换窗口
-- [ ] **Help 菜单**：关于 | 版本信息
+- [x] **File 菜单**：搜索 | 清单操作 | 任务操作 | 清单跳转 | 退出
+- [x] **Edit 菜单**：撤销/重做 | 剪切/复制/粘贴 | 全选
+- [x] **View 菜单**：主题切换 | 导航 | 缩放 | 置顶 | 紧凑模式 | 全屏 | 侧边栏
+- [x] **Window 菜单**：最小化 | 关闭
+- [x] **Help 菜单**：检查更新 | 关于 | 导出数据库 | 开发者工具
 
 ### 2.2 快捷键系统
-- [ ] 任务快捷键：新建(N)/删除(D)/重命名(T)/完成(Shift+N)
-- [ ] 清单快捷键：新建(L)/删除(Shift+D)/重命名(Y)
-- [ ] 跳转快捷键：我的一天(M)/重要(I)/已计划(P)/任务(A)/清单序号 1-9
-- [ ] 导航快捷键：下一个列表(Tab)/上一个列表(Shift+Tab)/返回(Esc)
-- [ ] 视图快捷键：搜索(F)/侧边栏(O)/主题(B/H/G)/夜间模式(Alt+N)
-- [ ] 缩放快捷键：放大(Shift+=)/缩小(-)/重置(0)
-- [ ] 全局快捷键：新建(Alt+C)/搜索(Alt+F)/切换窗口(Alt+A)
+- [x] 任务：新建(N)/删除(D)/重命名(T)/完成(Shift+N)/重要(I)/我的日(K)
+- [x] 清单：新建(L)/删除(Shift+D)/重命名(Shift+Y)
+- [x] 跳转：我的一天(Shift+M)/重要(Shift+I)/所有任务(Shift+A)/清单序号 1-9
+  - [-] 已计划(P)：视图已按需求移除（b78753e）
+- [x] 导航：下一个清单(Tab)/上一个清单(Shift+Tab)/返回(Esc 关闭面板)
+- [x] 视图：搜索(F)/侧边栏(O)/主题(H/B/G)/正常(Shift+G)/紧凑(Shift+J)/置顶(Shift+O)
+- [x] 缩放：放大(Shift+=)/缩小(-)/重置(0)
+- [x] 全局：新建(Alt+C)/搜索(Alt+F)/切换窗口(Alt+A)
+- [x] 菜单快捷键无重复校验（e2e BUG-09 覆盖）
 
-### 2.3 快捷键自定义
+### 2.3 快捷键自定义（遗留）
 - [ ] 快捷键配置持久化（JSON 文件）
 - [ ] 快捷键编辑入口（设置面板）
 - [ ] 快捷键冲突检测
 
----
-
 ## Phase 3: 主题系统扩展
 
-### 3.1 新增主题
-- [ ] Black Mode：纯黑背景白色文字
-- [ ] Dark Mode：深灰背景浅色文字
-- [ ] Sepia Mode：棕褐色背景
-
-### 3.2 Auto Night Mode
-- [ ] 基于日出日落时间自动切换
-- [ ] 平滑过渡动画
-- [ ] 用户可选启用/禁用
-
-### 3.3 主题持久化
-- [ ] 主题选择保存到 localStorage
-- [ ] 启动时恢复上次主题
-- [ ] 主题切换不丢失状态
-
----
+- [x] Black Mode（纯黑）/ Dark Mode（深灰）/ Sepia Mode（棕褐）
+- [x] Auto Night Mode：按时段（19:00–7:00）自动切深色，可开关
+  - [-] 日出日落算法（简化为固定时段）
+- [x] 主题/模式持久化（store.json → 现为 SQLite settings 表）
+- [x] 5 配色预设 + 自定义主题入口（presets.js + themes 表）
+- [x] 主题切换过渡动画
 
 ## Phase 4: 系统托盘 + 窗口管理
 
 ### 4.1 系统托盘
-- [ ] 托盘图标（可带徽标）
-- [ ] 托盘右键菜单（显示/隐藏/退出）
-- [ ] 关闭窗口→最小化到托盘
-- [ ] 隐藏托盘图标选项
+- [x] 托盘图标 + 右键菜单（显示/退出）+ 单击切换可见性
+- [x] 关闭窗口 → 最小化到托盘（可开关）
+- [ ] 隐藏托盘图标选项（遗留）
 
 ### 4.2 窗口状态
-- [ ] 窗口坐标持久化
-- [ ] 窗口大小持久化
-- [ ] 最大化状态持久化
-- [ ] 始终置顶功能
-- [ ] 全屏切换（F11）
+- [x] 坐标/尺寸/最大化持久化（防抖落盘 + 越屏校验）
+- [x] 始终置顶（持久化到 app-state.json）
+- [x] 全屏切换（F11）
 
-### 4.3 启动选项
+### 4.3 启动选项（遗留）
 - [ ] 开机自启（auto-launch）
 - [ ] 启动时最小化
-- [ ] 退出确认对话框
+- [x] 退出确认（Dialog 实现）
+
+## Phase 5: 高级功能
+
+- [x] 全局快捷键注册
+- [x] 紧凑模式（手动开关 + 窄侧边栏布局）
+  - [ ] 窗口尺寸阈值自动切换（遗留）
+- [x] 缩放（0.3x–3x 限制）
+  - [ ] 缩放比例持久化（遗留：重启后回到 1x）
+- [x] 更新通知：启动静默检查 + 手动检查 + 版本比较
+  - [ ] 检查周期可配置（遗留：仅开/关）
+
+## Phase 6: SQLite 存储迁移（docs/sqlite-migration-plan.md）
+
+- [x] Phase 1（commit `00a056f`）：schema v1 + 仓储层 + 五场景覆盖安装迁移
+      + legacy 归档 + 冲突保护 + 降级导出 + workflow 适配 + 测试全绿
+- [ ] Phase 2（遗留）：查询下推 IPC（tasks:query 分页）、FTS5 全文搜索、
+      tags:usageCount 等 SQL 聚合
 
 ---
 
-## Phase 5: 全局快捷键 + 高级功能
+## 遗留问题汇总
 
-### 5.1 全局快捷键
-- [ ] Alt+C：全局新建任务（即使在后台）
-- [ ] Alt+F：全局搜索
-- [ ] Alt+A：切换窗口可见性
+### P0（流程闭环）
+| # | 问题 | 说明 |
+|---|------|------|
+| 1 | 提交 `00a056f` 未推送 | 推送后触发 CI；workflow 新增的 rebuild + `.node` 校验步骤首次实跑 |
+| 2 | Dialog 驱动删除流 e2e 缺失 | 方案 v1.1 规划：迁移后经 Dialog 删除任务/清单/标签并断言 DB 行消失 |
 
-### 5.2 紧凑模式
-- [ ] 窗口缩小到阈值高度时切换紧凑布局
-- [ ] 紧凑模式下隐藏部分 UI 元素
+### P1（ao 功能补齐）
+| # | 问题 | 对应章节 |
+|---|------|---------|
+| 3 | 快捷键自定义（持久化/编辑入口/冲突检测） | 2.3 |
+| 4 | 开机自启、启动时最小化 | 4.3 |
+| 5 | 隐藏托盘图标选项 | 4.1 |
+| 6 | 缩放比例持久化 | 5.3 |
+| 7 | 更新检查周期可配置 | 5.4 |
+| 8 | 紧凑模式按窗口尺寸自动切换 | 5.2 |
 
-### 5.3 缩放
-- [ ] 渲染进程缩放（webFrame.setZoomFactor）
-- [ ] 缩放比例持久化
-- [ ] 缩放范围限制（0.3x - 3x）
+### P2（存储演进）
+| # | 问题 | 对应章节 |
+|---|------|---------|
+| 9 | SQLite Phase 2：查询下推 + FTS5 + 分页 | Phase 6 |
 
-### 5.4 更新通知
-- [ ] GitHub Releases 版本检查
-- [ ] 更新通知弹窗
-- [ ] 检查周期可配置
+### P3（发布与平台）
+| # | 问题 | 说明 |
+|---|------|------|
+| 10 | 代码签名未配置 | Windows SmartScreen 拦截警告 |
+| 11 | macOS 构建未验证 | 无 mac 环境；Linux 仅验证 --dir |
+| 12 | Reveal 悬停效果、任务完成动画 | Fluent 细节（1.4） |
+
+### P4（TickTick 对照缺口，离线设计下按需取舍）
+| # | 问题 | 说明 |
+|---|------|------|
+| 13 | 习惯追踪 / 任务计时 / 白噪音 | 效率工具类 |
+| 14 | 看板视图 / 附件 / 位置提醒 / 邮箱转任务 | 部分依赖在线能力 |
 
 ---
 
-## 实现顺序
-
-```
-Phase 1 → Phase 2 → Phase 3 → Phase 4 → Phase 5
-
-Phase 1（UI 基础）是其他所有功能的前提
-Phase 2（菜单+快捷键）与 Phase 1 可同步
-Phase 3（主题扩展）依赖 Phase 1
-Phase 4（托盘+窗口）相对独立
-Phase 5（高级功能）最后
-```
-
-## 文件变更清单
+## 文件变更清单（历史）
 
 | 文件 | 变更类型 | 说明 |
 |------|---------|------|
-| main.js | 重写 | 菜单栏、托盘、全局快捷键、窗口管理 |
-| preload.js | 重写 | 新增 IPC API |
-| src/index.html | 更新 | Fluent 布局结构调整 |
-| src/css/main.css | 重写 | Fluent Design 完整样式 |
-| src/js/App.js | 重写 | 整合新模式 |
-| src/js/Store.js | 优化 | 设置数据结构扩展 |
-| src/js/Theme.js | 重写 | 支持 Black/Dark/Sepia + Auto Night |
-| src/js/Sidebar.js | 重写 | Fluent 风格侧边栏 |
-| src/js/TaskList.js | 重写 | CommandBar + Fluent 列表 |
-| src/js/TaskDetail.js | 重写 | Fluent Panel |
-| src/js/Settings.js | 重写 | Fluent ContentDialog |
-| src/themes/presets.js | 扩展 | 新增主题预设 |
-| - | 新增 | src/js/Keyboard.js |
-| - | 新增 | src/js/Menu.js |
-| - | 新增 | src/js/Tray.js |
-| - | 新增 | docs/ao-features-analysis.md |
-| - | 新增 | docs/implementation-tasks.md |
+| main.js | 重写 | 菜单栏、托盘、全局快捷键、窗口管理、SQLite 接入 |
+| preload.js | 重写 | IPC API |
+| src/main/**（11 文件） | 新增 | SQLite 存储层（schema/仓储/迁移/导出） |
+| src/js/Dialog.js | 新增 | 应用内对话框（替代 prompt/confirm） |
+| src/js/Pomodoro.js | 新增 | 番茄钟 |
+| src/js/{App,Store,Theme,Sidebar,TaskList,TaskDetail,Settings,EventBus,Utils}.js | 更新 | 功能扩充 |
+| src/css/main.css | 扩充 | 主题模式/日历/番茄钟/筛选/优先级/标签样式 |
+| src/themes/presets.js | 扩展 | 主题预设 |
+| tests/** | 新增/更新 | 单元 + e2e 冒烟 + 迁移演练 |
+| docs/** | 新增 | ao/TickTick/缺口/SQLite 方案等 5 份 |

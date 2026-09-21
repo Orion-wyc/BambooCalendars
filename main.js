@@ -22,6 +22,23 @@ let tray = null;
 let isQuitting = false;
 let saveWindowStateTimer = null;
 
+const TITLEBAR_HEIGHT = 36;
+const overlayState = { color: '#ffffff', symbolColor: '#242424', height: TITLEBAR_HEIGHT };
+
+function applyTitleBarOverlay(patch) {
+  if (process.platform === 'darwin') return;
+  if (!mainWindow || mainWindow.isDestroyed() || !mainWindow.setTitleBarOverlay) return;
+  if (patch && typeof patch === 'object') {
+    if (typeof patch.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(patch.color)) overlayState.color = patch.color;
+    if (typeof patch.symbolColor === 'string' && /^#[0-9a-fA-F]{6}$/.test(patch.symbolColor)) overlayState.symbolColor = patch.symbolColor;
+    const h = Number(patch.height);
+    if (Number.isFinite(h)) overlayState.height = Math.min(80, Math.max(24, Math.round(h)));
+  }
+  try {
+    mainWindow.setTitleBarOverlay({ ...overlayState });
+  } catch {}
+}
+
 function ensureDataDir() {
   if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -355,6 +372,7 @@ function restoreWindowState() {
 
 function createWindow() {
   const state = restoreWindowState();
+  const isMac = process.platform === 'darwin';
   mainWindow = new BrowserWindow({
     width: state.width,
     height: state.height,
@@ -363,7 +381,11 @@ function createWindow() {
     minWidth: 900,
     minHeight: 600,
     title: 'Bamboo Todo',
-    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
+    titleBarStyle: isMac ? 'hiddenInset' : 'hidden',
+    ...(isMac ? {} : {
+      titleBarOverlay: { ...overlayState },
+      autoHideMenuBar: true,
+    }),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -412,6 +434,8 @@ function createWindow() {
 
   mainWindow.on('resize', saveWindowStateDebounced);
   mainWindow.on('move', saveWindowStateDebounced);
+  mainWindow.on('enter-full-screen', () => send('fullscreen-changed', true));
+  mainWindow.on('leave-full-screen', () => send('fullscreen-changed', false));
 
   mainWindow.on('closed', () => {
     mainWindow = null;
@@ -453,6 +477,13 @@ function setupIPC() {
       mainWindow.focus();
     }
   });
+  ipcMain.handle('window:toggleFullscreen', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.setFullScreen(!mainWindow.isFullScreen());
+    }
+    return Boolean(mainWindow && !mainWindow.isDestroyed() && mainWindow.isFullScreen());
+  });
+  ipcMain.on('titlebar:set-overlay', (_, patch) => applyTitleBarOverlay(patch));
   ipcMain.handle('app:getVersion', () => app.getVersion());
   ipcMain.handle('app:getPath', (_, name) => {
     const allowed = ['userData', 'temp', 'desktop', 'documents', 'downloads'];

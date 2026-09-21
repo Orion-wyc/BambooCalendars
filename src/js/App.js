@@ -7,6 +7,7 @@ import { TaskDetail } from './TaskDetail.js';
 import { Settings } from './Settings.js';
 import { Pomodoro } from './Pomodoro.js';
 import { dialog } from './Dialog.js';
+import { initTitleBar } from './TitleBar.js';
 import { isImeKeyEvent, parseDateTimeLocal } from './Utils.js';
 
 const REMINDER_WINDOW_MS = 60 * 1000;
@@ -23,6 +24,7 @@ class App {
   }
 
   async init() {
+    initTitleBar();
     try {
       await store.load();
     } catch (e) {
@@ -237,6 +239,9 @@ class App {
       case 'compact-mode':
         document.documentElement.classList.toggle('compact-mode', Boolean(data));
         break;
+      case 'fullscreen-changed':
+        document.documentElement.classList.toggle('fullscreen', Boolean(data));
+        break;
       case 'auto-night':
         theme.setAutoNight(Boolean(data));
         store.updateSettings({ autoNightMode: Boolean(data), mode: theme.userMode });
@@ -299,6 +304,11 @@ class App {
 
       if (e.key === 'Escape') {
         if (!this.isEditableTarget(e.target)) this.dismissOverlays();
+        return;
+      }
+      if (e.key === 'F11' && window.api.platform !== 'darwin') {
+        e.preventDefault();
+        if (window.api.window.toggleFullscreen) window.api.window.toggleFullscreen();
         return;
       }
       if (dialog.isOpen()) return;

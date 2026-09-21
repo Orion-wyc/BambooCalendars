@@ -38,7 +38,8 @@ export class Theme {
   apply(themeId) {
     const t = this.getTheme(themeId);
     this.currentTheme = t.id;
-    const { primary, accent, secondary } = t.colors;
+    const c = t.colors || {};
+    const { primary, accent, secondary } = c;
     const root = document.documentElement;
     root.style.setProperty('--primary', primary);
     root.style.setProperty('--primary-light', this.lighten(primary, 20));
@@ -49,7 +50,15 @@ export class Theme {
     root.style.setProperty('--secondary', secondary);
     root.style.setProperty('--secondary-light', this.lighten(secondary, 20));
     root.style.setProperty('--secondary-dark', this.darken(secondary, 15));
-    root.style.setProperty('--sidebar-bg', primary);
+    root.style.setProperty('--sidebar-bg', c.sidebarBg || primary);
+    root.style.setProperty('--sidebar-text', c.sidebarText || '#ffffff');
+    root.style.setProperty('--sidebar-hover', c.sidebarHover || 'rgba(255, 255, 255, 0.08)');
+    root.style.setProperty('--sidebar-active', c.sidebarActive || 'rgba(255, 255, 255, 0.15)');
+    root.style.setProperty('--sidebar-border', c.sidebarBorder || 'rgba(255, 255, 255, 0.1)');
+    root.style.setProperty('--sidebar-search-bg', c.sidebarSearchBg || 'rgba(255, 255, 255, 0.15)');
+    root.style.setProperty('--sidebar-search-hover', c.sidebarSearchHover || 'rgba(255, 255, 255, 0.25)');
+    root.style.setProperty('--sidebar-placeholder', c.sidebarPlaceholder || 'rgba(255, 255, 255, 0.6)');
+    root.style.setProperty('--sidebar-icon-hover', c.sidebarIconHover || 'rgba(255, 255, 255, 0.2)');
     root.style.setProperty('--header-gradient', `linear-gradient(135deg, ${primary}, ${accent})`);
     root.style.setProperty('--accent-bg', this.hexToRgba(accent, 0.08));
     this.applyMode(this.mode, false);

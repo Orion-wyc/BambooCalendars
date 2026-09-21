@@ -33,7 +33,9 @@
 
 ### 主题系统
 - Fluent 2 设计风格，配色参考 Fluent 2 color tokens
-- 默认主题：品牌蓝 `#0f6cbd`（brand[80]）、深蓝 `#0f548c`（brand[60]）、中性灰
+- 内置两套主题：
+  - 默认：品牌蓝 `#0f6cbd`（brand[80]）、深蓝 `#0f548c`（brand[60]）、深色侧边栏
+  - Windows 11 浅色：`#0067c0`/`#0078d4` 强调蓝、浅灰侧边栏 `#f3f3f3`、深色文字
 - 主题配置入口：`src/themes/presets.js`
 - 显示模式支持正常/深色/黑色/棕褐色，深色/黑色模式采用 Fluent dark tokens
 
@@ -97,7 +99,7 @@ npm run build:linux
 
 ## 自定义主题
 
-编辑 `src/themes/presets.js` 调整默认主题配色（基于 Fluent 2 brand ramp，参考 `https://fluent2.microsoft.design/color-tokens2/`）：
+编辑 `src/themes/presets.js` 添加或调整主题（配色参考 Fluent 2 color tokens：`https://fluent2.microsoft.design/color-tokens2/`，Windows 11 浅色主题可参考系统设置 > 个性化 > 颜色的强调色与浅色表面）：
 
 ```javascript
 export const THEME_PRESETS = [
@@ -107,7 +109,17 @@ export const THEME_PRESETS = [
     colors: {
       primary: '#0f548c',   // 主色（侧边栏、标题）→ brand[60]
       accent: '#0f6cbd',    // 强调色（按钮、高亮）→ brand[80]
-      secondary: '#5c5c5c'  // 辅助色（次要文本）→ grey[38]
+      secondary: '#5c5c5c', // 辅助色（次要文本）→ grey[38]
+      // 以下可选，缺省时使用深色侧边栏默认值
+      sidebarBg: '#f3f3f3',                 // 侧边栏背景（浅色主题用浅灰）
+      sidebarText: '#1b1b1b',               // 侧边栏文字
+      sidebarHover: 'rgba(0, 0, 0, 0.06)',  // 悬浮背景
+      sidebarActive: 'rgba(0, 0, 0, 0.12)', // 选中背景
+      sidebarBorder: 'rgba(0, 0, 0, 0.08)',
+      sidebarSearchBg: 'rgba(0, 0, 0, 0.05)',
+      sidebarSearchHover: 'rgba(0, 0, 0, 0.10)',
+      sidebarPlaceholder: 'rgba(0, 0, 0, 0.45)',
+      sidebarIconHover: 'rgba(0, 0, 0, 0.10)'
     }
   }
 ];

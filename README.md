@@ -31,10 +31,10 @@
 - **可选更新检查**：默认启动时查询 GitHub Releases，可在设置中关闭
 
 ### 主题系统
-- 默认配色：#1f3b52（深蓝）、#eb6157（珊瑚红）、#615b54（暖灰）
-- 5 个预设主题（默认、海洋、森林、日落、紫罗兰）
+- Fluent 2 设计风格，配色参考 Fluent 2 color tokens
+- 默认主题：品牌蓝 `#0f6cbd`（brand[80]）、深蓝 `#0f548c`（brand[60]）、中性灰
 - 主题配置入口：`src/themes/presets.js`
-- 用户自定义主题存储在本地
+- 显示模式支持正常/深色/黑色/棕褐色，深色/黑色模式采用 Fluent dark tokens
 
 ## 技术栈
 
@@ -96,20 +96,19 @@ npm run build:linux
 
 ## 自定义主题
 
-编辑 `src/themes/presets.js` 添加新主题：
+编辑 `src/themes/presets.js` 调整默认主题配色（基于 Fluent 2 brand ramp，参考 `https://fluent2.microsoft.design/color-tokens2/`）：
 
 ```javascript
 export const THEME_PRESETS = [
   {
-    id: 'my-theme',
-    name: '我的主题',
+    id: 'default',
+    name: '默认',
     colors: {
-      primary: '#your-primary',    // 主色（侧边栏、标题）
-      accent: '#your-accent',      // 强调色（按钮、高亮）
-      secondary: '#your-secondary' // 辅助色（次要文本）
+      primary: '#0f548c',   // 主色（侧边栏、标题）→ brand[60]
+      accent: '#0f6cbd',    // 强调色（按钮、高亮）→ brand[80]
+      secondary: '#5c5c5c'  // 辅助色（次要文本）→ grey[38]
     }
-  },
-  // ...
+  }
 ];
 ```
 

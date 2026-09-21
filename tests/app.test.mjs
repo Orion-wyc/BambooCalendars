@@ -6,7 +6,7 @@ mock.stored = {
   lists: [{ id: 'tasks', name: '任务', order: 0 }],
   tasks: [],
   tags: [],
-  settings: { compactMode: true, sideBarHidden: true, theme: 'ocean', mode: 'dark' },
+  settings: { compactMode: true, sideBarHidden: true, theme: 'default', mode: 'dark' },
 };
 
 const { store } = await import('../src/js/Store.js');
@@ -36,7 +36,7 @@ test('BUG-10 启动时恢复紧凑模式与侧边栏状态', () => {
 });
 
 test('启动时应用主题与显示模式', () => {
-  assert.equal(store.getSettings().theme, 'ocean');
+  assert.equal(store.getSettings().theme, 'default');
   assert.equal(document.documentElement.classList.contains('dark-mode'), true);
 });
 

@@ -7,10 +7,10 @@ import {
 } from './Utils.js';
 
 const PRIORITY_COLORS = {
-  1: '#e74c3c',
-  2: '#e67e22',
-  3: '#4a90d9',
-  4: '#95a5a6'
+  1: '#c50f1f',
+  2: '#f7630c',
+  3: '#0f6cbd',
+  4: '#9d9d9d'
 };
 
 const PRIORITY_LABELS = { 1: 'P1', 2: 'P2', 3: 'P3', 4: 'P4' };

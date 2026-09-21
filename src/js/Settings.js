@@ -251,7 +251,7 @@ export class Settings {
       <div class="settings-section">
         <div class="settings-section-title">特色功能</div>
         <div style="color: var(--text-secondary); font-size: 13px; line-height: 2;">
-          <div>• 多主题配色（默认/海洋/森林/日落/紫罗兰）</div>
+          <div>• Fluent 2 设计风格（品牌蓝配色）</div>
           <div>• 显示模式（正常/深色/黑色/棕褐色 + 自动夜间）</div>
           <div>• 键盘快捷键 + 全局快捷键</div>
           <div>• 系统托盘 / 窗口状态记忆 / 缩放</div>

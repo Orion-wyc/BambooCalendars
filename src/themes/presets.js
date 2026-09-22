@@ -23,7 +23,9 @@ export const THEME_PRESETS = [
       sidebarSearchBg: 'rgba(0, 0, 0, 0.05)',
       sidebarSearchHover: 'rgba(0, 0, 0, 0.10)',
       sidebarPlaceholder: 'rgba(0, 0, 0, 0.45)',
-      sidebarIconHover: 'rgba(0, 0, 0, 0.10)'
+      sidebarIconHover: 'rgba(0, 0, 0, 0.10)',
+      headerBg: '#f3f3f3',
+      headerText: '#1b1b1b'
     }
   }
 ];

@@ -15,8 +15,9 @@
   const { app } = await import('app://./js/App.js');
 
   try {
-    ok('启动完成，侧边栏导航已渲染', $$('#sidebar-nav .nav-item').length >= 6, $$('#sidebar-nav .nav-item').length);
+    ok('启动完成，侧边栏导航已渲染', $$('#sidebar-nav .nav-item').length >= 5, $$('#sidebar-nav .nav-item').length);
     ok('已计划视图已移除', !$('#sidebar-nav [data-view="planned"]'));
+    ok('番茄钟 tab 已移除，改为侧边栏按钮', !$('#sidebar-nav [data-view="pomodoro"]') && Boolean($('#btn-pomodoro')));
     ok('启动完成，任务输入框存在', Boolean($('#task-input')));
     ok('启动完成，内置清单已渲染', $$('#sidebar-lists .list-item').length >= 1);
 
@@ -191,10 +192,11 @@
     ok('BUG-18 手动排序按 order 输出', store.getTasks({ sortBy: 'manual' })[0].id === ids[ids.length - 1]);
     store.updateSettings({ sortBy: 'created' });
 
-    click($('#sidebar-nav [data-view="pomodoro"]'));
+    click($('#btn-pomodoro'));
     await sleep(50);
     ok('番茄钟面板显示', !$('#pomodoro-panel').classList.contains('hidden'));
     ok('番茄钟有开始按钮', Boolean($('#pomo-start')));
+    ok('番茄钟按钮高亮', $('#btn-pomodoro').classList.contains('active'));
     click($('#pomo-start'));
     await sleep(50);
     const left = app.pomodoro.remainingSeconds();
@@ -203,6 +205,10 @@
     click($('#sidebar-nav [data-view="tasks"]'));
     await sleep(50);
     ok('BUG-21 切换视图不中断计时', app.pomodoro.isRunning === true);
+    ok('切换视图后番茄钟面板保持显示', !$('#pomodoro-panel').classList.contains('hidden'));
+    click($('#pomo-close'));
+    await sleep(50);
+    ok('关闭按钮隐藏番茄钟面板', $('#pomodoro-panel').classList.contains('hidden'));
     app.pomodoro.stop();
 
     const ime = $('#task-input');

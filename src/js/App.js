@@ -73,9 +73,8 @@ class App {
 
   bindEvents() {
     eventBus.on('view:change', ({ view, listId }) => {
+      if (this.taskDetail) this.taskDetail.close();
       this.taskList.setView(view, listId);
-      if (view === 'pomodoro') this.pomodoro.show();
-      else this.pomodoro.hide();
     });
 
     eventBus.on('search:change', (query) => {
@@ -129,6 +128,10 @@ class App {
 
     eventBus.on('pomodoro:settings', () => {
       this.pomodoro.applySettings();
+    });
+
+    eventBus.on('pomodoro:toggle', () => {
+      if (this.pomodoro) this.pomodoro.toggle();
     });
 
     eventBus.on('settings:changed', () => {

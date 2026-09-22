@@ -1,4 +1,5 @@
 import { store } from './Store.js';
+import { eventBus } from './EventBus.js';
 
 const TICK_INTERVAL = 250;
 
@@ -46,6 +47,7 @@ export class Pomodoro {
   toggle(force) {
     this.visible = force === undefined ? !this.visible : Boolean(force);
     this.panel.classList.toggle('hidden', !this.visible);
+    eventBus.emit('pomodoro:visibility', this.visible);
     if (this.visible) {
       this.lastRenderedSecond = -1;
       this.render();
@@ -180,7 +182,10 @@ export class Pomodoro {
     const canContinue = seconds < this.duration();
 
     this.content.innerHTML = `
-      <div class="pomodoro-header">🍅 番茄钟</div>
+      <div class="pomodoro-header">
+        <span>🍅 番茄钟</span>
+        <button class="pomodoro-close" id="pomo-close" title="关闭">✕</button>
+      </div>
       <div class="pomodoro-label">${this.isWork ? '专注' : '休息'}</div>
       <div class="pomodoro-time ${this.isWork ? '' : 'break'}" id="pomo-time">${this.formatTime(seconds)}</div>
       <div class="pomodoro-progress">
@@ -202,6 +207,7 @@ export class Pomodoro {
       if (e.target.id === 'pomo-start') this.start();
       else if (e.target.id === 'pomo-pause') this.pause();
       else if (e.target.id === 'pomo-stop') this.stop();
+      else if (e.target.id === 'pomo-close') this.hide();
     });
 
     document.addEventListener('visibilitychange', () => {

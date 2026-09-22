@@ -9,7 +9,6 @@ const NAV_ITEMS = [
   { view: 'next7', icon: '🗓', label: '最近 7 天' },
   { view: 'tasks', icon: '✓', label: '任务', countKey: 'tasks' },
   { view: 'calendar', icon: '📆', label: '日历' },
-  { view: 'pomodoro', icon: '🍅', label: '番茄钟' },
 ];
 
 export class Sidebar {
@@ -38,6 +37,10 @@ export class Sidebar {
       <button class="btn-add-list" id="btn-add-list">
         <div class="btn-add-list-icon">+</div>
         <div>新清单</div>
+      </button>
+      <button class="btn-add-list" id="btn-pomodoro" title="番茄钟">
+        <div class="btn-add-list-icon">🍅</div>
+        <div>番茄钟</div>
       </button>
       <div class="nav-item" id="btn-settings">
         <div class="nav-item-icon">⚙</div>
@@ -117,7 +120,13 @@ export class Sidebar {
 
     this.el.footer.addEventListener('click', (e) => {
       if (e.target.closest('#btn-add-list')) this.addList();
+      else if (e.target.closest('#btn-pomodoro')) eventBus.emit('pomodoro:toggle');
       else if (e.target.closest('#btn-settings')) eventBus.emit('settings:open');
+    });
+
+    eventBus.on('pomodoro:visibility', (visible) => {
+      const btn = this.el.footer.querySelector('#btn-pomodoro');
+      if (btn) btn.classList.toggle('active', Boolean(visible));
     });
 
     const input = this.el.search.querySelector('#search-input');

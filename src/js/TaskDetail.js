@@ -187,6 +187,9 @@ export class TaskDetail {
       </div>
 
       <div class="detail-footer">
+        <button class="btn-complete-task ${task.completed ? 'is-completed' : ''}" data-action="complete-task">
+          ${task.completed ? '取消完成' : '完成任务'}
+        </button>
         <button class="btn-delete-task" data-action="delete-task">删除任务</button>
       </div>
     `;
@@ -255,6 +258,11 @@ export class TaskDetail {
       }
       case 'add-subtask':
         this.addSubtask();
+        break;
+      case 'complete-task':
+        store.toggleComplete(task.id);
+        this.render();
+        this.emitUpdate(task.id);
         break;
       case 'delete-task':
         this.deleteCurrentTask();

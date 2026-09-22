@@ -99,7 +99,6 @@ export class TaskList {
     else if (this.currentView === 'important') title = '★ 重要';
     else if (this.currentView === 'next7') title = '🗓 最近 7 天';
     else if (this.currentView === 'calendar') title = '📆 日历';
-    else if (this.currentView === 'pomodoro') title = '🍅 番茄钟';
     else if (this.currentView === 'list' && this.currentListId) {
       const list = store.getList(this.currentListId);
       title = `📋 ${list ? escapeHtml(list.name) : '清单'}`;

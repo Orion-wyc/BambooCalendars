@@ -59,7 +59,8 @@ export class Theme {
     root.style.setProperty('--sidebar-search-hover', c.sidebarSearchHover || 'rgba(255, 255, 255, 0.25)');
     root.style.setProperty('--sidebar-placeholder', c.sidebarPlaceholder || 'rgba(255, 255, 255, 0.6)');
     root.style.setProperty('--sidebar-icon-hover', c.sidebarIconHover || 'rgba(255, 255, 255, 0.2)');
-    root.style.setProperty('--header-gradient', `linear-gradient(135deg, ${primary}, ${accent})`);
+    root.style.setProperty('--header-bg', c.headerBg || `linear-gradient(135deg, ${primary}, ${accent})`);
+    root.style.setProperty('--header-text', c.headerText || '#ffffff');
     root.style.setProperty('--accent-bg', this.hexToRgba(accent, 0.08));
     this.applyMode(this.mode, false);
   }

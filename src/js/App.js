@@ -39,7 +39,6 @@ class App {
     theme.setAutoNight(Boolean(settings.autoNightMode));
 
     const root = document.documentElement;
-    root.classList.toggle('side-bar-hidden', Boolean(settings.sideBarHidden));
     root.classList.toggle('compact-mode', Boolean(settings.compactMode));
 
     this.sidebar = new Sidebar();
@@ -73,8 +72,8 @@ class App {
 
   bindEvents() {
     eventBus.on('view:change', ({ view, listId }) => {
-      if (this.taskDetail) this.taskDetail.close();
       this.taskList.setView(view, listId);
+      if (this.taskDetail) this.taskDetail.close();
     });
 
     eventBus.on('search:change', (query) => {
@@ -215,9 +214,6 @@ class App {
       case 'settings':
         this.settings.open();
         break;
-      case 'toggle-sidebar':
-        this.toggleSidebar();
-        break;
       case 'always-on-top':
         store.updateSettings({ alwaysOnTop: Boolean(data) });
         break;
@@ -285,11 +281,6 @@ class App {
     return false;
   }
 
-  toggleSidebar() {
-    const hidden = document.documentElement.classList.toggle('side-bar-hidden');
-    store.updateSettings({ sideBarHidden: hidden });
-  }
-
   toggleCompact() {
     const enabled = document.documentElement.classList.toggle('compact-mode');
     store.updateSettings({ compactMode: enabled });
@@ -352,7 +343,6 @@ class App {
         case 'l': this.sidebar.addList(); break;
         case 'k': this.taskList.toggleMyDaySelected(); break;
         case 'i': this.taskList.toggleImportantSelected(); break;
-        case 'o': this.toggleSidebar(); break;
         case ',': this.settings.open(); break;
         case 'h': this.applyMode(theme.toggleMode('dark')); break;
         case 'b': this.applyMode(theme.toggleMode('black')); break;

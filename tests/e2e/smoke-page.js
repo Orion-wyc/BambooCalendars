@@ -30,7 +30,7 @@
 
     click($('.task-item .task-title'));
     await sleep(30);
-    ok('BUG-04 点击任务标题打开详情面板', !$('#detail-panel').classList.contains('hidden'));
+    ok('BUG-04 点击任务标题打开详情面板', app.taskDetail.isOpen() && Boolean($('#detail-panel .detail-content')));
     ok('BUG-04 详情面板标题正确', $('#detail-title') && $('#detail-title').value === '冒烟测试任务');
 
     $('#add-subtask-input').value = '步骤一';
@@ -56,7 +56,10 @@
     try { click($('[data-action="close-detail"]')); } catch (e) { thrown = e; }
     await sleep(30);
     ok('BUG-02 关闭详情面板不抛异常', thrown === null, thrown && thrown.message);
-    ok('BUG-02 详情面板已隐藏', $('#detail-panel').classList.contains('hidden'));
+    ok('BUG-02 关闭后显示占位提示', !app.taskDetail.isOpen()
+      && Boolean($('.detail-empty')) && !$('.detail-content'));
+    ok('BUG-02 占位提示文案正确',
+      $('.detail-empty-text') && $('.detail-empty-text').textContent.includes('点击任务标题显示详情'));
 
     $('.task-item').dispatchEvent(new MouseEvent('contextmenu', {
       bubbles: true, cancelable: true, clientX: 120, clientY: 120, view: window,
@@ -434,8 +437,58 @@
     ok('BUG-49 翻页按钮仍为方形图标按钮', Math.abs(navRect.width - navRect.height) < 2,
       `${navRect.width}x${navRect.height}`);
     ok('BUG-49 今天按钮比翻页按钮宽', btnRect.width > navRect.width, `${btnRect.width}/${navRect.width}`);
+
+    // ---- 日历：点击日期后可直接新建任务 ----
+    const calTodayCell = $('.cal-cell.today');
+    ok('日历存在今天单元格', Boolean(calTodayCell));
+    click(calTodayCell);
+    await sleep(150);
+    const calAdd = $('[data-action="calendar-add-task"]');
+    ok('点击日期后出现「新建任务」按钮', Boolean(calAdd));
+    const targetDate = calAdd && calAdd.dataset.date;
+    const calBefore = store.data.tasks.length;
+    click(calAdd);
+    await sleep(120);
+    ok('日历新建任务弹出对话框', !$('#dialog-overlay').classList.contains('hidden'));
+    $('#dialog-input').value = '日历任务';
+    click($('[data-action="dialog-ok"]'));
+    await sleep(150);
+    const calCreated = store.data.tasks.find(t => t.title === '日历任务');
+    ok('日历新建任务写入对应截止日期', Boolean(calCreated) && calCreated.dueDate === targetDate,
+      calCreated && calCreated.dueDate);
+    ok('日历新建任务数量 +1', store.data.tasks.length === calBefore + 1);
+    if (calCreated) { store.deleteTask(calCreated.id); await sleep(30); }
+
+    // ---- 详情面板：固定宽度 + 占位提示 ----
     click($('#sidebar-nav [data-view="tasks"]'));
-    await sleep(50);
+    await sleep(100);
+    app.taskDetail.close();
+    await sleep(60);
+    ok('未选中任务时显示占位提示',
+      Boolean($('.detail-empty')) && !app.taskDetail.isOpen() && !$('.detail-content'));
+    const taskItem = $$('.task-item:not(.completed)')[0] || $('.task-item');
+    ok('存在可选中任务', Boolean(taskItem));
+    const paneBefore = $('#detail-panel').getBoundingClientRect().width;
+    const mainBefore = $('#main-content').getBoundingClientRect().width;
+    click(taskItem.querySelector('.task-title'));
+    await sleep(100);
+    const mainAfter = $('#main-content').getBoundingClientRect().width;
+    const paneAfter = $('#detail-panel').getBoundingClientRect().width;
+    ok('选中任务后主视图宽度不变', Math.abs(mainBefore - mainAfter) <= 0.5, `${mainBefore} → ${mainAfter}`);
+    ok('选中任务后详情面板宽度不变', Math.abs(paneBefore - paneAfter) <= 0.5, `${paneBefore} → ${paneAfter}`);
+    ok('选中任务后显示详情内容', app.taskDetail.isOpen() && Boolean($('.detail-content')));
+    click($('#task-list-area'));
+    await sleep(100);
+    ok('点击空白处关闭详情并显示占位',
+      !app.taskDetail.isOpen() && Boolean($('.detail-empty')) && !$('.detail-content'));
+    click($('.task-item .task-title'));
+    await sleep(80);
+    click($('#sidebar-nav [data-view="important"]'));
+    await sleep(100);
+    ok('切换页面自动关闭详情',
+      !app.taskDetail.isOpen() && Boolean($('.detail-empty')));
+    click($('#sidebar-nav [data-view="tasks"]'));
+    await sleep(60);
 
     // ---- BUG-53 清单/任务增删改走应用内对话框 ----
     const dialogHidden = () => $('#dialog-overlay').classList.contains('hidden');

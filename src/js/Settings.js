@@ -30,7 +30,7 @@ const SHORTCUTS = [
   'Ctrl/Cmd + Shift + O 窗口置顶 · Ctrl/Cmd + Shift + J 紧凑模式',
   'Ctrl/Cmd + Shift + M/I/A 跳转 我的一天/重要/所有任务',
   'Ctrl/Cmd + 1-9 跳转清单 · Ctrl/Cmd + Tab 下一个视图',
-  'Ctrl/Cmd + O 切换侧边栏 · Ctrl/Cmd + Shift + G 正常模式',
+  'Ctrl/Cmd + Shift + G 正常模式',
   'Ctrl/Cmd + H/B/G 深色/黑色/棕褐色主题',
   'Ctrl/Cmd + + / - / 0 放大/缩小/重置缩放',
   'Ctrl/Cmd + , 打开设置 · Esc 关闭面板',
@@ -164,7 +164,6 @@ export class Settings {
 
       <div class="settings-section">
         <div class="settings-section-title">界面选项</div>
-        ${this.toggleRow('sideBarHidden', '隐藏侧边栏', '折叠侧边栏，扩大任务区域', Boolean(settings.sideBarHidden))}
         ${this.toggleRow('compactMode', '紧凑模式', '缩小界面元素，显示更多内容', Boolean(settings.compactMode))}
         ${this.toggleRow('alwaysOnTop', '窗口置顶', '窗口始终显示在其他窗口之上', Boolean(settings.alwaysOnTop))}
         ${this.toggleRow('requestExitConfirmation', '关闭时最小化到托盘', '点击窗口关闭按钮时最小化到系统托盘（关闭后可直接从窗口退出）', settings.requestExitConfirmation !== false)}
@@ -364,9 +363,6 @@ export class Settings {
       case 'autoNightMode':
         theme.setAutoNight(next);
         store.updateSettings({ mode: theme.userMode });
-        break;
-      case 'sideBarHidden':
-        document.documentElement.classList.toggle('side-bar-hidden', next);
         break;
       case 'compactMode':
         document.documentElement.classList.toggle('compact-mode', next);

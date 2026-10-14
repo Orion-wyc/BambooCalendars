@@ -208,7 +208,6 @@ function createMenu() {
         { label: '下一个清单', accelerator: 'CmdOrCtrl+Tab', click: () => send('next-list') },
         { label: '上一个清单', accelerator: 'CmdOrCtrl+Shift+Tab', click: () => send('prev-list') },
         { type: 'separator' },
-        { label: '切换侧边栏', accelerator: 'CmdOrCtrl+O', click: () => send('toggle-sidebar') },
         { label: '紧凑模式', accelerator: 'CmdOrCtrl+Shift+J', click: () => send('toggle-compact') },
         {
           label: '始终置顶', id: 'always-on-top', type: 'checkbox', accelerator: 'CmdOrCtrl+Shift+O',

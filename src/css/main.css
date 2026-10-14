@@ -214,12 +214,7 @@ html.fullscreen #app {
   display: flex;
   flex-direction: column;
   border-right: 1px solid rgba(0, 0, 0, 0.1);
-  transition: background-color var(--transition-normal), margin-left var(--transition-normal), width var(--transition-normal);
-}
-
-html.side-bar-hidden #sidebar {
-  margin-left: -240px;
-  min-width: 0;
+  transition: background-color var(--transition-normal), width var(--transition-normal);
 }
 
 #sidebar-user {
@@ -684,17 +679,35 @@ html.side-bar-hidden #sidebar {
 
 /* Detail Panel */
 #detail-panel {
+  flex: none;
   width: 380px;
   min-width: 380px;
   background: var(--bg-panel);
   border-left: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  transition: all var(--transition-normal);
 }
 
-#detail-panel.hidden {
-  display: none;
+.detail-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  text-align: center;
+}
+
+.detail-empty-icon {
+  font-size: 44px;
+  line-height: 1;
+  opacity: 0.35;
+}
+
+.detail-empty-text {
+  font-size: 13px;
+  color: var(--text-muted);
 }
 
 .detail-header {
@@ -1905,16 +1918,23 @@ html.compact-mode .task-item {
 .btn-calendar-nav {
   width: 32px;
   height: 32px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
   border: 1px solid var(--border);
   background: var(--bg-panel);
   border-radius: var(--radius-sm);
   cursor: pointer;
-  font-size: 16px;
+  font-size: 18px;
+  line-height: 1;
   color: var(--text-secondary);
-  transition: all var(--transition-fast);
+  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
 }
 
 .btn-calendar-nav:hover {
+  background: var(--bg-hover);
   border-color: var(--accent);
   color: var(--accent);
 }
@@ -1924,7 +1944,7 @@ html.compact-mode .task-item {
   min-width: 56px;
   padding: 0 12px;
   font-size: 13px;
-  line-height: 30px;
+  line-height: 1;
   white-space: nowrap;
   flex: none;
 }
@@ -2043,10 +2063,39 @@ html.compact-mode .task-item {
   padding-top: 12px;
 }
 
+.cal-day-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
 .cal-day-title {
   font-size: 14px;
   font-weight: 600;
-  margin-bottom: 8px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cal-day-add {
+  flex: none;
+  padding: 6px 12px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.cal-day-add:hover {
+  background: var(--accent-dark);
+  border-color: var(--accent-dark);
 }
 
 .cal-day-empty {
@@ -2324,10 +2373,6 @@ html.sepia-mode .detail-select {
   to {
     opacity: 1;
   }
-}
-
-#detail-panel:not(.hidden) {
-  animation: slideInRight var(--transition-normal);
 }
 
 #settings-overlay:not(.hidden) {

@@ -329,16 +329,34 @@ export class TaskList {
     if (!detail) return;
     const dayTasks = store.getTasksByDate(date, this.getFilter());
     const dateLabel = formatDayLabel(date);
-    if (!dayTasks.length) {
-      detail.innerHTML = `<div class="cal-day-empty">${escapeHtml(dateLabel)} 无任务</div>`;
-      return;
-    }
-    detail.innerHTML = `
-      <div class="cal-day-title">${escapeHtml(dateLabel)} · ${dayTasks.length} 个任务</div>
-      <div class="task-list">
-        ${dayTasks.map(t => this.renderTaskItem(t)).join('')}
+    const header = `
+      <div class="cal-day-header">
+        <div class="cal-day-title">${escapeHtml(dateLabel)}${dayTasks.length ? ` · ${dayTasks.length} 个任务` : ''}</div>
+        <button class="cal-day-add" data-action="calendar-add-task" data-date="${escapeHtml(date)}">＋ 新建任务</button>
       </div>
     `;
+    const body = dayTasks.length
+      ? `<div class="task-list">${dayTasks.map(t => this.renderTaskItem(t)).join('')}</div>`
+      : '<div class="cal-day-empty">这一天暂无任务</div>';
+    detail.innerHTML = header + body;
+  }
+
+  async createTaskForDate(date) {
+    if (!date) return;
+    const title = await dialog.input({
+      title: `${formatDayLabel(date)} · 新建任务`,
+      label: '任务标题',
+      placeholder: '输入任务标题',
+      confirmText: '创建',
+    });
+    if (!title) return;
+    const extra = {};
+    if (this.filterPriority) extra.priority = this.filterPriority;
+    if (this.filterTagId) extra.tags = [this.filterTagId];
+    const task = store.createTask({ title, listId: 'tasks', dueDate: date, ...extra });
+    this.calendarSelectedDate = date;
+    this.render();
+    eventBus.emit('task:create', task.id);
   }
 
   renderMyDayView(area) {
@@ -619,6 +637,12 @@ export class TaskList {
       return;
     }
 
+    const dateAddBtn = e.target.closest('[data-action="calendar-add-task"]');
+    if (dateAddBtn) {
+      this.createTaskForDate(dateAddBtn.dataset.date);
+      return;
+    }
+
     const target = e.target.closest('[data-action]');
     if (target) {
       const action = target.dataset.action;
@@ -646,6 +670,14 @@ export class TaskList {
       const section = header.dataset.section;
       this.collapsedSections[section] = !this.collapsedSections[section];
       this.render();
+      return;
+    }
+
+    const interactive = e.target.closest(
+      '.task-item, .cal-cell, .cal-task, .task-section-header, [data-action], button, input, textarea, select, a, label'
+    );
+    if (!interactive && this.selectedTaskId !== null) {
+      eventBus.emit('task:deselect');
     }
   }
 

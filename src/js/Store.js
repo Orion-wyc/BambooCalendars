@@ -6,7 +6,7 @@ import {
 const BUILTIN_LIST_ID = 'tasks';
 
 const SETTING_KEYS = [
-  'theme', 'mode', 'autoNightMode', 'sideBarHidden', 'requestExitConfirmation',
+  'theme', 'mode', 'autoNightMode', 'requestExitConfirmation',
   'compactMode', 'sortBy', 'alwaysOnTop', 'checkUpdateOnStartup',
   'pomodoroWorkMinutes', 'pomodoroBreakMinutes'
 ];
@@ -23,7 +23,6 @@ function defaultSettings() {
     theme: 'default',
     mode: 'normal',
     autoNightMode: false,
-    sideBarHidden: false,
     requestExitConfirmation: true,
     compactMode: false,
     sortBy: 'created',

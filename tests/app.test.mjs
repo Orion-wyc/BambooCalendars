@@ -6,7 +6,7 @@ mock.stored = {
   lists: [{ id: 'tasks', name: '任务', order: 0 }],
   tasks: [],
   tags: [],
-  settings: { compactMode: true, sideBarHidden: true, theme: 'default', mode: 'dark' },
+  settings: { compactMode: true, theme: 'default', mode: 'dark' },
 };
 
 const { store } = await import('../src/js/Store.js');
@@ -29,10 +29,9 @@ const keyEvent = (key, opts = {}) => ({
   ...opts,
 });
 
-test('BUG-10 启动时恢复紧凑模式与侧边栏状态', () => {
+test('BUG-10 启动时恢复紧凑模式', () => {
   const cls = document.documentElement.classList;
   assert.equal(cls.contains('compact-mode'), true);
-  assert.equal(cls.contains('side-bar-hidden'), true);
 });
 
 test('启动时应用主题与显示模式', () => {

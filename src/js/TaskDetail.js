@@ -10,16 +10,16 @@ export class TaskDetail {
     this.selfUpdating = false;
     this.panel = document.getElementById('detail-panel');
     this.bindEvents();
+    this.renderPlaceholder();
   }
 
   isOpen() {
-    return Boolean(this.currentTaskId) && !this.panel.classList.contains('hidden');
+    return Boolean(this.currentTaskId);
   }
 
   open(taskId) {
     if (!taskId || !store.data.tasks.some(t => t.id === taskId)) return;
     this.currentTaskId = taskId;
-    this.panel.classList.remove('hidden');
     this.render();
   }
 
@@ -27,9 +27,18 @@ export class TaskDetail {
     if (!this.currentTaskId) return;
     this.currentTaskId = null;
     this.lastRenderedTaskId = null;
-    this.panel.classList.add('hidden');
-    this.panel.innerHTML = '';
+    this.renderPlaceholder();
     eventBus.emit('task:deselect');
+  }
+
+  renderPlaceholder() {
+    if (!this.panel) return;
+    this.panel.innerHTML = `
+      <div class="detail-empty">
+        <div class="detail-empty-icon">📝</div>
+        <div class="detail-empty-text">点击任务标题显示详情</div>
+      </div>
+    `;
   }
 
   getTask() {
@@ -60,7 +69,7 @@ export class TaskDetail {
   render() {
     const task = this.getTask();
     if (!task) {
-      this.close();
+      this.renderPlaceholder();
       return;
     }
 
@@ -345,8 +354,7 @@ export class TaskDetail {
     const id = task.id;
     this.currentTaskId = null;
     this.lastRenderedTaskId = null;
-    this.panel.classList.add('hidden');
-    this.panel.innerHTML = '';
+    this.renderPlaceholder();
     store.deleteTask(id);
     eventBus.emit('task:deleted', id);
   }

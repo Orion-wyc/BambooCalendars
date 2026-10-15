@@ -175,6 +175,14 @@ test('BUG-23 自动夜间模式不覆盖用户手选主题', async () => {
   theme.refreshAutoNight();
   assert.equal(theme.currentTheme, night ? 'dark' : 'light',
     '定时器非 force 路径不得把夜间手动选择误恢复为浅色');
+
+  theme.setUserTheme('passion');
+  assert.equal(theme.userTheme, 'passion');
+  assert.equal(theme.currentTheme, night ? 'passion-dark' : 'passion',
+    '自动夜间下 Passion 应切至自身深色变体而非通用深色');
+  assert.equal(document.documentElement.classList.contains('dark-mode'), night);
+  theme.setUserTheme('light');
+  theme.refreshAutoNight();
   theme.setAutoNight(false);
   assert.equal(theme.currentTheme, 'light', '关闭自动夜间后恢复用户主题');
 });

@@ -53,10 +53,12 @@ export class Theme {
     root.style.setProperty('--secondary-dark', this.darken(secondary, 15));
     put('--success', c.success);
     put('--success-dark', c.successDark);
+    put('--success-btn', c.successBtn);
     put('--warning', c.warning);
     put('--warning-dark', c.warningDark);
     put('--danger', c.danger);
     put('--danger-dark', c.dangerDark);
+    put('--danger-btn', c.dangerBtn);
     put('--on-accent', c.onAccent);
     put('--on-success', c.onSuccess);
     put('--on-warning', c.onWarning);
@@ -73,17 +75,24 @@ export class Theme {
     root.style.setProperty('--header-bg', c.headerBg || `linear-gradient(135deg, ${primary}, ${accent})`);
     root.style.setProperty('--header-text', c.headerText || '#ffffff');
     root.style.setProperty('--accent-bg', this.hexToRgba(accent, 0.08));
-    root.classList.toggle('dark-mode', t.id === 'dark');
+    root.classList.toggle('dark-mode', t.darkSurfaces === true);
     syncTitlebarOverlay();
+  }
+
+  _nightTarget(themeId) {
+    const t = this.getTheme(themeId);
+    if (t.darkVariant) return t.darkVariant;
+    return t.darkSurfaces ? t.id : 'dark';
   }
 
   setUserTheme(themeId) {
     const t = this.getTheme(themeId);
     this.userTheme = t.id;
     this.autoApplied = false;
-    if (this.autoNight && this.isNightTime() && t.id !== 'dark') {
-      this.apply('dark');
-      this.autoApplied = true;
+    if (this.autoNight && this.isNightTime()) {
+      const target = this._nightTarget(t.id);
+      this.autoApplied = target !== t.id;
+      this.apply(target);
     } else {
       this.apply(t.id);
     }
@@ -117,8 +126,8 @@ export class Theme {
     const isNight = this.isNightTime();
     if (!force && isNight === this.lastNightState) return;
     this.lastNightState = isNight;
-    const target = isNight ? 'dark' : this.userTheme;
-    this.autoApplied = isNight && this.userTheme !== 'dark';
+    const target = isNight ? this._nightTarget(this.userTheme) : this.userTheme;
+    this.autoApplied = isNight && target !== this.userTheme;
     if (this.currentTheme !== target) this.apply(target);
   }
 

@@ -2,6 +2,7 @@ export const THEME_PRESETS = [
   {
     id: 'light',
     name: '浅色模式',
+    darkVariant: 'dark',
     colors: {
       primary: '#0078d4',
       accent: '#0067c0',
@@ -22,6 +23,8 @@ export const THEME_PRESETS = [
   {
     id: 'dark',
     name: '深色模式',
+    darkSurfaces: true,
+    darkVariant: 'dark',
     colors: {
       primary: '#479ef5',
       accent: '#115ea3',
@@ -42,10 +45,11 @@ export const THEME_PRESETS = [
   {
     id: 'passion',
     name: 'Passion',
+    darkVariant: 'passion-dark',
     colors: {
       primary: '#4285F4',
-      accent: '#4285F4',
-      accentDark: '#1976D2',
+      accent: '#1976D2',
+      accentDark: '#1565C0',
       secondary: '#5c5c5c',
       success: '#4DB6AC',
       successDark: '#00897B',
@@ -53,7 +57,7 @@ export const THEME_PRESETS = [
       warningDark: '#FB8C00',
       danger: '#EF5350',
       dangerDark: '#D32F2F',
-      onAccent: '#212121',
+      onAccent: '#ffffff',
       onSuccess: '#212121',
       onWarning: '#212121',
       onDanger: '#212121',
@@ -68,6 +72,41 @@ export const THEME_PRESETS = [
       sidebarIconHover: 'rgba(0, 0, 0, 0.10)',
       headerBg: '#f3f3f3',
       headerText: '#1b1b1b'
+    }
+  },
+  {
+    id: 'passion-dark',
+    name: 'Passion 深色',
+    darkSurfaces: true,
+    darkVariant: 'passion-dark',
+    colors: {
+      primary: '#8AB4F8',
+      accent: '#1976D2',
+      accentDark: '#1565C0',
+      secondary: '#adadad',
+      success: '#4DB6AC',
+      successDark: '#00897B',
+      successBtn: '#4DB6AC',
+      danger: '#EF5350',
+      dangerDark: '#D32F2F',
+      dangerBtn: '#EF5350',
+      warning: '#FFCA28',
+      warningDark: '#FB8C00',
+      onAccent: '#ffffff',
+      onSuccess: '#212121',
+      onWarning: '#212121',
+      onDanger: '#212121',
+      sidebarBg: '#202020',
+      sidebarText: '#ffffff',
+      sidebarHover: 'rgba(255, 255, 255, 0.06)',
+      sidebarActive: 'rgba(255, 255, 255, 0.10)',
+      sidebarBorder: 'rgba(255, 255, 255, 0.08)',
+      sidebarSearchBg: 'rgba(255, 255, 255, 0.08)',
+      sidebarSearchHover: 'rgba(255, 255, 255, 0.14)',
+      sidebarPlaceholder: 'rgba(255, 255, 255, 0.5)',
+      sidebarIconHover: 'rgba(255, 255, 255, 0.12)',
+      headerBg: '#272727',
+      headerText: '#ffffff'
     }
   }
 ];

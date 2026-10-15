@@ -230,7 +230,7 @@ export class Settings {
         <div class="settings-section-title">特色功能</div>
         <div style="color: var(--text-secondary); font-size: 13px; line-height: 2;">
           <div>• Fluent 2 设计风格（品牌蓝配色）</div>
-          <div>• 主题（浅色模式 / 深色模式 / Passion + 自动夜间）</div>
+          <div>• 主题（浅色模式 / 深色模式 / Passion / Passion 深色 + 自动夜间）</div>
           <div>• 键盘快捷键 + 全局快捷键</div>
           <div>• 系统托盘 / 窗口状态记忆 / 缩放</div>
           <div>• 子任务 / 备注 / 重复 / 提醒 / 番茄钟 / 日历</div>

@@ -44,12 +44,14 @@
   --success: #107c10;
   --success-bg: #9fd89f;
   --success-dark: #0b5e0b;
+  --success-btn: var(--success);
   --warning: #bc4b09;
   --warning-bg: #fdcfb4;
   --warning-dark: #8f3904;
   --danger: #c50f1f;
   --danger-bg: #eeacb2;
   --danger-dark: #a10713;
+  --danger-btn: var(--danger);
   --on-accent: #ffffff;
   --on-success: #ffffff;
   --on-warning: #ffffff;
@@ -665,7 +667,7 @@ html.fullscreen #app {
 }
 
 .btn-task-action.active {
-  color: var(--warning);
+  color: var(--warning-dark);
 }
 
 /* Detail Panel */
@@ -995,7 +997,7 @@ html.fullscreen #app {
 }
 
 .btn-complete-task {
-  background: var(--success);
+  background: var(--success-btn);
   color: var(--on-success);
 }
 
@@ -1013,30 +1015,12 @@ html.fullscreen #app {
 }
 
 .btn-delete-task {
-  background: var(--danger);
+  background: var(--danger-btn);
   color: var(--on-danger);
 }
 
 .btn-delete-task:hover {
   background: var(--danger-dark);
-}
-
-html.dark-mode .btn-complete-task {
-  background: #107c10;
-  color: #ffffff;
-}
-
-html.dark-mode .btn-complete-task:hover {
-  background: #0b5e0b;
-}
-
-html.dark-mode .btn-delete-task {
-  background: #c50f1f;
-  color: #ffffff;
-}
-
-html.dark-mode .btn-delete-task:hover {
-  background: #a10713;
 }
 
 /* Dialog */
@@ -1918,7 +1902,7 @@ html.compact-mode .task-item {
 }
 
 .cal-cell {
-  height: 152px;
+  height: 134px;
   background: var(--bg-panel);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
@@ -2209,8 +2193,11 @@ html.dark-mode {
   --border: #666666;
   --border-light: #3d3d3d;
   --success: #54b054;
+  --success-btn: #107c10;
   --warning: #faa06b;
+  --warning-dark: #faa06b;
   --danger: #dc626d;
+  --danger-btn: #c50f1f;
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.24), 0 0 2px rgba(0,0,0,0.28);
   --shadow-md: 0 4px 8px rgba(0,0,0,0.24), 0 0 2px rgba(0,0,0,0.28);
   --shadow-lg: 0 8px 16px rgba(0,0,0,0.24), 0 0 2px rgba(0,0,0,0.28);

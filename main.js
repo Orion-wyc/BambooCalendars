@@ -197,6 +197,7 @@ function createMenu() {
             { label: '浅色模式', click: () => send('select-theme', 'light') },
             { label: '深色模式', click: () => send('select-theme', 'dark') },
             { label: 'Passion', click: () => send('select-theme', 'passion') },
+            { label: 'Passion 深色', click: () => send('select-theme', 'passion-dark') },
           ]
         },
         { type: 'separator' },

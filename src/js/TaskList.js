@@ -262,7 +262,7 @@ export class TaskList {
       const dayTasks = tasks.filter(t => t.dueDate === dateStr);
       const isToday = cellDate.getTime() === today.getTime();
       const isSelected = this.calendarSelectedDate === dateStr;
-      const maxRows = 5;
+      const maxRows = 4;
       const shownTasks = dayTasks.length <= maxRows ? dayTasks : dayTasks.slice(0, maxRows - 1);
       const hiddenCount = dayTasks.length - shownTasks.length;
       cells += `

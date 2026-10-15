@@ -215,7 +215,7 @@ class App {
         break;
       case 'select-theme':
         theme.setUserTheme(String(data));
-        store.updateSettings({ theme: theme.currentTheme });
+        store.updateSettings({ theme: theme.userTheme });
         break;
       case 'always-on-top':
         store.updateSettings({ alwaysOnTop: Boolean(data) });

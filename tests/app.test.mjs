@@ -160,6 +160,7 @@ test('菜单动作分发：紧凑模式 / 置顶 / 主题切换', () => {
 
 test('BUG-23 自动夜间模式不覆盖用户手选主题', async () => {
   const { theme } = await import('../src/js/Theme.js');
+  const night = theme.isNightTime();
   theme.setUserTheme('dark');
   theme.setAutoNight(true);
   assert.equal(theme.userTheme, 'dark');
@@ -168,8 +169,12 @@ test('BUG-23 自动夜间模式不覆盖用户手选主题', async () => {
   assert.equal(theme.currentTheme, 'dark');
 
   theme.setUserTheme('light');
-  theme.refreshAutoNight(true);
-  assert.equal(theme.currentTheme, theme.isNightTime() ? 'dark' : 'light');
+  assert.equal(theme.userTheme, 'light');
+  assert.equal(theme.currentTheme, night ? 'dark' : 'light',
+    '夜间开启自动夜间时手动选浅色，呈现应保持深色');
+  theme.refreshAutoNight();
+  assert.equal(theme.currentTheme, night ? 'dark' : 'light',
+    '定时器非 force 路径不得把夜间手动选择误恢复为浅色');
   theme.setAutoNight(false);
   assert.equal(theme.currentTheme, 'light', '关闭自动夜间后恢复用户主题');
 });

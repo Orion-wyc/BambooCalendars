@@ -1,20 +1,4 @@
 :root {
-  --brand-10: #061724;
-  --brand-20: #082338;
-  --brand-30: #0a2e4a;
-  --brand-40: #0c3b5e;
-  --brand-50: #0e4775;
-  --brand-60: #0f548c;
-  --brand-70: #115ea3;
-  --brand-80: #0f6cbd;
-  --brand-90: #2886de;
-  --brand-100: #479ef5;
-  --brand-110: #62abf5;
-  --brand-120: #77b7f7;
-  --brand-130: #96c6fa;
-  --brand-140: #b4d6fa;
-  --brand-150: #cfe4fa;
-  --brand-160: #ebf3fc;
   --grey-14: #242424;
   --grey-26: #424242;
   --grey-38: #616161;
@@ -902,6 +886,7 @@ html.fullscreen #app {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--on-accent);
+  font-size: 12px;
 }
 
 .subtask-title {
@@ -1371,8 +1356,9 @@ html.dark-mode .btn-delete-task:hover {
 
 /* Search Highlight */
 mark {
-  background: rgba(15, 108, 189, 0.2);
-  color: var(--brand-70);
+  background: var(--accent-bg);
+  color: var(--text-primary);
+  font-weight: 600;
   padding: 0 2px;
   border-radius: 2px;
 }

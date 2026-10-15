@@ -81,7 +81,12 @@ export class Theme {
     const t = this.getTheme(themeId);
     this.userTheme = t.id;
     this.autoApplied = false;
-    this.apply(t.id);
+    if (this.autoNight && this.isNightTime() && t.id !== 'dark') {
+      this.apply('dark');
+      this.autoApplied = true;
+    } else {
+      this.apply(t.id);
+    }
     return this.currentTheme;
   }
 

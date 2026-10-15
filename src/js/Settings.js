@@ -320,7 +320,7 @@ export class Settings {
 
   applyTheme(themeId) {
     theme.setUserTheme(themeId);
-    store.updateSettings({ theme: themeId });
+    store.updateSettings({ theme: theme.userTheme });
     this.render();
   }
 

@@ -178,12 +178,13 @@ test('BUG-12 逾期重复任务的下次日期推进到今天之后', () => {
 
 test('BUG-12 工作日重复跳过周末', () => {
   const s = freshStore(null);
-  const friday = new Date(2026, 8, 18);
-  assert.equal(friday.getDay(), 5);
+  // 基准取"今天之后的下一个周五"（严格未来），避免触发逾期追赶，验证纯推进语义
+  let friday = U.addDays(U.startOfToday(), 1);
+  while (friday.getDay() !== 5) friday = U.addDays(friday, 1);
   const t = s.createTask({ title: '周报', dueDate: U.toDateKey(friday), repeat: 'weekdays' });
   s.toggleComplete(t.id);
   const next = s.data.tasks.find(x => x.id !== t.id);
-  assert.equal(U.parseDateKey(next.dueDate).getDay(), 1);
+  assert.equal(U.parseDateKey(next.dueDate).getDay(), 1, '周五完成的工作日重复任务应推进到下周一');
 });
 
 test('BUG-12 每月重复按同一天推进', () => {

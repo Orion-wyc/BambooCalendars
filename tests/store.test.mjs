@@ -249,6 +249,18 @@ test('BUG-29 hideCompleted 死配置已移除', () => {
   assert.equal(s.data.settings.checkUpdateOnStartup, true);
 });
 
+test('主题合并：旧 theme/mode 数据迁移', () => {
+  assert.equal(freshStore({ settings: { theme: 'default', mode: 'dark' } }).data.settings.theme, 'dark');
+  assert.equal(freshStore({ settings: { theme: 'default', mode: 'black' } }).data.settings.theme, 'dark');
+  assert.equal(freshStore({ settings: { theme: 'win11-light', mode: 'sepia' } }).data.settings.theme, 'light');
+  assert.equal(freshStore({ settings: { theme: 'default', mode: 'normal' } }).data.settings.theme, 'light');
+  assert.equal(freshStore({ settings: { theme: 'dark' } }).data.settings.theme, 'dark');
+  assert.equal(freshStore({ settings: { theme: 'light' } }).data.settings.theme, 'light');
+  const s = freshStore(null);
+  assert.equal(s.data.settings.theme, 'light');
+  assert.equal('mode' in s.data.settings, false, 'mode 键已废弃');
+});
+
 test('BUG-45 updateSettings 忽略未知键', () => {
   const s = freshStore(null);
   s.updateSettings({ sortBy: 'alpha', evil: 1 });

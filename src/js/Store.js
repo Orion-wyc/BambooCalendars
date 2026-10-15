@@ -6,7 +6,7 @@ import {
 const BUILTIN_LIST_ID = 'tasks';
 
 const SETTING_KEYS = [
-  'theme', 'mode', 'autoNightMode', 'requestExitConfirmation',
+  'theme', 'autoNightMode', 'requestExitConfirmation',
   'compactMode', 'sortBy', 'alwaysOnTop', 'checkUpdateOnStartup',
   'pomodoroWorkMinutes', 'pomodoroBreakMinutes'
 ];
@@ -20,8 +20,7 @@ const REPEAT_VALUES = ['none', 'daily', 'weekdays', 'weekly', 'monthly', 'yearly
 
 function defaultSettings() {
   return {
-    theme: 'default',
-    mode: 'normal',
+    theme: 'light',
     autoNightMode: false,
     requestExitConfirmation: true,
     compactMode: false,
@@ -122,6 +121,9 @@ export class Store {
       SETTING_KEYS.forEach(key => {
         if (saved.settings[key] !== undefined) settings[key] = saved.settings[key];
       });
+      if (settings.theme === 'default' || settings.theme === 'win11-light') settings.theme = 'light';
+      const legacyMode = saved.settings.mode;
+      if (legacyMode === 'dark' || legacyMode === 'black') settings.theme = 'dark';
     }
     Object.keys(POMODORO_LIMITS).forEach(key => {
       settings[key] = clampSettingNumber(settings[key], POMODORO_LIMITS[key]);

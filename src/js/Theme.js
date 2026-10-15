@@ -3,14 +3,11 @@ import { syncTitlebarOverlay } from './TitleBar.js';
 
 const NIGHT_START_HOUR = 19;
 const NIGHT_END_HOUR = 7;
-const MODES = ['normal', 'dark', 'black', 'sepia'];
-const MODE_CLASSES = { dark: 'dark-mode', black: 'black-mode', sepia: 'sepia-mode' };
 
 export class Theme {
   constructor() {
-    this.currentTheme = 'default';
-    this.mode = 'normal';
-    this.userMode = 'normal';
+    this.currentTheme = 'light';
+    this.userTheme = 'light';
     this.autoNight = false;
     this.autoApplied = false;
     this.lastNightState = null;
@@ -41,15 +38,29 @@ export class Theme {
     const c = t.colors || {};
     const { primary, accent, secondary } = c;
     const root = document.documentElement;
+    const put = (name, value) => {
+      if (value === undefined || value === null) root.style.removeProperty(name);
+      else root.style.setProperty(name, value);
+    };
     root.style.setProperty('--primary', primary);
     root.style.setProperty('--primary-light', this.lighten(primary, 20));
     root.style.setProperty('--primary-dark', this.darken(primary, 15));
     root.style.setProperty('--accent', accent);
     root.style.setProperty('--accent-light', this.lighten(accent, 15));
-    root.style.setProperty('--accent-dark', this.darken(accent, 10));
+    root.style.setProperty('--accent-dark', c.accentDark || this.darken(accent, 10));
     root.style.setProperty('--secondary', secondary);
     root.style.setProperty('--secondary-light', this.lighten(secondary, 20));
     root.style.setProperty('--secondary-dark', this.darken(secondary, 15));
+    put('--success', c.success);
+    put('--success-dark', c.successDark);
+    put('--warning', c.warning);
+    put('--warning-dark', c.warningDark);
+    put('--danger', c.danger);
+    put('--danger-dark', c.dangerDark);
+    put('--on-accent', c.onAccent);
+    put('--on-success', c.onSuccess);
+    put('--on-warning', c.onWarning);
+    put('--on-danger', c.onDanger);
     root.style.setProperty('--sidebar-bg', c.sidebarBg || primary);
     root.style.setProperty('--sidebar-text', c.sidebarText || '#ffffff');
     root.style.setProperty('--sidebar-hover', c.sidebarHover || 'rgba(255, 255, 255, 0.08)');
@@ -62,33 +73,16 @@ export class Theme {
     root.style.setProperty('--header-bg', c.headerBg || `linear-gradient(135deg, ${primary}, ${accent})`);
     root.style.setProperty('--header-text', c.headerText || '#ffffff');
     root.style.setProperty('--accent-bg', this.hexToRgba(accent, 0.08));
-    this.applyMode(this.mode, false);
-  }
-
-  applyMode(mode, fromUser = true) {
-    const next = MODES.includes(mode) ? mode : 'normal';
-    if (fromUser) {
-      this.userMode = next;
-      this.autoApplied = false;
-    }
-    this.mode = next;
-    const root = document.documentElement;
-    Object.values(MODE_CLASSES).forEach(cls => root.classList.remove(cls));
-    if (MODE_CLASSES[next]) root.classList.add(MODE_CLASSES[next]);
+    root.classList.toggle('dark-mode', t.id === 'dark');
     syncTitlebarOverlay();
-    return this.mode;
   }
 
-  setUserMode(mode) {
-    const next = MODES.includes(mode) ? mode : 'normal';
-    this.userMode = next;
-    this.applyMode(next, false);
-    return this.mode;
-  }
-
-  toggleMode(mode) {
-    const target = MODES.includes(mode) ? mode : 'normal';
-    return this.applyMode(this.mode === target ? 'normal' : target);
+  setUserTheme(themeId) {
+    const t = this.getTheme(themeId);
+    this.userTheme = t.id;
+    this.autoApplied = false;
+    this.apply(t.id);
+    return this.currentTheme;
   }
 
   setAutoNight(enabled) {
@@ -98,7 +92,7 @@ export class Theme {
       this.nightTimer = null;
     }
     if (!this.autoNight) {
-      if (this.autoApplied) this.applyMode(this.userMode, false);
+      if (this.autoApplied) this.apply(this.userTheme);
       this.autoApplied = false;
       this.lastNightState = null;
       return;
@@ -118,12 +112,9 @@ export class Theme {
     const isNight = this.isNightTime();
     if (!force && isNight === this.lastNightState) return;
     this.lastNightState = isNight;
-    const darken = isNight && this.userMode === 'normal';
-    const target = darken ? 'dark' : this.userMode;
-    if (this.mode !== target) {
-      this.applyMode(target, false);
-      this.autoApplied = darken;
-    }
+    const target = isNight ? 'dark' : this.userTheme;
+    this.autoApplied = isNight && this.userTheme !== 'dark';
+    if (this.currentTheme !== target) this.apply(target);
   }
 
   normalizeHex(hex) {

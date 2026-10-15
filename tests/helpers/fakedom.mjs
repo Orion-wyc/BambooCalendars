@@ -77,7 +77,7 @@ export class FakeElement {
     this.parentNode = null;
     this.listeners = {};
     this.dataset = {};
-    this.style = { setProperty() {} };
+    this.style = { setProperty() {}, removeProperty() {} };
     this.classList = new FakeClassList();
     this._html = '';
     this.textContent = '';

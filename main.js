@@ -194,10 +194,9 @@ function createMenu() {
       submenu: [
         {
           label: '主题模式', submenu: [
-            { label: '深色主题', accelerator: 'CmdOrCtrl+H', click: () => send('toggle-mode', 'dark') },
-            { label: '黑色主题', accelerator: 'CmdOrCtrl+B', click: () => send('toggle-mode', 'black') },
-            { label: '棕褐色主题', accelerator: 'CmdOrCtrl+G', click: () => send('toggle-mode', 'sepia') },
-            { label: '正常模式', accelerator: 'CmdOrCtrl+Shift+G', click: () => send('toggle-mode', 'normal') },
+            { label: '浅色模式', click: () => send('select-theme', 'light') },
+            { label: '深色模式', click: () => send('select-theme', 'dark') },
+            { label: 'Passion', click: () => send('select-theme', 'passion') },
           ]
         },
         { type: 'separator' },

@@ -33,11 +33,12 @@
 
 ### 主题系统
 - Fluent 2 设计风格，配色参考 Fluent 2 color tokens
-- 内置两套主题：
-  - 默认：品牌蓝 `#0f6cbd`（brand[80]）、深蓝 `#0f548c`（brand[60]）、深色侧边栏
-  - Windows 11 浅色：`#0067c0`/`#0078d4` 强调蓝、浅灰侧边栏 `#f3f3f3`、深色文字
-- 主题配置入口：`src/themes/presets.js`
-- 显示模式支持正常/深色/黑色/棕褐色，深色/黑色模式采用 Fluent dark tokens
+- 内置三套主题（原"显示模式"已并入主题体系）：
+  - 浅色模式（参考 Windows 11 浅色配色）：强调蓝 `#0067c0`/`#0078d4`、浅灰侧边栏 `#f3f3f3`、深色文字
+  - 深色模式：Fluent dark tokens——侧边栏 `#202020`、表面 `#292929`、强调按钮 `#115ea3`、浅色文字
+  - Passion（浅色 UI + Material 状态色）：进行中 `#4285F4`（深 `#1976D2`）、处理中 `#FFCA28`（深 `#FB8C00`）、已完成 `#4DB6AC`（深 `#00897B`）、已取消 `#EF5350`（深 `#D32F2F`），状态色上文字统一 `#212121`
+- 自动夜间模式：夜间（19:00 - 07:00）自动切换到深色模式，日间恢复用户所选主题
+- 主题配置入口：`src/themes/presets.js`；旧版本的 `theme: default/win11-light` 与 `mode` 数据自动迁移
 
 ## 技术栈
 
@@ -104,13 +105,13 @@ npm run build:linux
 ```javascript
 export const THEME_PRESETS = [
   {
-    id: 'default',
-    name: '默认',
+    id: 'light',
+    name: '浅色模式',
     colors: {
-      primary: '#0f548c',   // 主色（侧边栏、标题）→ brand[60]
-      accent: '#0f6cbd',    // 强调色（按钮、高亮）→ brand[80]
-      secondary: '#5c5c5c', // 辅助色（次要文本）→ grey[38]
-      // 以下可选，缺省时使用深色侧边栏默认值
+      primary: '#0078d4',     // 主色（日历选中、渐变起点）
+      accent: '#0067c0',      // 强调色（按钮、高亮、选中指示条）
+      secondary: '#5c5c5c',   // 辅助色
+      // 以下可选，缺省时使用深色侧边栏回退值
       sidebarBg: '#f3f3f3',                 // 侧边栏背景（浅色主题用浅灰）
       sidebarText: '#1b1b1b',               // 侧边栏文字
       sidebarHover: 'rgba(0, 0, 0, 0.06)',  // 悬浮背景
@@ -119,11 +120,25 @@ export const THEME_PRESETS = [
       sidebarSearchBg: 'rgba(0, 0, 0, 0.05)',
       sidebarSearchHover: 'rgba(0, 0, 0, 0.10)',
       sidebarPlaceholder: 'rgba(0, 0, 0, 0.45)',
-      sidebarIconHover: 'rgba(0, 0, 0, 0.10)'
+      sidebarIconHover: 'rgba(0, 0, 0, 0.10)',
+      headerBg: '#f3f3f3',    // 列表头部背景（缺省为 primary→accent 渐变）
+      headerText: '#1b1b1b',  // 列表头部文字
+      // 状态色（可选，缺省回退 Fluent 默认值；对应 进行中/已完成/处理中/已取消）
+      accentDark: '#1976D2',                  // 强调色悬浮/图标圆形深底
+      success: '#4DB6AC', successDark: '#00897B',
+      warning: '#FFCA28', warningDark: '#FB8C00',
+      danger: '#EF5350',  dangerDark: '#D32F2F',
+      onAccent: '#212121', onSuccess: '#212121',    // 实底状态色上的文字
+      onWarning: '#212121', onDanger: '#212121'
     }
   }
 ];
 ```
+
+- `id: 'dark'` 的主题会额外启用 `html.dark-mode`，套用 Fluent dark tokens（表面/文字/描边/状态色）
+- 状态色族（`success/warning/danger` 及各自 `*Dark`/`on*`）为可选内联覆盖：主题未定义时会回退到 CSS 默认值/深色模式值，切换主题不会残留
+- 主题切换入口：设置 > 主题，或菜单 视图 > 主题模式
+- "显示模式"体系及其 `Ctrl/Cmd + H/B/G`、`Ctrl/Cmd + Shift + G` 快捷键已移除，由主题切换替代
 
 ## 数据存储位置
 

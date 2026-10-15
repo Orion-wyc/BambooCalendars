@@ -34,8 +34,7 @@ class App {
     await theme.load();
 
     const settings = store.getSettings();
-    theme.apply(settings.theme);
-    theme.applyMode(settings.mode || 'normal');
+    theme.setUserTheme(settings.theme);
     theme.setAutoNight(Boolean(settings.autoNightMode));
 
     const root = document.documentElement;
@@ -214,11 +213,12 @@ class App {
       case 'settings':
         this.settings.open();
         break;
+      case 'select-theme':
+        theme.setUserTheme(String(data));
+        store.updateSettings({ theme: theme.currentTheme });
+        break;
       case 'always-on-top':
         store.updateSettings({ alwaysOnTop: Boolean(data) });
-        break;
-      case 'toggle-mode':
-        this.applyMode(theme.toggleMode(data));
         break;
       case 'zoom-in':
         window.api.zoom.in();
@@ -243,7 +243,7 @@ class App {
         break;
       case 'auto-night':
         theme.setAutoNight(Boolean(data));
-        store.updateSettings({ autoNightMode: Boolean(data), mode: theme.userMode });
+        store.updateSettings({ autoNightMode: Boolean(data) });
         break;
       case 'popup-new-todo':
         window.api.window.show().then(() => this.taskList.focusInput());
@@ -254,11 +254,6 @@ class App {
       default:
         break;
     }
-  }
-
-  applyMode(mode) {
-    theme.setUserMode(mode);
-    store.updateSettings({ mode });
   }
 
   dismissOverlays() {
@@ -325,7 +320,6 @@ class App {
           case 'm': this.sidebar.jumpToView('my-day'); break;
           case 'i': this.sidebar.jumpToView('important'); break;
           case 'a': this.sidebar.jumpToView('tasks'); break;
-          case 'g': this.applyMode(theme.toggleMode('normal')); break;
           case 'j': this.toggleCompact(); break;
           case 'o': this.toggleAlwaysOnTop(); break;
           case 'tab': this.sidebar.prevList(); break;
@@ -344,9 +338,6 @@ class App {
         case 'k': this.taskList.toggleMyDaySelected(); break;
         case 'i': this.taskList.toggleImportantSelected(); break;
         case ',': this.settings.open(); break;
-        case 'h': this.applyMode(theme.toggleMode('dark')); break;
-        case 'b': this.applyMode(theme.toggleMode('black')); break;
-        case 'g': this.applyMode(theme.toggleMode('sepia')); break;
         case '0': window.api.zoom.reset(); break;
         case '-': window.api.zoom.out(); break;
         case '=':

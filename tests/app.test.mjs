@@ -6,7 +6,7 @@ mock.stored = {
   lists: [{ id: 'tasks', name: '任务', order: 0 }],
   tasks: [],
   tags: [],
-  settings: { compactMode: true, theme: 'default', mode: 'dark' },
+  settings: { compactMode: true, theme: 'dark' },
 };
 
 const { store } = await import('../src/js/Store.js');
@@ -34,8 +34,8 @@ test('BUG-10 启动时恢复紧凑模式', () => {
   assert.equal(cls.contains('compact-mode'), true);
 });
 
-test('启动时应用主题与显示模式', () => {
-  assert.equal(store.getSettings().theme, 'default');
+test('启动时应用深色主题', () => {
+  assert.equal(store.getSettings().theme, 'dark');
   assert.equal(document.documentElement.classList.contains('dark-mode'), true);
 });
 
@@ -140,7 +140,7 @@ test('BUG-22 已完成任务与未来提醒不通知', () => {
   assert.equal(mock.notifications.length, 0);
 });
 
-test('菜单动作分发：紧凑模式 / 置顶 / 主题模式', () => {
+test('菜单动作分发：紧凑模式 / 置顶 / 主题切换', () => {
   mock.appliedSettings.length = 0;
   const before = store.getSettings().compactMode;
   app.handleAction('toggle-compact');
@@ -150,28 +150,28 @@ test('菜单动作分发：紧凑模式 / 置顶 / 主题模式', () => {
   app.handleAction('always-on-top', true);
   assert.equal(store.getSettings().alwaysOnTop, true);
 
-  app.handleAction('toggle-mode', 'sepia');
-  assert.equal(store.getSettings().mode, 'sepia');
-  assert.equal(document.documentElement.classList.contains('sepia-mode'), true);
-  app.handleAction('toggle-mode', 'sepia');
-  assert.equal(store.getSettings().mode, 'normal', '再次切换应回到正常模式');
+  app.handleAction('select-theme', 'light');
+  assert.equal(store.getSettings().theme, 'light');
+  assert.equal(document.documentElement.classList.contains('dark-mode'), false);
+  app.handleAction('select-theme', 'dark');
+  assert.equal(store.getSettings().theme, 'dark');
+  assert.equal(document.documentElement.classList.contains('dark-mode'), true);
 });
 
-test('BUG-23 自动夜间模式不覆盖用户手选模式', async () => {
+test('BUG-23 自动夜间模式不覆盖用户手选主题', async () => {
   const { theme } = await import('../src/js/Theme.js');
-  theme.setUserMode('black');
+  theme.setUserTheme('dark');
   theme.setAutoNight(true);
-  assert.equal(theme.userMode, 'black');
-  assert.equal(theme.mode, 'black', '夜间也应保留用户选择的黑色模式');
+  assert.equal(theme.userTheme, 'dark');
+  assert.equal(theme.currentTheme, 'dark');
   theme.refreshAutoNight(true);
-  assert.equal(theme.mode, 'black');
+  assert.equal(theme.currentTheme, 'dark');
 
-  theme.setUserMode('normal');
+  theme.setUserTheme('light');
   theme.refreshAutoNight(true);
-  const expectDark = theme.isNightTime() ? 'dark' : 'normal';
-  assert.equal(theme.mode, expectDark);
+  assert.equal(theme.currentTheme, theme.isNightTime() ? 'dark' : 'light');
   theme.setAutoNight(false);
-  assert.equal(theme.mode, 'normal', '关闭自动夜间后恢复用户模式');
+  assert.equal(theme.currentTheme, 'light', '关闭自动夜间后恢复用户主题');
 });
 
 test('BUG-33 add-my-day 只作用于选中任务', () => {

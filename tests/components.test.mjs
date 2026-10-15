@@ -220,7 +220,7 @@ test('BUG-28 快捷键说明与实际一致', () => {
   assert.match(html, /Ctrl\/Cmd \+ , 打开设置/);
   assert.doesNotMatch(html, /Ctrl\/Cmd \+ \. 打开设置/);
   assert.match(html, /Ctrl\/Cmd \+ Shift \+ J 紧凑模式/);
-  assert.match(html, /Ctrl\/Cmd \+ Shift \+ G 正常模式/);
+  assert.doesNotMatch(html, /Ctrl\/Cmd \+ Shift \+ G/, '显示模式已并入主题，不应再宣传 Shift+G 快捷键');
 });
 
 test('设置开关写入 store 并同步主进程', () => {

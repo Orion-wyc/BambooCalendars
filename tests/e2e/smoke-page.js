@@ -490,6 +490,80 @@
     click($('#sidebar-nav [data-view="tasks"]'));
     await sleep(60);
 
+    // ---- 日历窗格：固定高度 + 超过5个显示「更多 N」 ----
+    const todayKey = U.toDateKey(U.startOfToday());
+    const createdPaneIds = [];
+    for (let i = 0; i < 7; i++) createdPaneIds.push(store.createTask({ title: `窗格任务${i}`, dueDate: todayKey }).id);
+    const existingToday = store.data.tasks.filter(t => t.dueDate === todayKey && !createdPaneIds.includes(t.id)).length;
+    click($('#sidebar-nav [data-view="calendar"]'));
+    await sleep(150);
+    const paneCell = $('.cal-cell.today');
+    ok('日历窗格固定高度 152px', Math.round(paneCell.getBoundingClientRect().height) === 152,
+      paneCell.getBoundingClientRect().height);
+    const paneTasks = paneCell.querySelectorAll('.cal-task').length;
+    const paneMore = paneCell.querySelector('.cal-more');
+    const totalToday = existingToday + 7;
+    ok('超过5个只显示4条任务', paneTasks === 4, `rows=${paneTasks}`);
+    ok('第五行显示更多及未显示数量', Boolean(paneMore) && paneMore.textContent.includes(`更多 ${totalToday - 4}`),
+      paneMore && paneMore.textContent);
+    createdPaneIds.forEach(id => store.deleteTask(id));
+    app.taskList.render();
+    await sleep(80);
+    const monthStart = app.taskList.calendarMonth;
+    const quietDate = U.toDateKey(new Date(monthStart.getFullYear(), monthStart.getMonth(), 3));
+    const quietIds = [];
+    for (let i = 0; i < 5; i++) quietIds.push(store.createTask({ title: `窗格恰好${i}`, dueDate: quietDate }).id);
+    app.taskList.render();
+    await sleep(120);
+    const quietCell = $(`.cal-cell[data-date="${quietDate}"]`);
+    ok('恰好5个时全部显示', Boolean(quietCell)
+      && quietCell.querySelectorAll('.cal-task').length === 5 && !quietCell.querySelector('.cal-more'));
+    quietIds.forEach(id => store.deleteTask(id));
+    app.taskList.render();
+    await sleep(80);
+
+    // ---- 主题：浅色/深色/Passion 切换 ----
+    click($('#sidebar-nav [data-view="tasks"]'));
+    await sleep(60);
+    app.settings.open();
+    await sleep(80);
+    const rootVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim().toLowerCase();
+    ok('主题卡片为三个', $$('[data-action="select-theme"]').length === 3,
+      $$('[data-action="select-theme"]').length);
+    click($('[data-theme-id="dark"]'));
+    await sleep(450);
+    ok('切换深色主题：类与设置同步', document.documentElement.classList.contains('dark-mode')
+      && store.getSettings().theme === 'dark');
+    ok('深色主题侧边栏配色生效',
+      getComputedStyle($('#sidebar')).backgroundColor === 'rgb(32, 32, 32)',
+      getComputedStyle($('#sidebar')).backgroundColor);
+    click($('[data-theme-id="passion"]'));
+    await sleep(450);
+    ok('切换Passion：退出深色类并保持浅色UI', !document.documentElement.classList.contains('dark-mode')
+      && getComputedStyle($('#sidebar')).backgroundColor === 'rgb(243, 243, 243)');
+    ok('Passion主题色生效', rootVar('--accent') === '#4285f4' && rootVar('--success') === '#4db6ac'
+      && rootVar('--warning') === '#ffca28' && rootVar('--danger') === '#ef5350',
+      `${rootVar('--accent')}/${rootVar('--success')}/${rootVar('--warning')}/${rootVar('--danger')}`);
+    ok('Passion状态色上文字为#212121', rootVar('--on-accent') === '#212121'
+      && rootVar('--on-success') === '#212121' && rootVar('--on-danger') === '#212121');
+    ok('Passion悬浮深色为主题深色列', rootVar('--accent-dark') === '#1976d2'
+      && rootVar('--danger-dark') === '#d32f2f');
+    app.settings.close();
+    await sleep(50);
+    app.settings.open();
+    await sleep(80);
+    click($('[data-theme-id="light"]'));
+    await sleep(450);
+    ok('切换浅色主题：恢复浅色配色', !document.documentElement.classList.contains('dark-mode')
+      && getComputedStyle($('#sidebar')).backgroundColor === 'rgb(243, 243, 243)'
+      && store.getSettings().theme === 'light');
+    ok('Passion状态色已清除回退默认', rootVar('--accent') === '#0067c0'
+      && rootVar('--success') === '#107c10' && rootVar('--on-success') === '#ffffff'
+      && rootVar('--on-accent') === '#ffffff',
+      `${rootVar('--accent')}/${rootVar('--success')}/${rootVar('--on-success')}`);
+    app.settings.close();
+    await sleep(50);
+
     // ---- BUG-53 清单/任务增删改走应用内对话框 ----
     const dialogHidden = () => $('#dialog-overlay').classList.contains('hidden');
     const listCountBefore = store.getLists().length;

@@ -13,13 +13,6 @@ const SORT_OPTIONS = [
   ['manual', '手动排序'],
 ];
 
-const MODE_OPTIONS = [
-  ['normal', '正常'],
-  ['dark', '深色'],
-  ['black', '黑色'],
-  ['sepia', '棕褐色'],
-];
-
 const SHORTCUTS = [
   'Ctrl/Cmd + N 新建任务 · Ctrl/Cmd + F 搜索',
   'Ctrl/Cmd + L 新建清单 · Ctrl/Cmd + Shift + Y 重命名清单',
@@ -30,8 +23,6 @@ const SHORTCUTS = [
   'Ctrl/Cmd + Shift + O 窗口置顶 · Ctrl/Cmd + Shift + J 紧凑模式',
   'Ctrl/Cmd + Shift + M/I/A 跳转 我的一天/重要/所有任务',
   'Ctrl/Cmd + 1-9 跳转清单 · Ctrl/Cmd + Tab 下一个视图',
-  'Ctrl/Cmd + Shift + G 正常模式',
-  'Ctrl/Cmd + H/B/G 深色/黑色/棕褐色主题',
   'Ctrl/Cmd + + / - / 0 放大/缩小/重置缩放',
   'Ctrl/Cmd + , 打开设置 · Esc 关闭面板',
   'Ctrl/Cmd + Alt + C 全局新建任务 · Ctrl/Cmd + Alt + A 全局显示/隐藏窗口',
@@ -134,7 +125,7 @@ export class Settings {
 
     return `
       <div class="settings-section">
-        <div class="settings-section-title">主题配色</div>
+        <div class="settings-section-title">主题</div>
         <div class="theme-grid">
           ${themes.map(t => `
             <div class="theme-card ${settings.theme === t.id ? 'active' : ''}" data-action="select-theme" data-theme-id="${escapeHtml(t.id)}">
@@ -147,19 +138,7 @@ export class Settings {
             </div>
           `).join('')}
         </div>
-      </div>
-
-      <div class="settings-section">
-        <div class="settings-section-title">显示模式</div>
-        <div class="mode-grid">
-          ${MODE_OPTIONS.map(([mode, label]) => `
-            <div class="mode-card ${(settings.mode || 'normal') === mode ? 'active' : ''}" data-action="select-mode" data-mode="${mode}">
-              <div class="mode-preview mode-preview-${mode}"></div>
-              <div class="mode-name">${label}</div>
-            </div>
-          `).join('')}
-        </div>
-        ${this.toggleRow('autoNightMode', '自动夜间模式', '夜间（19:00 - 07:00）自动切换到深色主题', Boolean(settings.autoNightMode))}
+        ${this.toggleRow('autoNightMode', '自动夜间模式', '夜间（19:00 - 07:00）自动切换到深色模式', Boolean(settings.autoNightMode))}
       </div>
 
       <div class="settings-section">
@@ -251,7 +230,7 @@ export class Settings {
         <div class="settings-section-title">特色功能</div>
         <div style="color: var(--text-secondary); font-size: 13px; line-height: 2;">
           <div>• Fluent 2 设计风格（品牌蓝配色）</div>
-          <div>• 显示模式（正常/深色/黑色/棕褐色 + 自动夜间）</div>
+          <div>• 主题（浅色模式 / 深色模式 / Passion + 自动夜间）</div>
           <div>• 键盘快捷键 + 全局快捷键</div>
           <div>• 系统托盘 / 窗口状态记忆 / 缩放</div>
           <div>• 子任务 / 备注 / 重复 / 提醒 / 番茄钟 / 日历</div>
@@ -285,9 +264,6 @@ export class Settings {
         break;
       case 'select-theme':
         this.applyTheme(target.dataset.themeId);
-        break;
-      case 'select-mode':
-        this.applyMode(target.dataset.mode);
         break;
       case 'toggle-setting':
         this.toggleSetting(target.dataset.setting);
@@ -343,14 +319,8 @@ export class Settings {
   }
 
   applyTheme(themeId) {
-    theme.apply(themeId);
+    theme.setUserTheme(themeId);
     store.updateSettings({ theme: themeId });
-    this.render();
-  }
-
-  applyMode(mode) {
-    theme.setUserMode(mode);
-    store.updateSettings({ mode: theme.mode });
     this.render();
   }
 
@@ -362,7 +332,7 @@ export class Settings {
     switch (setting) {
       case 'autoNightMode':
         theme.setAutoNight(next);
-        store.updateSettings({ mode: theme.userMode });
+        store.updateSettings({ theme: theme.userTheme });
         break;
       case 'compactMode':
         document.documentElement.classList.toggle('compact-mode', next);

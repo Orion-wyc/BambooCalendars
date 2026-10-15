@@ -262,17 +262,20 @@ export class TaskList {
       const dayTasks = tasks.filter(t => t.dueDate === dateStr);
       const isToday = cellDate.getTime() === today.getTime();
       const isSelected = this.calendarSelectedDate === dateStr;
+      const maxRows = 5;
+      const shownTasks = dayTasks.length <= maxRows ? dayTasks : dayTasks.slice(0, maxRows - 1);
+      const hiddenCount = dayTasks.length - shownTasks.length;
       cells += `
         <div class="cal-cell ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''} ${dayTasks.length ? 'has-tasks' : ''}" data-date="${dateStr}">
           <div class="cal-day-num">${d}</div>
           <div class="cal-day-tasks">
-            ${dayTasks.slice(0, 3).map(t => `
+            ${shownTasks.map(t => `
               <div class="cal-task" data-task-id="${escapeHtml(t.id)}">
-                <span class="cal-priority" style="background:${PRIORITY_COLORS[t.priority] || '#95a5a6'}"></span>
+                <span class="cal-priority" style="background:${PRIORITY_COLORS[t.priority] || '#9d9d9d'}"></span>
                 <span class="cal-task-title">${escapeHtml(t.title)}</span>
               </div>
             `).join('')}
-            ${dayTasks.length > 3 ? `<div class="cal-more">+${dayTasks.length - 3} 更多</div>` : ''}
+            ${hiddenCount > 0 ? `<div class="cal-more">更多 ${hiddenCount}</div>` : ''}
           </div>
         </div>
       `;

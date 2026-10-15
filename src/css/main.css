@@ -27,27 +27,27 @@
   --grey-96: #f5f5f5;
   --grey-98: #fafafa;
 
-  --primary: var(--brand-60);
-  --primary-light: var(--brand-80);
-  --primary-dark: var(--brand-50);
-  --accent: var(--brand-80);
-  --accent-light: var(--brand-90);
-  --accent-dark: var(--brand-70);
+  --primary: #0078d4;
+  --primary-light: #479ef5;
+  --primary-dark: #0067c0;
+  --accent: #0067c0;
+  --accent-light: #3a86cc;
+  --accent-dark: #0058a8;
   --secondary: var(--grey-26);
   --secondary-light: var(--grey-38);
   --secondary-dark: var(--grey-14);
-  --sidebar-bg: var(--brand-40);
-  --sidebar-text: #ffffff;
-  --sidebar-hover: rgba(255, 255, 255, 0.08);
-  --sidebar-active: rgba(255, 255, 255, 0.15);
-  --sidebar-border: rgba(255, 255, 255, 0.1);
-  --sidebar-search-bg: rgba(255, 255, 255, 0.15);
-  --sidebar-search-hover: rgba(255, 255, 255, 0.25);
-  --sidebar-placeholder: rgba(255, 255, 255, 0.6);
-  --sidebar-icon-hover: rgba(255, 255, 255, 0.2);
-  --header-bg: linear-gradient(135deg, var(--brand-50), var(--brand-70));
-  --header-text: #ffffff;
-  --accent-bg: rgba(15, 108, 189, 0.08);
+  --sidebar-bg: #f3f3f3;
+  --sidebar-text: #1b1b1b;
+  --sidebar-hover: rgba(0, 0, 0, 0.06);
+  --sidebar-active: rgba(0, 0, 0, 0.12);
+  --sidebar-border: rgba(0, 0, 0, 0.08);
+  --sidebar-search-bg: rgba(0, 0, 0, 0.05);
+  --sidebar-search-hover: rgba(0, 0, 0, 0.10);
+  --sidebar-placeholder: rgba(0, 0, 0, 0.45);
+  --sidebar-icon-hover: rgba(0, 0, 0, 0.10);
+  --header-bg: #f3f3f3;
+  --header-text: #1b1b1b;
+  --accent-bg: rgba(0, 103, 192, 0.08);
   --text-primary: var(--grey-14);
   --text-secondary: var(--grey-26);
   --text-muted: var(--grey-44);
@@ -59,10 +59,17 @@
   --bg-active: var(--grey-94);
   --success: #107c10;
   --success-bg: #9fd89f;
+  --success-dark: #0b5e0b;
   --warning: #bc4b09;
   --warning-bg: #fdcfb4;
+  --warning-dark: #8f3904;
   --danger: #c50f1f;
   --danger-bg: #eeacb2;
+  --danger-dark: #a10713;
+  --on-accent: #ffffff;
+  --on-success: #ffffff;
+  --on-warning: #ffffff;
+  --on-danger: #ffffff;
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.12), 0 0 2px rgba(0, 0, 0, 0.14);
   --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.12), 0 0 2px rgba(0, 0, 0, 0.14);
   --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.12), 0 0 2px rgba(0, 0, 0, 0.14);
@@ -602,7 +609,7 @@ html.fullscreen #app {
 .task-checkbox.checked {
   background: var(--accent);
   border-color: var(--accent);
-  color: white;
+  color: var(--on-accent);
 }
 
 .task-content {
@@ -894,8 +901,7 @@ html.fullscreen #app {
 .subtask-checkbox.checked {
   background: var(--accent);
   border-color: var(--accent);
-  color: white;
-  font-size: 12px;
+  color: var(--on-accent);
 }
 
 .subtask-title {
@@ -954,7 +960,7 @@ html.fullscreen #app {
   margin-left: 8px;
   border: none;
   background: var(--accent);
-  color: white;
+  color: var(--on-accent);
   cursor: pointer;
   border-radius: var(--radius-sm);
   display: flex;
@@ -996,7 +1002,6 @@ html.fullscreen #app {
   min-width: 0;
   padding: 12px;
   border: none;
-  color: #ffffff;
   font-size: 14px;
   font-weight: 500;
   border-radius: var(--radius-md);
@@ -1006,14 +1011,16 @@ html.fullscreen #app {
 
 .btn-complete-task {
   background: var(--success);
+  color: var(--on-success);
 }
 
 .btn-complete-task:hover {
-  background: #0b5e0b;
+  background: var(--success-dark);
 }
 
 .btn-complete-task.is-completed {
   background: var(--grey-38);
+  color: #ffffff;
 }
 
 .btn-complete-task.is-completed:hover {
@@ -1022,20 +1029,29 @@ html.fullscreen #app {
 
 .btn-delete-task {
   background: var(--danger);
+  color: var(--on-danger);
 }
 
 .btn-delete-task:hover {
-  background: #a10713;
+  background: var(--danger-dark);
 }
 
-html.dark-mode .btn-complete-task,
-html.black-mode .btn-complete-task {
+html.dark-mode .btn-complete-task {
   background: #107c10;
+  color: #ffffff;
 }
 
-html.dark-mode .btn-delete-task,
-html.black-mode .btn-delete-task {
+html.dark-mode .btn-complete-task:hover {
+  background: #0b5e0b;
+}
+
+html.dark-mode .btn-delete-task {
   background: #c50f1f;
+  color: #ffffff;
+}
+
+html.dark-mode .btn-delete-task:hover {
+  background: #a10713;
 }
 
 /* Dialog */
@@ -1130,7 +1146,7 @@ html.black-mode .btn-delete-task {
 .dialog-btn.primary {
   border-color: var(--accent);
   background: var(--accent);
-  color: #ffffff;
+  color: var(--on-accent);
 }
 
 .dialog-btn.primary:hover {
@@ -1140,6 +1156,7 @@ html.black-mode .btn-delete-task {
 .dialog-btn.primary.danger {
   border-color: var(--danger);
   background: var(--danger);
+  color: var(--on-danger);
 }
 
 /* Settings Overlay */
@@ -1296,61 +1313,6 @@ html.black-mode .btn-delete-task {
   font-weight: 500;
 }
 
-.mode-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.mode-card {
-  border: 2px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 12px;
-  cursor: pointer;
-  text-align: center;
-  transition: all var(--transition-fast);
-}
-
-.mode-card:hover {
-  border-color: var(--accent);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-sm);
-}
-
-.mode-card.active {
-  border-color: var(--accent);
-  background: var(--accent-bg);
-}
-
-.mode-preview {
-  height: 40px;
-  border-radius: var(--radius-sm);
-  margin-bottom: 8px;
-  border: 1px solid var(--border);
-}
-
-.mode-preview-normal {
-  background: linear-gradient(135deg, var(--brand-50), var(--brand-80));
-}
-
-.mode-preview-dark {
-  background: linear-gradient(135deg, #141414, #292929);
-}
-
-.mode-preview-black {
-  background: linear-gradient(135deg, #000000, #141414);
-}
-
-.mode-preview-sepia {
-  background: linear-gradient(135deg, #f4ecd8, #d5c8a0);
-}
-
-.mode-name {
-  font-size: 13px;
-  font-weight: 500;
-}
-
 .settings-toggle-row {
   display: flex;
   align-items: center;
@@ -1483,7 +1445,7 @@ mark {
 
 .context-menu-item.danger:hover {
   background: var(--danger);
-  color: white;
+  color: var(--on-danger);
 }
 
 .context-menu-item.disabled {
@@ -1533,7 +1495,7 @@ mark {
   justify-content: center;
   margin-right: 12px;
   background: var(--accent);
-  color: white;
+  color: var(--on-accent);
   border-radius: 50%;
   font-size: 14px;
   flex-shrink: 0;
@@ -1884,7 +1846,7 @@ html.compact-mode .task-item {
   padding: 6px 14px;
   border: none;
   background: var(--accent);
-  color: white;
+  color: var(--on-accent);
   border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 13px;
@@ -1970,13 +1932,13 @@ html.compact-mode .task-item {
 }
 
 .cal-cell {
-  min-height: 90px;
+  height: 152px;
   background: var(--bg-panel);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
   padding: 4px;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: border-color var(--transition-fast), background var(--transition-fast);
   overflow: hidden;
 }
 
@@ -2085,7 +2047,7 @@ html.compact-mode .task-item {
   padding: 6px 12px;
   border: 1px solid var(--accent);
   background: var(--accent);
-  color: #ffffff;
+  color: var(--on-accent);
   font-size: 13px;
   font-weight: 500;
   border-radius: var(--radius-sm);
@@ -2227,7 +2189,7 @@ html.compact-mode .task-item {
 .pomodoro-btn.primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: white;
+  color: var(--on-accent);
 }
 
 .pomodoro-btn:hover {
@@ -2283,73 +2245,6 @@ html.dark-mode .task-input-wrapper {
 html.dark-mode .detail-input,
 html.dark-mode .detail-textarea,
 html.dark-mode .detail-select {
-  background: var(--bg-panel);
-  color: var(--text-primary);
-}
-
-/* Black Mode */
-html.black-mode {
-  --bg-main: #000000;
-  --bg-panel: #0a0a0a;
-  --bg-hover: #1f1f1f;
-  --bg-active: #141414;
-  --text-primary: #ffffff;
-  --text-secondary: #d6d6d6;
-  --text-muted: #999999;
-  --border: #525252;
-  --border-light: #3d3d3d;
-  --success: #54b054;
-  --warning: #faa06b;
-  --danger: #dc626d;
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.4), 0 0 2px rgba(0,0,0,0.5);
-  --shadow-md: 0 4px 8px rgba(0,0,0,0.4), 0 0 2px rgba(0,0,0,0.5);
-  --shadow-lg: 0 8px 16px rgba(0,0,0,0.4), 0 0 2px rgba(0,0,0,0.5);
-}
-
-html.black-mode .task-input-wrapper {
-  background: var(--bg-panel);
-  border-color: var(--border);
-}
-
-html.black-mode .detail-toggle {
-  background: var(--bg-panel);
-}
-
-html.black-mode .detail-input,
-html.black-mode .detail-textarea,
-html.black-mode .detail-select {
-  background: var(--bg-panel);
-  color: var(--text-primary);
-}
-
-/* Sepia Mode */
-html.sepia-mode {
-  --bg-main: #f4ecd8;
-  --bg-panel: #faf4e8;
-  --bg-hover: #f0e6d0;
-  --bg-active: #ebe1c8;
-  --text-primary: #5b4636;
-  --text-secondary: #8b7355;
-  --text-muted: #a09070;
-  --border: #d5c8a0;
-  --border-light: #e0d5b8;
-  --shadow-sm: 0 1px 3px rgba(91,70,54,0.1);
-  --shadow-md: 0 4px 12px rgba(91,70,54,0.15);
-  --shadow-lg: 0 8px 24px rgba(91,70,54,0.2);
-}
-
-html.sepia-mode .task-input-wrapper {
-  background: var(--bg-panel);
-  border-color: var(--border);
-}
-
-html.sepia-mode .detail-toggle {
-  background: var(--bg-panel);
-}
-
-html.sepia-mode .detail-input,
-html.sepia-mode .detail-textarea,
-html.sepia-mode .detail-select {
   background: var(--bg-panel);
   color: var(--text-primary);
 }

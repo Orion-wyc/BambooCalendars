@@ -84,8 +84,10 @@
   --radius-md: 12px;
   --radius-lg: 16px;
   --radius-xl: 22px;
+  --radius-card: 14px;
   --radius-pill: 999px;
   --nav-radius: 10px;
+  --content-max: 860px;
 
   --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-normal: 0.28s cubic-bezier(0.4, 0, 0.2, 1);
@@ -94,8 +96,9 @@
   --titlebar-h: 36px;
   --titlebar-controls-w: 138px;
 
-  --font-family: 'Segoe UI', 'Segoe UI Web (West European)', -apple-system, BlinkMacSystemFont, Roboto, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --font-family: 'Inter', 'Plus Jakarta Sans', 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
   --font-family-mono: Consolas, 'Courier New', Courier, monospace;
+  color-scheme: light;
 }
 
 * {
@@ -287,8 +290,8 @@ html.dark-mode ::-webkit-scrollbar-thumb:hover {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--sidebar-active);
-  color: var(--sidebar-text);
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
 .sidebar-user-label {
@@ -619,6 +622,15 @@ html.dark-mode ::-webkit-scrollbar-thumb:hover {
   flex: none;
 }
 
+/* 宽屏时主列内容居中为阅读列（≤ --content-max），左右留白对称 */
+.list-header-inner,
+#task-input-area > *,
+#task-list-area > * {
+  width: 100%;
+  max-width: var(--content-max);
+  margin-inline: auto;
+}
+
 #list-header::before {
   content: '';
   position: absolute;
@@ -678,8 +690,8 @@ html.dark-mode ::-webkit-scrollbar-thumb:hover {
   gap: 12px;
   padding: 12px 16px;
   background: var(--bg-panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-card);
   box-shadow: var(--shadow-sm);
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
@@ -798,16 +810,16 @@ html.dark-mode ::-webkit-scrollbar-thumb:hover {
   align-items: flex-start;
   padding: 14px 16px;
   background: var(--bg-panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-card);
   cursor: pointer;
-  transition: box-shadow var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
+  transition: box-shadow var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast), transform var(--transition-fast);
   box-shadow: var(--shadow-sm);
 }
 
 .task-item:hover {
   box-shadow: var(--shadow-md);
-  border-color: var(--border-soft);
+  border-color: var(--border);
 }
 
 .task-item.selected {
@@ -939,6 +951,16 @@ html.dark-mode ::-webkit-scrollbar-thumb:hover {
 .task-item:hover .task-actions,
 .task-item.selected .task-actions {
   opacity: 1;
+}
+
+/* 已标记（重要/我的一天）的动作常驻可见，避免状态被 hover 隐藏 */
+.task-item:has(.btn-task-action.active) .task-actions {
+  opacity: 1;
+}
+
+/* 无 hover 设备（触屏）默认露出动作 */
+@media (hover: none) {
+  .task-actions { opacity: 1; }
 }
 
 .btn-task-action {
@@ -1080,11 +1102,12 @@ html.dark-mode ::-webkit-scrollbar-thumb:hover {
 }
 
 .detail-sheet {
-  border: 1.5px dashed var(--border);
+  border: 1px solid var(--border-soft);
   border-radius: var(--radius-lg);
-  padding: 14px;
+  padding: 16px;
   margin-bottom: 22px;
   background: var(--bg-main);
+  box-shadow: var(--shadow-sm);
 }
 
 .detail-title-input {
@@ -1092,7 +1115,8 @@ html.dark-mode ::-webkit-scrollbar-thumb:hover {
   background: transparent;
   font-size: 17px;
   font-weight: 600;
-  padding: 2px 0 10px;
+  letter-spacing: -0.2px;
+  padding: 2px 0 12px;
   outline: none;
   color: var(--text-primary);
   width: 100%;
@@ -1108,9 +1132,9 @@ html.dark-mode ::-webkit-scrollbar-thumb:hover {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
+  padding: 6px 13px;
   border-radius: var(--radius-pill);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-soft);
   background: var(--bg-panel);
   color: var(--text-secondary);
   font-size: 13px;
@@ -1124,9 +1148,10 @@ html.dark-mode ::-webkit-scrollbar-thumb:hover {
 }
 
 .detail-chip.active {
-  border-color: var(--accent);
-  background: var(--accent-bg);
+  border-color: transparent;
+  background: var(--accent-soft);
   color: var(--accent);
+  font-weight: 600;
 }
 
 .detail-section {
@@ -1176,12 +1201,12 @@ html.dark-mode ::-webkit-scrollbar-thumb:hover {
 .detail-input {
   width: 100%;
   padding: 10px 12px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-soft);
   border-radius: var(--radius-sm);
   font-size: 14px;
   outline: none;
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
-  background: var(--bg-panel);
+  background: var(--bg-main);
   color: var(--text-primary);
 }
 
@@ -1194,7 +1219,7 @@ html.dark-mode ::-webkit-scrollbar-thumb:hover {
   width: 100%;
   min-height: 80px;
   padding: 10px 12px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-soft);
   border-radius: var(--radius-sm);
   font-size: 14px;
   font-family: inherit;
@@ -1202,7 +1227,7 @@ html.dark-mode ::-webkit-scrollbar-thumb:hover {
   resize: vertical;
   line-height: 1.5;
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
-  background: var(--bg-panel);
+  background: var(--bg-main);
   color: var(--text-primary);
 }
 
@@ -1214,11 +1239,11 @@ html.dark-mode ::-webkit-scrollbar-thumb:hover {
 .detail-select {
   width: 100%;
   padding: 10px 12px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-soft);
   border-radius: var(--radius-sm);
   font-size: 14px;
   outline: none;
-  background: var(--bg-panel);
+  background: var(--bg-main);
   color: var(--text-primary);
   cursor: pointer;
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
@@ -1481,8 +1506,7 @@ html.dark-mode ::-webkit-scrollbar-thumb:hover {
 #dialog-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(30, 28, 22, 0.45);
-  backdrop-filter: blur(2px);
+  background: rgba(12, 15, 12, 0.55);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1590,8 +1614,7 @@ html.dark-mode ::-webkit-scrollbar-thumb:hover {
 #settings-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(30, 28, 22, 0.5);
-  backdrop-filter: blur(3px);
+  background: rgba(12, 15, 12, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2658,29 +2681,29 @@ mark {
    深色表面
    -------------------------------------------------------------------------- */
 html.dark-mode {
-  --grey-14: #f4f2ee;
-  --grey-26: #d8d5ce;
-  --grey-38: #b9b5ac;
-  --grey-44: #a4a097;
-  --grey-60: #7d7972;
-  --grey-74: #605c55;
-  --grey-82: #43403a;
-  --grey-88: #36332e;
-  --grey-94: #2b2823;
-  --grey-96: #24221d;
-  --grey-98: #1d1b17;
+  --grey-14: #f0f2f0;
+  --grey-26: #d5dad4;
+  --grey-38: #b2bab2;
+  --grey-44: #98a198;
+  --grey-60: #7c857c;
+  --grey-74: #5f685f;
+  --grey-82: #454d47;
+  --grey-88: #383f3a;
+  --grey-94: #2d332f;
+  --grey-96: #262b28;
+  --grey-98: #202523;
 
-  --bg-main: #1b1a16;
-  --bg-panel: #26241f;
-  --bg-hover: #33312a;
-  --bg-active: #3c392f;
-  --border: #47443b;
-  --border-light: #33312a;
-  --border-soft: rgba(255, 255, 255, 0.08);
+  --bg-main: #1a1d1a;
+  --bg-panel: #272b2a;
+  --bg-hover: #2f3432;
+  --bg-active: #363b39;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-light: rgba(255, 255, 255, 0.05);
+  --border-soft: rgba(255, 255, 255, 0.05);
 
-  --text-primary: #f4f2ee;
-  --text-secondary: #d8d5ce;
-  --text-muted: #a4a097;
+  --text-primary: #f0f2f0;
+  --text-secondary: #a2aa9f;
+  --text-muted: #808a7e;
 
   /* e2e 钉值：深色实底按钮与文字 */
   --success: #54b054;
@@ -2704,13 +2727,21 @@ html.dark-mode .detail-toggle {
 }
 
 html.dark-mode .task-input-wrapper {
-  border-color: var(--border);
+  border-color: var(--border-soft);
 }
 
 html.dark-mode .detail-input,
 html.dark-mode .detail-textarea,
 html.dark-mode .detail-select {
-  background: var(--bg-panel);
+  background: var(--bg-main);
+  color: var(--text-primary);
+}
+
+html.dark-mode .add-subtask-input,
+html.dark-mode .tag-manager-name,
+html.dark-mode .tag-manager-input,
+html.dark-mode .dialog-input {
+  background: var(--bg-main);
   color: var(--text-primary);
 }
 
@@ -2846,4 +2877,41 @@ html.compact-mode #detail-panel {
 
 html.compact-mode .task-item {
   padding: 10px 12px;
+}
+
+/* --------------------------------------------------------------------------
+   v2.0 无障碍与微交互打磨
+   -------------------------------------------------------------------------- */
+::selection {
+  background: var(--accent-soft);
+  color: var(--text-primary);
+}
+
+button:focus-visible,
+.nav-item:focus-visible,
+.list-item:focus-visible,
+.task-item:focus-visible,
+.detail-chip:focus-visible,
+.filter-chip:focus-visible,
+.theme-card:focus-visible,
+.cal-cell:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* 可聚焦的行/卡片补充 tabindex 由组件赋予；无 JS 时不影响 */
+.task-item,
+.nav-item,
+.list-item {
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }

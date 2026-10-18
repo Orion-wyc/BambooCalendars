@@ -3,6 +3,7 @@ import { eventBus } from './EventBus.js';
 import { dialog } from './Dialog.js';
 import { escapeHtml, isImeKeyEvent, preserveScroll } from './Utils.js';
 import { icon } from './icons.js';
+import { priorityColor, PRIORITY_NAMES } from './priority.js';
 
 export class TaskDetail {
   constructor() {
@@ -384,11 +385,10 @@ export class TaskDetail {
   }
 
   priorityLabel(p) {
-    return { 1: '紧急', 2: '高', 3: '中', 4: '低' }[p] || '低';
+    return PRIORITY_NAMES[p] || '低';
   }
 
   priorityColor(p) {
-    const colors = { 1: '#c50f1f', 2: '#f7630c', 3: '#0f6cbd', 4: '#9d9d9d' };
-    return colors[p] || '#9d9d9d';
+    return priorityColor(p);
   }
 }

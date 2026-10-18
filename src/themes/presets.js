@@ -26,32 +26,34 @@ export const THEME_PRESETS = [
     darkSurfaces: true,
     darkVariant: 'dark',
     colors: {
-      primary: '#7FA37A',
-      accent: '#4F7048',
-      accentDark: '#3E5A38',
-      secondary: '#adadad',
+      // Soft Dark Organic Minimalist — Nordic/Morandi
+      primary: '#a8c3a7',      // 浅鼠尾草（图标/强调）
+      accent: '#94b093',       // 柔鼠尾草（active/勾选/主按钮）
+      accentDark: '#7c9a7c',   // hover 深一档
+      secondary: '#a2aa9f',
+      onAccent: '#171a18',     // 鼠尾草实底上的深墨文字（浅底深字对比）
       sidebarBg: '#202020',
-      sidebarText: '#ffffff',
-      sidebarHover: 'rgba(255, 255, 255, 0.06)',
-      sidebarActive: 'rgba(255, 255, 255, 0.10)',
-      sidebarBorder: 'rgba(255, 255, 255, 0.08)',
-      sidebarSearchBg: 'rgba(255, 255, 255, 0.08)',
-      sidebarSearchHover: 'rgba(255, 255, 255, 0.14)',
-      sidebarPlaceholder: 'rgba(255, 255, 255, 0.5)',
-      sidebarIconHover: 'rgba(255, 255, 255, 0.12)',
-      headerBg: '#202020',
-      headerText: '#ffffff',
+      sidebarText: '#f0f2f0',
+      sidebarHover: 'rgba(255, 255, 255, 0.05)',
+      sidebarActive: 'rgba(148, 176, 147, 0.16)',
+      sidebarBorder: 'rgba(255, 255, 255, 0.06)',
+      sidebarSearchBg: 'rgba(255, 255, 255, 0.06)',
+      sidebarSearchHover: 'rgba(255, 255, 255, 0.10)',
+      sidebarPlaceholder: 'rgba(240, 242, 240, 0.45)',
+      sidebarIconHover: 'rgba(255, 255, 255, 0.10)',
+      headerBg: '#1a1d1a',
+      headerText: '#f0f2f0',
       surfaces: {
-        bgMain: '#1b1d17',
-        bgPanel: '#24271e',
-        bgHover: '#2e3227',
-        bgActive: '#363b2e',
-        border: '#454b3a',
-        borderLight: '#2f3326',
-        borderSoft: 'rgba(255, 255, 255, 0.08)',
-        textPrimary: '#ecefe4',
-        textSecondary: '#c6cbba',
-        textMuted: '#929881',
+        bgMain: '#1a1d1a',        // 深哑光石板墨绿底
+        bgPanel: '#272b2a',       // 柔和炭黑微暖卡片面
+        bgHover: '#2f3432',
+        bgActive: '#363b39',
+        border: 'rgba(255, 255, 255, 0.08)',
+        borderLight: 'rgba(255, 255, 255, 0.05)',
+        borderSoft: 'rgba(255, 255, 255, 0.05)',
+        textPrimary: '#f0f2f0',
+        textSecondary: '#a2aa9f',
+        textMuted: '#808a7e',
       }
     }
   },

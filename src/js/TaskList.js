@@ -6,16 +6,7 @@ import {
   parseDateKey, startOfToday, toDateKey
 } from './Utils.js';
 import { icon } from './icons.js';
-
-const PRIORITY_COLORS = {
-  1: '#c50f1f',
-  2: '#f7630c',
-  3: '#0f6cbd',
-  4: '#9d9d9d'
-};
-
-const PRIORITY_LABELS = { 1: 'P1', 2: 'P2', 3: 'P3', 4: 'P4' };
-const PRIORITY_NAMES = { 1: '紧急', 2: '高', 3: '中', 4: '低' };
+import { PRIORITY_COLORS, PRIORITY_LABELS, PRIORITY_NAMES } from './priority.js';
 
 export class TaskList {
   constructor() {
@@ -280,7 +271,7 @@ export class TaskList {
           <div class="cal-day-tasks">
             ${shownTasks.map(t => `
               <div class="cal-task" data-task-id="${escapeHtml(t.id)}">
-                <span class="cal-priority" style="background:${PRIORITY_COLORS[t.priority] || '#9d9d9d'}"></span>
+                <span class="cal-priority" style="background:${PRIORITY_COLORS[t.priority] || '#7d857c'}"></span>
                 <span class="cal-task-title">${escapeHtml(t.title)}</span>
               </div>
             `).join('')}
@@ -398,7 +389,7 @@ export class TaskList {
           <div class="task-list">
             ${suggestions.map(task => `
               <div class="task-item suggestion-item" data-task-id="${escapeHtml(task.id)}">
-                <div class="task-priority-bar" style="background:${PRIORITY_COLORS[task.priority] || '#9d9d9d'}"></div>
+                <div class="task-priority-bar" style="background:${PRIORITY_COLORS[task.priority] || '#7d857c'}"></div>
                 <div class="task-suggestion-add" data-action="add-suggestion" data-task-id="${escapeHtml(task.id)}" title="添加到我的一天">${icon('plus', { size: 14 })}</div>
                 <div class="task-content" data-action="select" data-task-id="${escapeHtml(task.id)}">
                   <div class="task-title">${this.highlightSearch(task.title)}</div>
@@ -477,7 +468,7 @@ export class TaskList {
   renderTaskItem(task) {
     const dueDateLabel = formatDueDateLabel(task.dueDate);
     const dueDateClass = this.getDueDateClass(task.dueDate, task.completed);
-    const priorityColor = PRIORITY_COLORS[task.priority] || '#95a5a6';
+    const priorityColor = PRIORITY_COLORS[task.priority] || '#7d857c';
     const tags = (task.tags || []).map(id => store.getTag(id)).filter(Boolean);
     const isEditing = this.editingTaskId === task.id;
     const doneSteps = task.subtasks.filter(s => s.completed).length;

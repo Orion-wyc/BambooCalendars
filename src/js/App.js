@@ -9,6 +9,7 @@ import { Pomodoro } from './Pomodoro.js';
 import { dialog } from './Dialog.js';
 import { initTitleBar } from './TitleBar.js';
 import { isImeKeyEvent, parseDateTimeLocal } from './Utils.js';
+import { icon } from './icons.js';
 
 const REMINDER_WINDOW_MS = 60 * 1000;
 const REMINDER_MISSED_GRACE_MS = 10 * 60 * 1000;
@@ -62,7 +63,7 @@ class App {
     if (!root) return;
     root.innerHTML = `
       <div class="empty-state">
-        <div class="empty-state-icon">⚠</div>
+        <div class="empty-state-icon">${icon('alert', { size: 56, strokeWidth: 1.3 })}</div>
         <div class="empty-state-title">数据加载失败</div>
         <div class="empty-state-desc">${error && error.message ? error.message : error}</div>
       </div>

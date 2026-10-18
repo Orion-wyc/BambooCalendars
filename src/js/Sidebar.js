@@ -2,13 +2,14 @@ import { store } from './Store.js';
 import { eventBus } from './EventBus.js';
 import { dialog } from './Dialog.js';
 import { escapeHtml, isImeKeyEvent } from './Utils.js';
+import { icon } from './icons.js';
 
 const NAV_ITEMS = [
-  { view: 'my-day', icon: '☀', label: '我的一天', countKey: 'myDay' },
-  { view: 'important', icon: '★', label: '重要', countKey: 'important' },
-  { view: 'next7', icon: '🗓', label: '最近 7 天' },
-  { view: 'tasks', icon: '✓', label: '任务', countKey: 'tasks' },
-  { view: 'calendar', icon: '📆', label: '日历' },
+  { view: 'my-day', icon: 'sun', label: '我的一天', countKey: 'myDay' },
+  { view: 'important', icon: 'star', label: '重要', countKey: 'important' },
+  { view: 'next7', icon: 'calendarDays', label: '最近 7 天' },
+  { view: 'tasks', icon: 'checkSquare', label: '任务', countKey: 'tasks' },
+  { view: 'calendar', icon: 'calendar', label: '日历' },
 ];
 
 export class Sidebar {
@@ -29,21 +30,26 @@ export class Sidebar {
 
   renderStatic() {
     this.el.user.innerHTML = `
-      <span class="sidebar-user-icon">📋</span>
+      <span class="sidebar-user-icon">${icon('clipboard')}</span>
       <span class="sidebar-user-label">Bamboo Todo</span>
     `;
-    this.el.search.innerHTML = `<input type="text" id="search-input" placeholder="搜索任务...">`;
+    this.el.search.innerHTML = `
+      <div class="sidebar-search-box">
+        <span class="sidebar-search-icon">${icon('search', { size: 16 })}</span>
+        <input type="text" id="search-input" placeholder="搜索任务" autocomplete="off">
+      </div>
+    `;
     this.el.footer.innerHTML = `
       <button class="btn-add-list" id="btn-add-list">
-        <div class="btn-add-list-icon">+</div>
+        <div class="btn-add-list-icon">${icon('plus')}</div>
         <div>新清单</div>
       </button>
       <button class="btn-add-list" id="btn-pomodoro" title="番茄钟">
-        <div class="btn-add-list-icon">🍅</div>
+        <div class="btn-add-list-icon">${icon('tomato')}</div>
         <div>番茄钟</div>
       </button>
       <div class="nav-item" id="btn-settings">
-        <div class="nav-item-icon">⚙</div>
+        <div class="nav-item-icon">${icon('gear')}</div>
         <div class="nav-item-label">设置</div>
       </div>
     `;
@@ -60,9 +66,9 @@ export class Sidebar {
       const count = item.countKey ? counts[item.countKey] : 0;
       return `
         <div class="nav-item ${this.currentView === item.view ? 'active' : ''}" data-view="${item.view}">
-          <div class="nav-item-icon">${item.icon}</div>
+          <div class="nav-item-icon">${icon(item.icon)}</div>
           <div class="nav-item-label">${item.label}</div>
-          <div class="nav-item-count">${count || ''}</div>
+          ${count ? `<div class="nav-item-count">${count}</div>` : ''}
         </div>
       `;
     }).join('');
@@ -73,18 +79,21 @@ export class Sidebar {
     const counts = store.getCounts().lists;
 
     this.el.lists.innerHTML = `
-      <div class="lists-section-title">我的清单</div>
+      <div class="lists-section-title">
+        <span class="lists-section-label">我的清单</span>
+        <span class="lists-section-add" data-action="add-list" title="新建清单">${icon('plus', { size: 15 })}</span>
+      </div>
       ${lists.map(list => {
         const active = this.currentView === 'list' && this.currentListId === list.id;
         const builtin = store.isBuiltinList(list.id);
         return `
           <div class="list-item ${active ? 'active' : ''}" data-view="list" data-list-id="${escapeHtml(list.id)}">
-            <div class="list-item-icon">📋</div>
+            <div class="list-item-icon">${icon(builtin ? 'inbox' : 'clipboard')}</div>
             <div class="list-item-label">${escapeHtml(list.name)}</div>
             <div class="list-item-count">${counts[list.id] || ''}</div>
             <div class="list-item-actions">
-              <button class="btn-icon-sm btn-rename-list" data-list-id="${escapeHtml(list.id)}" title="重命名">✎</button>
-              ${builtin ? '' : `<button class="btn-icon-sm btn-delete-list" data-list-id="${escapeHtml(list.id)}" title="删除">✕</button>`}
+              <button class="btn-icon-sm btn-rename-list" data-list-id="${escapeHtml(list.id)}" title="重命名">${icon('edit', { size: 15 })}</button>
+              ${builtin ? '' : `<button class="btn-icon-sm btn-delete-list" data-list-id="${escapeHtml(list.id)}" title="删除">${icon('close', { size: 15 })}</button>`}
             </div>
           </div>
         `;
@@ -100,6 +109,10 @@ export class Sidebar {
     });
 
     this.el.lists.addEventListener('click', (e) => {
+      if (e.target.closest('.lists-section-add')) {
+        this.addList();
+        return;
+      }
       const renameBtn = e.target.closest('.btn-rename-list');
       if (renameBtn) {
         e.stopPropagation();

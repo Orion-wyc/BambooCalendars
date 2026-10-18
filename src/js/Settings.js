@@ -3,6 +3,7 @@ import { store } from './Store.js';
 import { eventBus } from './EventBus.js';
 import { dialog } from './Dialog.js';
 import { buttonFocusKey, escapeHtml, preserveScroll, restoreFocus } from './Utils.js';
+import { icon } from './icons.js';
 
 const SORT_OPTIONS = [
   ['created', '按创建时间'],
@@ -82,7 +83,7 @@ export class Settings {
         <div class="settings-modal">
           <div class="settings-header">
             <div class="settings-title">设置</div>
-            <button class="btn-close-settings" data-action="close-settings">✕</button>
+            <button class="btn-close-settings" data-action="close-settings" title="关闭">${icon('close', { size: 18 })}</button>
           </div>
           <div class="settings-tabs">
             ${tabs.map(([id, label]) => `
@@ -196,7 +197,7 @@ export class Settings {
               <span class="tag-manager-dot" style="background:${escapeHtml(t.color)}"></span>
               <input class="tag-manager-name" value="${escapeHtml(t.name)}" data-tag-id="${escapeHtml(t.id)}">
               <input type="color" class="tag-manager-color" value="${escapeHtml(t.color)}" data-tag-id="${escapeHtml(t.id)}">
-              <button class="tag-manager-delete" data-action="delete-tag" data-tag-id="${escapeHtml(t.id)}" title="删除标签">✕</button>
+              <button class="tag-manager-delete" data-action="delete-tag" data-tag-id="${escapeHtml(t.id)}" title="删除标签">${icon('trash', { size: 15 })}</button>
             </div>
           `).join('')}
           ${tags.length === 0 ? '<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">暂无标签</div>' : ''}
@@ -229,8 +230,8 @@ export class Settings {
       <div class="settings-section">
         <div class="settings-section-title">特色功能</div>
         <div style="color: var(--text-secondary); font-size: 13px; line-height: 2;">
-          <div>• Fluent 2 设计风格（品牌蓝配色）</div>
-          <div>• 主题（浅色模式 / 深色模式 / Passion / Passion 深色 + 自动夜间）</div>
+          <div>• 有机极简设计（大圆角、柔和弥散阴影、Feather 线性图标）</div>
+          <div>• 主题（暖色浅色 / 鼠尾草深色 / Passion / Passion 深色 + 自动夜间）</div>
           <div>• 键盘快捷键 + 全局快捷键</div>
           <div>• 系统托盘 / 窗口状态记忆 / 缩放</div>
           <div>• 子任务 / 备注 / 重复 / 提醒 / 番茄钟 / 日历</div>

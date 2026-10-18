@@ -2,6 +2,7 @@ import { store } from './Store.js';
 import { eventBus } from './EventBus.js';
 import { dialog } from './Dialog.js';
 import { escapeHtml, isImeKeyEvent, preserveScroll } from './Utils.js';
+import { icon } from './icons.js';
 
 export class TaskDetail {
   constructor() {
@@ -35,7 +36,7 @@ export class TaskDetail {
     if (!this.panel) return;
     this.panel.innerHTML = `
       <div class="detail-empty">
-        <div class="detail-empty-icon">📝</div>
+        <div class="detail-empty-icon">${icon('note', { size: 40, strokeWidth: 1.3 })}</div>
         <div class="detail-empty-text">点击任务标题显示详情</div>
       </div>
     `;
@@ -86,28 +87,25 @@ export class TaskDetail {
     const completedSubtasks = task.subtasks.filter(s => s.completed).length;
     this.panel.innerHTML = `
       <div class="detail-header">
-        <div class="detail-title">任务详情</div>
-        <button class="btn-close-detail" data-action="close-detail">✕</button>
+        <div class="detail-title">${icon('clipboard', { size: 18 })}<span>任务详情</span></div>
+        <button class="btn-close-detail" data-action="close-detail" title="关闭">${icon('close', { size: 18 })}</button>
       </div>
       <div class="detail-content">
-        <div class="detail-section">
-          <input type="text" class="detail-input" id="detail-title" value="${escapeHtml(task.title)}" placeholder="任务标题">
-        </div>
-
-        <div class="detail-section">
-          <div class="detail-section-title">备注</div>
-          <textarea class="detail-textarea" id="detail-note" placeholder="添加备注...">${escapeHtml(task.note || '')}</textarea>
-        </div>
-
-        <div class="detail-section">
-          <div class="detail-toggle" data-action="toggle-myday">
-            <span>添加到我的一天</span>
-            <div class="toggle-switch ${task.inMyDay ? 'active' : ''}"></div>
+        <div class="detail-sheet">
+          <input type="text" class="detail-input detail-title-input" id="detail-title" value="${escapeHtml(task.title)}" placeholder="任务标题">
+          <div class="detail-chips">
+            <div class="detail-chip ${task.inMyDay ? 'active' : ''}" data-action="toggle-myday">${icon('sun', { size: 15 })}<span>我的一天</span></div>
+            <div class="detail-chip ${task.important ? 'active' : ''}" data-action="toggle-important">${icon('star', { size: 15, filled: task.important })}<span>重要</span></div>
           </div>
         </div>
 
         <div class="detail-section">
-          <div class="detail-section-title">优先级</div>
+          <div class="detail-section-title">${icon('note', { size: 15 })}<span>备注</span></div>
+          <textarea class="detail-textarea" id="detail-note" placeholder="添加备注...">${escapeHtml(task.note || '')}</textarea>
+        </div>
+
+        <div class="detail-section">
+          <div class="detail-section-title">${icon('flag', { size: 15 })}<span>优先级</span></div>
           <div class="priority-selector">
             ${[1, 2, 3, 4].map(p => `
               <div class="priority-option ${task.priority === p ? 'active' : ''}" data-action="set-priority" data-priority="${p}">
@@ -119,7 +117,7 @@ export class TaskDetail {
         </div>
 
         <div class="detail-section">
-          <div class="detail-section-title">标签</div>
+          <div class="detail-section-title">${icon('tag', { size: 15 })}<span>标签</span></div>
           <div class="tag-selector">
             ${store.getTags().map(t => `
               <div class="tag-option ${(task.tags || []).includes(t.id) ? 'active' : ''}" data-action="toggle-tag" data-tag-id="${escapeHtml(t.id)}">
@@ -127,23 +125,23 @@ export class TaskDetail {
                 <span class="tag-label">${escapeHtml(t.name)}</span>
               </div>
             `).join('')}
-            ${store.getTags().length === 0 ? '<div style="font-size:12px;color:var(--text-muted);">暂无标签，请在设置的「标签」页中添加</div>' : ''}
+            ${store.getTags().length === 0 ? '<div class="detail-hint">暂无标签，请在设置的「标签」页中添加</div>' : ''}
           </div>
         </div>
 
         <div class="detail-section">
           <div class="detail-field">
-            <div class="detail-field-label">截止日期</div>
+            <div class="detail-field-label">${icon('flag', { size: 14 })}<span>截止日期</span></div>
             <input type="date" class="detail-input" id="detail-due-date" value="${escapeHtml(task.dueDate || '')}">
           </div>
 
           <div class="detail-field">
-            <div class="detail-field-label">提醒</div>
+            <div class="detail-field-label">${icon('bell', { size: 14 })}<span>提醒</span></div>
             <input type="datetime-local" class="detail-input" id="detail-reminder" value="${escapeHtml(task.reminder || '')}">
           </div>
 
           <div class="detail-field">
-            <div class="detail-field-label">重复</div>
+            <div class="detail-field-label">${icon('repeat', { size: 14 })}<span>重复</span></div>
             <select class="detail-select" id="detail-repeat">
               ${[['none', '不重复'], ['daily', '每天'], ['weekdays', '工作日'], ['weekly', '每周'], ['monthly', '每月'], ['yearly', '每年']]
                 .map(([value, label]) => `<option value="${value}" ${task.repeat === value ? 'selected' : ''}>${label}</option>`)
@@ -152,7 +150,7 @@ export class TaskDetail {
           </div>
 
           <div class="detail-field">
-            <div class="detail-field-label">清单</div>
+            <div class="detail-field-label">${icon('clipboard', { size: 14 })}<span>清单</span></div>
             <select class="detail-select" id="detail-list">
               ${lists.map(list => `
                 <option value="${escapeHtml(list.id)}" ${task.listId === list.id ? 'selected' : ''}>${escapeHtml(list.name)}</option>
@@ -163,7 +161,8 @@ export class TaskDetail {
 
         <div class="detail-section">
           <div class="detail-section-title">
-            步骤 ${task.subtasks.length > 0 ? `(${completedSubtasks}/${task.subtasks.length})` : ''}
+            ${icon('checkSquare', { size: 15 })}<span>步骤</span>
+            ${task.subtasks.length > 0 ? `<em>(${completedSubtasks}/${task.subtasks.length})</em>` : ''}
           </div>
           ${subtaskProgress > 0 ? `
             <div class="subtask-progress">
@@ -175,31 +174,29 @@ export class TaskDetail {
               <div class="subtask-item ${subtask.completed ? 'completed' : ''}">
                 <div class="subtask-checkbox ${subtask.completed ? 'checked' : ''}"
                      data-action="toggle-subtask" data-subtask-id="${escapeHtml(subtask.id)}">
-                  ${subtask.completed ? '✓' : ''}
+                  ${subtask.completed ? icon('check', { size: 11, strokeWidth: 2.6 }) : ''}
                 </div>
                 <div class="subtask-title">${escapeHtml(subtask.title)}</div>
-                <button class="btn-delete-subtask" data-action="delete-subtask" data-subtask-id="${escapeHtml(subtask.id)}">✕</button>
+                <button class="btn-delete-subtask" data-action="delete-subtask" data-subtask-id="${escapeHtml(subtask.id)}" title="删除步骤">${icon('close', { size: 14 })}</button>
               </div>
             `).join('')}
           </div>
           <div class="add-subtask-wrapper">
-            <input type="text" class="add-subtask-input" id="add-subtask-input" placeholder="添加步骤...">
-            <button class="btn-add-subtask" data-action="add-subtask">+</button>
+            <input type="text" class="add-subtask-input" id="add-subtask-input" placeholder="添加步骤">
+            <button class="btn-add-subtask" data-action="add-subtask" title="添加">${icon('plus', { size: 16 })}</button>
           </div>
         </div>
 
-        <div class="detail-section" style="margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--border);">
-          <div style="font-size: 12px; color: var(--text-muted);">
-            创建于 ${new Date(task.createdAt).toLocaleString('zh-CN')}
-          </div>
+        <div class="detail-section detail-meta">
+          <div>创建于 ${new Date(task.createdAt).toLocaleString('zh-CN')}</div>
         </div>
       </div>
 
       <div class="detail-footer">
         <button class="btn-complete-task ${task.completed ? 'is-completed' : ''}" data-action="complete-task">
-          ${task.completed ? '取消完成' : '完成任务'}
+          ${icon(task.completed ? 'close' : 'check', { size: 15 })}<span>${task.completed ? '取消完成' : '完成任务'}</span>
         </button>
-        <button class="btn-delete-task" data-action="delete-task">删除任务</button>
+        <button class="btn-delete-task" data-action="delete-task">${icon('trash', { size: 15 })}<span>删除任务</span></button>
       </div>
     `;
   }
@@ -239,6 +236,11 @@ export class TaskDetail {
         break;
       case 'toggle-myday':
         store.toggleMyDay(task.id);
+        this.render();
+        this.emitUpdate(task.id);
+        break;
+      case 'toggle-important':
+        store.toggleImportant(task.id);
         this.render();
         this.emitUpdate(task.id);
         break;

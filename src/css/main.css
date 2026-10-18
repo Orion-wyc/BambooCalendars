@@ -1,15 +1,22 @@
+/* ==========================================================================
+   Bamboo Todo v2.0 — 有机极简设计系统 (Organic Minimalist)
+   保留全部既有选择器与测试契约类名/钩子；升级：大圆角、柔和弥散阴影、
+   线性图标、暖色中性面、pill 侧栏、卡片化任务行、右侧详情 sheet。
+   ========================================================================== */
+
 :root {
-  --grey-14: #242424;
-  --grey-26: #424242;
-  --grey-38: #616161;
-  --grey-44: #707070;
-  --grey-60: #999999;
-  --grey-74: #9d9d9d;
-  --grey-82: #d1d1d1;
-  --grey-88: #e0e0e0;
-  --grey-94: #f0f0f0;
-  --grey-96: #f5f5f5;
-  --grey-98: #fafafa;
+  /* 中性色阶（略偏暖，贴合有机极简） */
+  --grey-14: #1f1e1b;
+  --grey-26: #3d3b36;
+  --grey-38: #5c594f;
+  --grey-44: #6e6a60;
+  --grey-60: #969086;
+  --grey-74: #a8a29a;
+  --grey-82: #d6d2ca;
+  --grey-88: #e4e0d8;
+  --grey-94: #f0ede7;
+  --grey-96: #f5f2ec;
+  --grey-98: #faf8f4;
 
   --primary: #0078d4;
   --primary-light: #479ef5;
@@ -20,27 +27,36 @@
   --secondary: var(--grey-26);
   --secondary-light: var(--grey-38);
   --secondary-dark: var(--grey-14);
+
   --sidebar-bg: #f3f3f3;
   --sidebar-text: #1b1b1b;
   --sidebar-hover: rgba(0, 0, 0, 0.06);
-  --sidebar-active: rgba(0, 0, 0, 0.12);
+  --sidebar-active: rgba(0, 0, 0, 0.10);
   --sidebar-border: rgba(0, 0, 0, 0.08);
   --sidebar-search-bg: rgba(0, 0, 0, 0.05);
   --sidebar-search-hover: rgba(0, 0, 0, 0.10);
   --sidebar-placeholder: rgba(0, 0, 0, 0.45);
   --sidebar-icon-hover: rgba(0, 0, 0, 0.10);
+
   --header-bg: #f3f3f3;
   --header-text: #1b1b1b;
+
   --accent-bg: rgba(0, 103, 192, 0.08);
+  --accent-soft: rgba(0, 103, 192, 0.14);
+
   --text-primary: var(--grey-14);
   --text-secondary: var(--grey-26);
   --text-muted: var(--grey-44);
-  --border: var(--grey-88);
-  --border-light: var(--grey-96);
-  --bg-main: var(--grey-96);
+
+  /* 暖色中性面 */
+  --bg-main: #f7f6f2;
   --bg-panel: #ffffff;
-  --bg-hover: var(--grey-98);
-  --bg-active: var(--grey-94);
+  --bg-hover: #f1efe9;
+  --bg-active: #e9e7e0;
+  --border: #e4e0d8;
+  --border-light: #efece6;
+  --border-soft: rgba(0, 0, 0, 0.05);
+
   --success: #107c10;
   --success-bg: #9fd89f;
   --success-dark: #0b5e0b;
@@ -56,17 +72,28 @@
   --on-success: #ffffff;
   --on-warning: #ffffff;
   --on-danger: #ffffff;
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.12), 0 0 2px rgba(0, 0, 0, 0.14);
-  --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.12), 0 0 2px rgba(0, 0, 0, 0.14);
-  --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.12), 0 0 2px rgba(0, 0, 0, 0.14);
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
-  --transition-fast: 0.15s ease;
-  --transition-normal: 0.3s ease;
-  --transition-slow: 0.5s ease;
+
+  /* 柔和弥散阴影 */
+  --shadow-sm: 0 1px 2px rgba(40, 38, 30, 0.06), 0 0 1px rgba(40, 38, 30, 0.08);
+  --shadow-md: 0 6px 16px rgba(40, 38, 30, 0.10), 0 1px 3px rgba(40, 38, 30, 0.06);
+  --shadow-lg: 0 16px 40px rgba(40, 38, 30, 0.16), 0 3px 10px rgba(40, 38, 30, 0.08);
+  --shadow-focus: 0 0 0 3px var(--accent-soft);
+
+  /* 大圆角 */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+  --radius-pill: 999px;
+  --nav-radius: 10px;
+
+  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+
   --titlebar-h: 36px;
   --titlebar-controls-w: 138px;
+
   --font-family: 'Segoe UI', 'Segoe UI Web (West European)', -apple-system, BlinkMacSystemFont, Roboto, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
   --font-family-mono: Consolas, 'Courier New', Courier, monospace;
 }
@@ -118,6 +145,14 @@ input[type="datetime-local"]::-webkit-datetime-edit-minute-field {
   font-family: var(--font-family);
 }
 
+/* 线性图标基线：装饰性，永不拦截指针，命中始终落到宿主可点元素 */
+.icon {
+  display: block;
+  flex: none;
+  vertical-align: middle;
+  pointer-events: none;
+}
+
 body {
   font-family: var(--font-family);
   font-size: 14px;
@@ -126,8 +161,12 @@ body {
   background: var(--bg-main);
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
+/* --------------------------------------------------------------------------
+   标题栏 (Unibody)
+   -------------------------------------------------------------------------- */
 #titlebar {
   height: var(--titlebar-h);
   flex: none;
@@ -135,9 +174,8 @@ body {
   align-items: center;
   gap: 8px;
   padding: 0 12px;
-  background: var(--bg-panel);
-  color: var(--text-secondary);
-  border-bottom: 1px solid var(--border);
+  background: var(--sidebar-bg);
+  color: var(--sidebar-text);
   font-size: 12px;
   user-select: none;
   -webkit-app-region: drag;
@@ -163,11 +201,14 @@ html.fullscreen #titlebar {
   height: 16px;
   flex: none;
   pointer-events: none;
+  border-radius: 4px;
 }
 
 .titlebar-title {
   overflow: hidden;
   text-overflow: ellipsis;
+  font-weight: 600;
+  letter-spacing: 0.2px;
 }
 
 #app {
@@ -180,9 +221,10 @@ html.fullscreen #app {
   height: 100vh;
 }
 
-/* Scrollbar Styles */
+/* Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
@@ -190,41 +232,63 @@ html.fullscreen #app {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.18);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.32);
+  background-clip: content-box;
 }
 
-/* Sidebar */
+html.dark-mode ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  background-clip: content-box;
+}
+
+html.dark-mode ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.32);
+  background-clip: content-box;
+}
+
+/* --------------------------------------------------------------------------
+   侧边栏
+   -------------------------------------------------------------------------- */
 #sidebar {
-  width: 240px;
-  min-width: 240px;
+  width: 248px;
+  min-width: 248px;
   background: var(--sidebar-bg);
   color: var(--sidebar-text);
   display: flex;
   flex-direction: column;
-  border-right: 1px solid rgba(0, 0, 0, 0.1);
+  border-right: 1px solid var(--sidebar-border);
   transition: background-color var(--transition-normal), width var(--transition-normal);
 }
 
 #sidebar-user {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 16px;
-  min-height: 64px;
-  font-size: 16px;
+  gap: 10px;
+  padding: 16px 18px;
+  min-height: 60px;
+  font-size: 15px;
   font-weight: 600;
-  border-bottom: 1px solid var(--sidebar-border);
   overflow: hidden;
   white-space: nowrap;
 }
 
 .sidebar-user-icon {
   flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-pill);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--sidebar-active);
+  color: var(--sidebar-text);
 }
 
 .sidebar-user-label {
@@ -233,40 +297,62 @@ html.fullscreen #app {
 }
 
 #sidebar-search {
-  padding: 12px 16px;
+  padding: 6px 14px 12px;
+}
+
+.sidebar-search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  height: 38px;
+  border-radius: var(--radius-md);
+  background: var(--sidebar-search-bg);
+  transition: background var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.sidebar-search-icon {
+  flex: none;
+  display: flex;
+  align-items: center;
+  color: var(--sidebar-placeholder);
 }
 
 #sidebar-search input {
-  width: 100%;
-  padding: 8px 12px;
+  flex: 1;
+  min-width: 0;
   border: none;
-  border-radius: var(--radius-md);
-  background: var(--sidebar-search-bg);
+  background: transparent;
   color: var(--sidebar-text);
   font-size: 14px;
   outline: none;
-  transition: background var(--transition-fast);
 }
 
 #sidebar-search input::placeholder {
   color: var(--sidebar-placeholder);
 }
 
-#sidebar-search input:focus {
+.sidebar-search-box:focus-within {
   background: var(--sidebar-search-hover);
+  box-shadow: 0 0 0 2px var(--accent-soft);
 }
 
 #sidebar-nav {
-  padding: 8px 0;
+  padding: 4px 10px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .nav-item {
+  position: relative;
   display: flex;
   align-items: center;
-  padding: 10px 16px;
+  height: 40px;
+  padding: 0 12px;
   cursor: pointer;
-  transition: background var(--transition-fast);
-  border-left: 3px solid transparent;
+  border-radius: var(--nav-radius);
+  transition: background var(--transition-fast), color var(--transition-fast);
 }
 
 .nav-item:hover {
@@ -275,8 +361,19 @@ html.fullscreen #app {
 
 .nav-item.active {
   background: var(--sidebar-active);
-  border-left-color: var(--accent);
-  font-weight: 500;
+  font-weight: 600;
+}
+
+.nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--accent);
 }
 
 .nav-item-icon {
@@ -286,43 +383,81 @@ html.fullscreen #app {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
+  flex: none;
+  color: var(--sidebar-text);
+}
+
+.nav-item.active .nav-item-icon {
+  color: var(--accent);
 }
 
 .nav-item-label {
   flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .nav-item-count {
   font-size: 12px;
+  font-weight: 600;
   opacity: 0.7;
   min-width: 20px;
   text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 #sidebar-lists {
   flex: 1;
   overflow-y: auto;
-  padding: 8px 0;
+  padding: 4px 10px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   border-top: 1px solid var(--sidebar-border);
 }
 
 .lists-section-title {
-  padding: 12px 16px 8px;
-  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px 6px;
+}
+
+.lists-section-label {
+  font-size: 11px;
   text-transform: uppercase;
-  opacity: 0.7;
-  font-weight: 600;
-  letter-spacing: 0.5px;
+  opacity: 0.6;
+  font-weight: 700;
+  letter-spacing: 0.7px;
+}
+
+.lists-section-add {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  opacity: 0.6;
+  transition: background var(--transition-fast), opacity var(--transition-fast);
+}
+
+.lists-section-add:hover {
+  background: var(--sidebar-icon-hover);
+  opacity: 1;
 }
 
 .list-item {
+  position: relative;
   display: flex;
   align-items: center;
-  padding: 10px 16px;
+  height: 38px;
+  padding: 0 12px;
   cursor: pointer;
+  border-radius: var(--nav-radius);
   transition: background var(--transition-fast);
-  border-left: 3px solid transparent;
 }
 
 .list-item:hover {
@@ -331,7 +466,19 @@ html.fullscreen #app {
 
 .list-item.active {
   background: var(--sidebar-active);
-  border-left-color: var(--accent);
+  font-weight: 600;
+}
+
+.list-item.active::before {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--accent);
 }
 
 .list-item-icon {
@@ -341,6 +488,8 @@ html.fullscreen #app {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex: none;
+  opacity: 0.85;
 }
 
 .list-item-label {
@@ -355,11 +504,12 @@ html.fullscreen #app {
   opacity: 0.7;
   min-width: 20px;
   text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .list-item-actions {
   display: none;
-  gap: 4px;
+  gap: 2px;
 }
 
 .list-item:hover .list-item-actions {
@@ -371,8 +521,8 @@ html.fullscreen #app {
 }
 
 .btn-icon-sm {
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   border: none;
   background: transparent;
   color: var(--sidebar-text);
@@ -381,33 +531,39 @@ html.fullscreen #app {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
-  transition: background var(--transition-fast);
+  transition: background var(--transition-fast), color var(--transition-fast);
 }
 
 .btn-icon-sm:hover {
   background: var(--sidebar-icon-hover);
 }
 
+.btn-delete-list:hover {
+  color: var(--danger);
+}
+
 #sidebar-footer {
-  padding: 12px 0;
+  padding: 10px 10px 14px;
   border-top: 1px solid var(--sidebar-border);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .btn-add-list {
   display: flex;
   align-items: center;
-  padding: 10px 16px;
+  height: 40px;
+  padding: 0 12px;
   cursor: pointer;
   transition: background var(--transition-fast);
   width: 100%;
   border: none;
-  border-left: 3px solid transparent;
+  border-radius: var(--nav-radius);
   background: transparent;
   color: var(--sidebar-text);
   font-family: inherit;
   font-size: 14px;
-  line-height: 1.5;
   text-align: left;
 }
 
@@ -417,7 +573,12 @@ html.fullscreen #app {
 
 .btn-add-list.active {
   background: var(--sidebar-active);
-  border-left-color: var(--accent);
+  font-weight: 600;
+}
+
+.btn-add-list.active::after {
+  content: '';
+  position: absolute;
 }
 
 .btn-add-list-icon {
@@ -428,71 +589,127 @@ html.fullscreen #app {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
 }
 
-/* Main Content */
+#btn-settings.nav-item {
+  margin-top: 2px;
+}
+
+/* --------------------------------------------------------------------------
+   主内容区
+   -------------------------------------------------------------------------- */
 #main-content {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   background: var(--bg-main);
   overflow: hidden;
-  transition: all var(--transition-normal);
+  position: relative;
 }
 
 #list-header {
-  background: var(--header-bg);
-  color: var(--header-text);
-  padding: 12px 32px;
+  position: relative;
+  color: var(--text-primary);
+  padding: 22px 32px 16px;
   min-height: 64px;
   display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+  flex: none;
+}
+
+#list-header::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(120% 100% at 0% -20%, var(--accent-bg), transparent 60%);
+  pointer-events: none;
+}
+
+.list-header-inner {
+  position: relative;
+  display: flex;
   align-items: center;
-  transition: background var(--transition-normal);
+  gap: 14px;
+  min-width: 0;
+}
+
+.list-header-icon {
+  width: 42px;
+  height: 42px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  background: var(--bg-panel);
+  color: var(--accent);
+  box-shadow: var(--shadow-sm);
+}
+
+.list-header-text {
+  min-width: 0;
 }
 
 #list-header h1 {
-  font-size: 20px;
-  line-height: 28px;
+  font-size: 22px;
+  line-height: 30px;
   font-weight: 600;
+  letter-spacing: -0.2px;
+  color: var(--text-primary);
+}
+
+.list-header-subtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 2px;
 }
 
 #task-input-area {
-  padding: 16px 32px;
-  background: var(--bg-panel);
-  border-bottom: 1px solid var(--border);
+  padding: 4px 32px 12px;
+  flex: none;
 }
 
 .task-input-wrapper {
   display: flex;
   align-items: center;
+  gap: 12px;
   padding: 12px 16px;
-  background: var(--bg-main);
-  border: 2px solid var(--border);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  transition: border-color var(--transition-fast);
+  box-shadow: var(--shadow-sm);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .task-input-wrapper:focus-within {
   border-color: var(--accent);
+  box-shadow: var(--shadow-focus);
 }
 
 .task-input-icon {
-  width: 20px;
-  height: 20px;
-  margin-right: 12px;
-  color: var(--accent);
+  flex: none;
+  width: 22px;
+  height: 22px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
+  color: var(--text-muted);
+  transition: color var(--transition-fast);
+}
+
+.task-input-wrapper:focus-within .task-input-icon {
+  color: var(--accent);
 }
 
 .task-input {
   flex: 1;
+  min-width: 0;
   border: none;
   background: transparent;
-  font-size: 14px;
+  font-size: 15px;
   outline: none;
   color: var(--text-primary);
 }
@@ -504,81 +721,125 @@ html.fullscreen #app {
 #task-list-area {
   flex: 1;
   overflow-y: auto;
-  padding: 16px 32px;
+  padding: 8px 32px 40px;
 }
 
 .task-section {
-  margin-bottom: 24px;
+  margin-bottom: 22px;
 }
 
 .task-section-header {
   display: flex;
   align-items: center;
-  padding: 8px 0;
+  gap: 4px;
+  padding: 8px 4px;
   cursor: pointer;
   user-select: none;
+  color: var(--text-secondary);
 }
 
 .task-section-toggle {
   width: 20px;
   height: 20px;
-  margin-right: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform var(--transition-fast);
+  border-radius: var(--radius-sm);
+  transition: transform var(--transition-fast), background var(--transition-fast);
+}
+
+.task-section-toggle:hover {
+  background: var(--bg-hover);
 }
 
 .task-section-toggle.collapsed {
   transform: rotate(-90deg);
 }
 
+.task-section-icon {
+  display: flex;
+  align-items: center;
+  color: var(--accent);
+  margin-right: 2px;
+}
+
 .task-section-title {
-  flex: 1;
   font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
   color: var(--text-secondary);
 }
 
 .task-section-count {
   font-size: 12px;
+  font-weight: 600;
   color: var(--text-muted);
-  margin-left: 8px;
+  margin-left: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.task-section-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-left: auto;
+  font-weight: 400;
 }
 
 .task-list {
-  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .task-item {
+  position: relative;
   display: flex;
-  align-items: center;
-  padding: 12px 16px;
+  align-items: flex-start;
+  padding: 14px 16px;
   background: var(--bg-panel);
+  border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  margin-bottom: 8px;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: box-shadow var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
   box-shadow: var(--shadow-sm);
 }
 
 .task-item:hover {
   box-shadow: var(--shadow-md);
-  transform: translateY(-1px);
+  border-color: var(--border-soft);
 }
 
 .task-item.selected {
-  box-shadow: 0 0 0 2px var(--accent);
+  border-color: var(--accent);
+  box-shadow: var(--shadow-focus);
 }
 
 .task-item.completed {
-  opacity: 0.6;
+  background: transparent;
+  box-shadow: none;
+  border-color: transparent;
+}
+
+.task-item.completed:hover {
+  background: var(--bg-hover);
+}
+
+.task-priority-bar {
+  width: 4px;
+  align-self: stretch;
+  border-radius: 999px;
+  margin-right: 12px;
+  margin-left: -6px;
+  flex-shrink: 0;
+  min-height: 20px;
 }
 
 .task-checkbox {
   width: 22px;
   height: 22px;
-  border: 2px solid var(--border);
-  border-radius: 50%;
+  border: 1.8px solid var(--grey-74);
+  border-radius: var(--radius-pill);
   margin-right: 12px;
   cursor: pointer;
   display: flex;
@@ -586,10 +847,14 @@ html.fullscreen #app {
   justify-content: center;
   transition: all var(--transition-fast);
   flex-shrink: 0;
+  margin-top: 1px;
+  color: transparent;
 }
 
 .task-checkbox:hover {
   border-color: var(--accent);
+  background: var(--accent-bg);
+  color: var(--accent);
 }
 
 .task-checkbox.checked {
@@ -604,7 +869,8 @@ html.fullscreen #app {
 }
 
 .task-title {
-  font-size: 14px;
+  font-size: 15px;
+  line-height: 21px;
   color: var(--text-primary);
   word-break: break-word;
 }
@@ -616,14 +882,26 @@ html.fullscreen #app {
 
 .task-meta {
   display: flex;
+  align-items: center;
   gap: 12px;
-  margin-top: 4px;
+  margin-top: 6px;
   font-size: 12px;
   color: var(--text-muted);
+  flex-wrap: wrap;
+}
+
+.task-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.task-meta-item.is-important {
+  color: var(--warning-dark);
 }
 
 .task-due-date {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 4px;
 }
@@ -640,15 +918,32 @@ html.fullscreen #app {
   color: var(--text-secondary);
 }
 
+.task-priority-badge {
+  font-size: 11px;
+  font-weight: 700;
+  border: 1px solid;
+  padding: 0 5px;
+  border-radius: var(--radius-sm);
+  line-height: 16px;
+}
+
 .task-actions {
   display: flex;
-  gap: 4px;
+  gap: 2px;
   margin-left: 12px;
+  align-items: flex-start;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.task-item:hover .task-actions,
+.task-item.selected .task-actions {
+  opacity: 1;
 }
 
 .btn-task-action {
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   border: none;
   background: transparent;
   color: var(--text-muted);
@@ -657,8 +952,7 @@ html.fullscreen #app {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
-  transition: all var(--transition-fast);
+  transition: background var(--transition-fast), color var(--transition-fast);
 }
 
 .btn-task-action:hover {
@@ -666,11 +960,47 @@ html.fullscreen #app {
   color: var(--text-primary);
 }
 
-.btn-task-action.active {
+.btn-task-action.active.is-star {
   color: var(--warning-dark);
 }
 
-/* Detail Panel */
+.btn-task-action.active.is-myday {
+  color: var(--accent);
+}
+
+/* 建议项 */
+.suggestion-item {
+  border-left: 3px solid var(--accent);
+}
+
+.suggestion-item:hover {
+  border-left-color: var(--accent);
+}
+
+.task-suggestion-add {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 10px;
+  margin-top: 1px;
+  background: var(--accent);
+  color: var(--on-accent);
+  border-radius: var(--radius-pill);
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: transform var(--transition-fast), background var(--transition-fast);
+}
+
+.task-suggestion-add:hover {
+  background: var(--accent-dark);
+  transform: scale(1.08);
+}
+
+/* --------------------------------------------------------------------------
+   详情面板 (右侧 sheet)
+   -------------------------------------------------------------------------- */
 #detail-panel {
   flex: none;
   width: 380px;
@@ -687,20 +1017,19 @@ html.fullscreen #app {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 14px;
   padding: 24px;
   text-align: center;
+  color: var(--text-muted);
 }
 
 .detail-empty-icon {
-  font-size: 44px;
-  line-height: 1;
+  line-height: 0;
   opacity: 0.35;
 }
 
 .detail-empty-text {
   font-size: 13px;
-  color: var(--text-muted);
 }
 
 .detail-header {
@@ -709,11 +1038,20 @@ html.fullscreen #app {
   justify-content: space-between;
   padding: 16px 20px;
   border-bottom: 1px solid var(--border);
+  flex: none;
 }
 
 .detail-title {
-  font-size: 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
   font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.detail-title .icon {
+  color: var(--accent);
 }
 
 .btn-close-detail {
@@ -721,18 +1059,18 @@ html.fullscreen #app {
   height: 32px;
   border: none;
   background: transparent;
-  color: var(--text-secondary);
+  color: var(--text-muted);
   cursor: pointer;
   border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
-  transition: background var(--transition-fast);
+  transition: background var(--transition-fast), color var(--transition-fast);
 }
 
 .btn-close-detail:hover {
   background: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 .detail-content {
@@ -741,15 +1079,85 @@ html.fullscreen #app {
   padding: 20px;
 }
 
+.detail-sheet {
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  margin-bottom: 22px;
+  background: var(--bg-main);
+}
+
+.detail-title-input {
+  border: none;
+  background: transparent;
+  font-size: 17px;
+  font-weight: 600;
+  padding: 2px 0 10px;
+  outline: none;
+  color: var(--text-primary);
+  width: 100%;
+}
+
+.detail-chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.detail-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--bg-panel);
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.detail-chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.detail-chip.active {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
 .detail-section {
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 .detail-section-title {
-  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+.detail-section-title .icon {
+  color: var(--accent);
+}
+
+.detail-section-title em {
+  font-style: normal;
   font-weight: 600;
   color: var(--text-secondary);
-  margin-bottom: 12px;
+}
+
+.detail-hint {
+  font-size: 12px;
+  color: var(--text-muted);
 }
 
 .detail-field {
@@ -757,6 +1165,9 @@ html.fullscreen #app {
 }
 
 .detail-field-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 12px;
   color: var(--text-muted);
   margin-bottom: 6px;
@@ -769,12 +1180,14 @@ html.fullscreen #app {
   border-radius: var(--radius-sm);
   font-size: 14px;
   outline: none;
-  transition: border-color var(--transition-fast);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
   background: var(--bg-panel);
+  color: var(--text-primary);
 }
 
 .detail-input:focus {
   border-color: var(--accent);
+  box-shadow: var(--shadow-focus);
 }
 
 .detail-textarea {
@@ -787,12 +1200,15 @@ html.fullscreen #app {
   font-family: inherit;
   outline: none;
   resize: vertical;
-  transition: border-color var(--transition-fast);
+  line-height: 1.5;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
   background: var(--bg-panel);
+  color: var(--text-primary);
 }
 
 .detail-textarea:focus {
   border-color: var(--accent);
+  box-shadow: var(--shadow-focus);
 }
 
 .detail-select {
@@ -803,7 +1219,14 @@ html.fullscreen #app {
   font-size: 14px;
   outline: none;
   background: var(--bg-panel);
+  color: var(--text-primary);
   cursor: pointer;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.detail-select:focus {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-focus);
 }
 
 .detail-toggle {
@@ -824,10 +1247,11 @@ html.fullscreen #app {
 .toggle-switch {
   width: 44px;
   height: 24px;
-  background: var(--border);
+  background: var(--grey-74);
   border-radius: 12px;
   position: relative;
   transition: background var(--transition-fast);
+  flex: none;
 }
 
 .toggle-switch.active {
@@ -836,13 +1260,13 @@ html.fullscreen #app {
 
 .toggle-switch::after {
   content: '';
-  width: 20px;
-  height: 20px;
-  background: white;
+  width: 18px;
+  height: 18px;
+  background: #fff;
   border-radius: 50%;
   position: absolute;
-  top: 2px;
-  left: 2px;
+  top: 3px;
+  left: 3px;
   transition: transform var(--transition-fast);
   box-shadow: var(--shadow-sm);
 }
@@ -853,13 +1277,14 @@ html.fullscreen #app {
 
 /* Subtasks */
 .subtask-list {
-  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
 }
 
 .subtask-item {
   display: flex;
   align-items: center;
-  padding: 8px 0;
+  padding: 9px 2px;
   border-bottom: 1px solid var(--border-light);
 }
 
@@ -870,14 +1295,16 @@ html.fullscreen #app {
 .subtask-checkbox {
   width: 18px;
   height: 18px;
-  border: 2px solid var(--border);
-  border-radius: 4px;
+  border: 1.8px solid var(--grey-74);
+  border-radius: 6px;
   margin-right: 10px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all var(--transition-fast);
+  flex: none;
+  color: transparent;
 }
 
 .subtask-checkbox:hover {
@@ -888,13 +1315,14 @@ html.fullscreen #app {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--on-accent);
-  font-size: 12px;
 }
 
 .subtask-title {
   flex: 1;
-  font-size: 13px;
+  min-width: 0;
+  font-size: 14px;
   color: var(--text-primary);
+  word-break: break-word;
 }
 
 .subtask-item.completed .subtask-title {
@@ -903,8 +1331,8 @@ html.fullscreen #app {
 }
 
 .btn-delete-subtask {
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   border: none;
   background: transparent;
   color: var(--text-muted);
@@ -913,8 +1341,13 @@ html.fullscreen #app {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  opacity: 0;
   transition: all var(--transition-fast);
+  flex: none;
+}
+
+.subtask-item:hover .btn-delete-subtask {
+  opacity: 1;
 }
 
 .btn-delete-subtask:hover {
@@ -925,26 +1358,31 @@ html.fullscreen #app {
 .add-subtask-wrapper {
   display: flex;
   align-items: center;
+  gap: 8px;
   margin-top: 12px;
 }
 
 .add-subtask-input {
   flex: 1;
-  padding: 8px 12px;
+  min-width: 0;
+  padding: 9px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  font-size: 13px;
+  font-size: 14px;
   outline: none;
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .add-subtask-input:focus {
   border-color: var(--accent);
+  box-shadow: var(--shadow-focus);
 }
 
 .btn-add-subtask {
-  width: 32px;
-  height: 32px;
-  margin-left: 8px;
+  width: 36px;
+  height: 36px;
   border: none;
   background: var(--accent);
   color: var(--on-accent);
@@ -953,8 +1391,8 @@ html.fullscreen #app {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
   transition: background var(--transition-fast);
+  flex: none;
 }
 
 .btn-add-subtask:hover {
@@ -962,17 +1400,26 @@ html.fullscreen #app {
 }
 
 .subtask-progress {
-  margin-top: 8px;
-  height: 4px;
+  margin-bottom: 10px;
+  height: 5px;
   background: var(--border);
-  border-radius: 2px;
+  border-radius: 999px;
   overflow: hidden;
 }
 
 .subtask-progress-bar {
   height: 100%;
   background: var(--accent);
+  border-radius: 999px;
   transition: width var(--transition-normal);
+}
+
+.detail-meta {
+  margin-top: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-muted);
 }
 
 /* Detail Footer */
@@ -981,19 +1428,24 @@ html.fullscreen #app {
   gap: 8px;
   padding: 16px 20px;
   border-top: 1px solid var(--border);
+  flex: none;
 }
 
 .btn-complete-task,
 .btn-delete-task {
   flex: 1;
   min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   padding: 12px;
   border: none;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: background var(--transition-fast);
+  transition: background var(--transition-fast), filter var(--transition-fast);
 }
 
 .btn-complete-task {
@@ -1002,7 +1454,7 @@ html.fullscreen #app {
 }
 
 .btn-complete-task:hover {
-  background: var(--success-dark);
+  filter: brightness(1.08);
 }
 
 .btn-complete-task.is-completed {
@@ -1020,17 +1472,17 @@ html.fullscreen #app {
 }
 
 .btn-delete-task:hover {
-  background: var(--danger-dark);
+  filter: brightness(1.08);
 }
 
-/* Dialog */
+/* --------------------------------------------------------------------------
+   对话框
+   -------------------------------------------------------------------------- */
 #dialog-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.4);
+  inset: 0;
+  background: rgba(30, 28, 22, 0.45);
+  backdrop-filter: blur(2px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1044,11 +1496,13 @@ html.fullscreen #app {
 
 .dialog-modal {
   background: var(--bg-panel);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  width: 380px;
+  width: 400px;
   max-width: 90vw;
   box-shadow: var(--shadow-lg);
-  padding: 20px 24px 16px;
+  padding: 22px 24px 18px;
+  animation: popIn var(--transition-normal);
 }
 
 .dialog-title {
@@ -1073,17 +1527,19 @@ html.fullscreen #app {
 
 .dialog-input {
   width: 100%;
-  padding: 8px 10px;
+  padding: 9px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--bg-panel);
   color: var(--text-primary);
   font-size: 14px;
   outline: none;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .dialog-input:focus {
   border-color: var(--accent);
+  box-shadow: var(--shadow-focus);
 }
 
 .dialog-input.invalid {
@@ -1098,7 +1554,7 @@ html.fullscreen #app {
 }
 
 .dialog-btn {
-  padding: 7px 18px;
+  padding: 8px 18px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: transparent;
@@ -1119,7 +1575,7 @@ html.fullscreen #app {
 }
 
 .dialog-btn.primary:hover {
-  filter: brightness(0.95);
+  filter: brightness(1.08);
 }
 
 .dialog-btn.primary.danger {
@@ -1128,14 +1584,14 @@ html.fullscreen #app {
   color: var(--on-danger);
 }
 
-/* Settings Overlay */
+/* --------------------------------------------------------------------------
+   设置面板
+   -------------------------------------------------------------------------- */
 #settings-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  inset: 0;
+  background: rgba(30, 28, 22, 0.5);
+  backdrop-filter: blur(3px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1148,13 +1604,16 @@ html.fullscreen #app {
 
 .settings-modal {
   background: var(--bg-panel);
-  border-radius: var(--radius-lg);
-  width: 600px;
-  max-width: 90vw;
-  max-height: 80vh;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  width: 640px;
+  max-width: 92vw;
+  max-height: 82vh;
   display: flex;
   flex-direction: column;
   box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  animation: popIn var(--transition-normal);
 }
 
 .settings-header {
@@ -1163,6 +1622,7 @@ html.fullscreen #app {
   justify-content: space-between;
   padding: 20px 24px;
   border-bottom: 1px solid var(--border);
+  flex: none;
 }
 
 .settings-title {
@@ -1171,8 +1631,8 @@ html.fullscreen #app {
 }
 
 .btn-close-settings {
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   border: none;
   background: transparent;
   color: var(--text-secondary);
@@ -1181,12 +1641,53 @@ html.fullscreen #app {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
-  transition: background var(--transition-fast);
+  transition: background var(--transition-fast), color var(--transition-fast);
 }
 
 .btn-close-settings:hover {
   background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.settings-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 12px 20px 0;
+  border-bottom: 1px solid var(--border);
+  flex: none;
+}
+
+.settings-tab {
+  position: relative;
+  padding: 10px 18px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 14px;
+  cursor: pointer;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.settings-tab:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.settings-tab.active {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.settings-tab.active::after {
+  content: '';
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: -1px;
+  height: 2.5px;
+  border-radius: 999px 999px 0 0;
+  background: var(--accent);
 }
 
 .settings-content {
@@ -1199,64 +1700,38 @@ html.fullscreen #app {
   margin-bottom: 32px;
 }
 
-.settings-tabs {
-  display: flex;
-  border-bottom: 1px solid var(--border);
-  padding: 0 24px;
-  gap: 0;
-}
-
-.settings-tab {
-  padding: 12px 20px;
-  border: none;
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: 14px;
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
-  transition: all var(--transition-fast);
-}
-
-.settings-tab.active {
-  color: var(--accent);
-  border-bottom-color: var(--accent);
-  font-weight: 500;
-}
-
-.settings-tab:hover {
-  color: var(--text-primary);
-}
-
-.settings-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 24px;
+.settings-section:last-child {
+  margin-bottom: 0;
 }
 
 .settings-section-title {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   margin-bottom: 16px;
   color: var(--text-primary);
 }
 
+.settings-field {
+  min-width: 0;
+}
+
 .theme-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 14px;
 }
 
 .theme-card {
   border: 2px solid var(--border);
   border-radius: var(--radius-md);
-  padding: 16px;
+  padding: 14px;
   cursor: pointer;
   transition: all var(--transition-fast);
+  background: var(--bg-panel);
 }
 
 .theme-card:hover {
   border-color: var(--accent);
-  transform: translateY(-2px);
   box-shadow: var(--shadow-md);
 }
 
@@ -1267,63 +1742,74 @@ html.fullscreen #app {
 
 .theme-preview {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   margin-bottom: 12px;
-  height: 40px;
+  height: 42px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
 }
 
 .theme-color {
   flex: 1;
-  border-radius: var(--radius-sm);
 }
 
 .theme-name {
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .settings-toggle-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 12px;
+  gap: 16px;
+  padding: 14px 16px;
   background: var(--bg-main);
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
   margin-bottom: 8px;
   cursor: pointer;
-  transition: background var(--transition-fast);
+  transition: background var(--transition-fast), border-color var(--transition-fast);
 }
 
 .settings-toggle-row:hover {
   background: var(--bg-hover);
+  border-color: var(--accent);
+}
+
+.settings-toggle-label {
+  min-width: 0;
 }
 
 .settings-toggle-title {
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .settings-toggle-desc {
   font-size: 12px;
   color: var(--text-muted);
-  margin-top: 2px;
+  margin-top: 3px;
+  line-height: 1.5;
 }
 
-/* Empty State */
+/* --------------------------------------------------------------------------
+   空状态
+   -------------------------------------------------------------------------- */
 .empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 60px 20px;
+  padding: 72px 20px;
   text-align: center;
+  color: var(--text-muted);
 }
 
 .empty-state-icon {
-  font-size: 64px;
-  line-height: 1;
-  margin-bottom: 16px;
-  opacity: 0.3;
+  line-height: 0;
+  margin-bottom: 18px;
+  opacity: 0.45;
 }
 
 .empty-state-title {
@@ -1344,46 +1830,26 @@ mark {
   color: var(--text-primary);
   font-weight: 600;
   padding: 0 2px;
-  border-radius: 2px;
-}
-
-/* List Header Subtitle */
-.list-header-subtitle {
-  font-size: 13px;
-  opacity: 0.8;
-  margin-top: 4px;
+  border-radius: 3px;
 }
 
 /* Inline Edit */
 .inline-edit-input {
   width: 100%;
-  padding: 4px 8px;
+  padding: 3px 8px;
   border: 2px solid var(--accent);
   border-radius: var(--radius-sm);
-  font-size: 14px;
+  font-size: 15px;
   font-family: inherit;
   background: var(--bg-panel);
   color: var(--text-primary);
   outline: none;
+  box-shadow: var(--shadow-focus);
 }
 
-/* Suggestion Items */
-.suggestion-item {
-  border-left: 3px solid var(--accent);
-  opacity: 0.85;
-}
-
-.suggestion-item:hover {
-  opacity: 1;
-}
-
-.task-section-desc {
-  font-size: 12px;
-  color: var(--text-muted);
-  margin-left: auto;
-}
-
-/* Context Menu */
+/* --------------------------------------------------------------------------
+   右键菜单
+   -------------------------------------------------------------------------- */
 .context-menu {
   position: fixed;
   z-index: 2000;
@@ -1391,18 +1857,21 @@ mark {
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
-  min-width: 180px;
-  padding: 6px 0;
+  min-width: 200px;
+  padding: 6px;
   font-size: 13px;
+  animation: popIn 0.12s ease;
 }
 
 .context-menu-item {
   display: flex;
   align-items: center;
-  padding: 8px 16px;
+  padding: 8px 10px;
   cursor: pointer;
   white-space: nowrap;
   position: relative;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
 }
 
 .context-menu-item:hover {
@@ -1430,14 +1899,28 @@ mark {
 .context-menu-icon {
   width: 20px;
   margin-right: 10px;
-  text-align: center;
-  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  opacity: 0.85;
+}
+
+.context-menu-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
 }
 
 .context-menu-item.has-submenu::after {
-  content: '▸';
+  content: '';
   margin-left: auto;
-  color: var(--text-muted);
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid var(--text-muted);
+  border-bottom: 1.5px solid var(--text-muted);
+  transform: rotate(-45deg);
 }
 
 .context-menu-submenu {
@@ -1449,144 +1932,17 @@ mark {
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
-  min-width: 150px;
-  padding: 6px 0;
+  min-width: 160px;
+  padding: 6px;
 }
 
 .context-menu-item:hover > .context-menu-submenu {
   display: block;
 }
 
-.task-suggestion-add {
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-right: 12px;
-  background: var(--accent);
-  color: var(--on-accent);
-  border-radius: 50%;
-  font-size: 14px;
-  flex-shrink: 0;
-}
-
-/* Compact Mode */
-html.compact-mode #sidebar {
-  width: 60px;
-  min-width: 60px;
-}
-
-html.compact-mode #sidebar-user {
-  justify-content: center;
-  gap: 0;
-  padding: 12px 0;
-  font-size: 16px;
-  text-align: center;
-}
-
-html.compact-mode .sidebar-user-label {
-  display: none;
-}
-
-html.compact-mode #sidebar-search {
-  display: none;
-}
-
-html.compact-mode .nav-item-label,
-html.compact-mode .nav-item-count,
-html.compact-mode .list-item-label,
-html.compact-mode .list-item-count,
-html.compact-mode .list-item-actions,
-html.compact-mode .lists-section-title,
-html.compact-mode .btn-add-list span,
-html.compact-mode .btn-add-list > div:last-child {
-  display: none;
-}
-
-html.compact-mode .nav-item {
-  justify-content: center;
-  padding: 12px 8px;
-  border-left-width: 0;
-  border-bottom: 2px solid transparent;
-}
-
-html.compact-mode .nav-item.active {
-  border-left-color: transparent;
-  border-bottom-color: var(--accent);
-}
-
-html.compact-mode .nav-item-icon {
-  margin-right: 0;
-  font-size: 18px;
-}
-
-html.compact-mode .list-item {
-  justify-content: center;
-  padding: 12px 8px;
-  border-left-width: 0;
-}
-
-html.compact-mode .list-item-icon {
-  margin-right: 0;
-  font-size: 16px;
-}
-
-html.compact-mode .btn-add-list {
-  justify-content: center;
-  padding: 12px 8px;
-  border-left-width: 0;
-}
-
-html.compact-mode .btn-add-list-icon {
-  margin-right: 0;
-  font-size: 18px;
-}
-
-html.compact-mode #list-header {
-  padding: 8px 20px;
-}
-
-html.compact-mode #list-header h1 {
-  font-size: 18px;
-  line-height: 24px;
-}
-
-html.compact-mode #task-input-area {
-  padding: 12px 20px;
-}
-
-html.compact-mode #task-list-area {
-  padding: 12px 20px;
-}
-
-html.compact-mode #detail-panel {
-  width: 320px;
-  min-width: 320px;
-}
-
-html.compact-mode .task-item {
-  padding: 10px 12px;
-}
-
-/* Priority */
-.task-priority-bar {
-  width: 4px;
-  align-self: stretch;
-  border-radius: 2px;
-  margin-right: 10px;
-  flex-shrink: 0;
-}
-
-.task-priority-badge {
-  font-size: 11px;
-  font-weight: 700;
-  border: 1px solid;
-  padding: 0 4px;
-  border-radius: 3px;
-  line-height: 1.4;
-}
-
+/* --------------------------------------------------------------------------
+   优先级
+   -------------------------------------------------------------------------- */
 .priority-selector {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -1597,11 +1953,13 @@ html.compact-mode .task-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 8px 4px;
+  gap: 6px;
+  padding: 10px 4px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   cursor: pointer;
   transition: all var(--transition-fast);
+  background: var(--bg-panel);
 }
 
 .priority-option:hover {
@@ -1616,8 +1974,7 @@ html.compact-mode .task-item {
 .priority-flag {
   width: 100%;
   height: 6px;
-  border-radius: 3px;
-  margin-bottom: 6px;
+  border-radius: 999px;
 }
 
 .priority-label {
@@ -1625,18 +1982,22 @@ html.compact-mode .task-item {
   color: var(--text-secondary);
 }
 
-/* Tags */
+/* --------------------------------------------------------------------------
+   标签
+   -------------------------------------------------------------------------- */
 .task-tags {
-  display: flex;
-  gap: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   flex-wrap: wrap;
 }
 
 .task-tag {
   font-size: 11px;
-  padding: 0 5px;
-  border-radius: 3px;
+  padding: 1px 7px;
+  border-radius: var(--radius-pill);
   border: 1px solid;
+  line-height: 16px;
 }
 
 .tag-selector {
@@ -1649,11 +2010,13 @@ html.compact-mode .task-item {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 10px;
+  padding: 7px 12px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
   font-size: 13px;
+  background: var(--bg-panel);
+  color: var(--text-secondary);
   transition: all var(--transition-fast);
 }
 
@@ -1664,43 +2027,47 @@ html.compact-mode .task-item {
 .tag-option.active {
   border-color: var(--accent);
   background: var(--accent-bg);
+  color: var(--accent);
 }
 
 .tag-dot {
   width: 10px;
   height: 10px;
   border-radius: 50%;
+  flex: none;
 }
 
-/* Filter Bar */
+/* --------------------------------------------------------------------------
+   筛选栏
+   -------------------------------------------------------------------------- */
 .filter-bar {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 4px 0;
+  padding: 12px 4px 0;
   flex-wrap: wrap;
 }
 
 .filter-group {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 
 .filter-label {
   font-size: 12px;
   color: var(--text-muted);
-  margin-right: 4px;
+  margin-right: 2px;
 }
 
 .filter-chip {
   display: flex;
   align-items: center;
-  gap: 5px;
-  padding: 4px 10px;
+  gap: 6px;
+  padding: 5px 12px;
   border: 1px solid var(--border);
   background: var(--bg-panel);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: 12px;
   cursor: pointer;
   transition: all var(--transition-fast);
@@ -1721,22 +2088,31 @@ html.compact-mode .task-item {
   width: 8px;
   height: 8px;
   border-radius: 50%;
+  flex: none;
 }
 
 .filter-clear {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   border: none;
   background: transparent;
   color: var(--text-muted);
   font-size: 12px;
   cursor: pointer;
-  padding: 4px 6px;
+  padding: 5px 8px;
+  border-radius: var(--radius-pill);
+  transition: color var(--transition-fast), background var(--transition-fast);
 }
 
 .filter-clear:hover {
-  color: var(--accent);
+  color: var(--danger);
+  background: var(--bg-hover);
 }
 
-/* Tag Manager */
+/* --------------------------------------------------------------------------
+   标签管理
+   -------------------------------------------------------------------------- */
 .tag-manager {
   display: flex;
   flex-direction: column;
@@ -1747,6 +2123,13 @@ html.compact-mode .task-item {
   display: flex;
   align-items: center;
   gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--radius-md);
+  transition: background var(--transition-fast);
+}
+
+.tag-manager-item:hover {
+  background: var(--bg-main);
 }
 
 .tag-manager-dot {
@@ -1758,11 +2141,13 @@ html.compact-mode .task-item {
 
 .tag-manager-name {
   flex: 1;
-  padding: 6px 10px;
+  padding: 7px 10px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   font-size: 13px;
   outline: none;
+  background: var(--bg-panel);
+  color: var(--text-primary);
 }
 
 .tag-manager-name:focus {
@@ -1770,21 +2155,27 @@ html.compact-mode .task-item {
 }
 
 .tag-manager-color {
-  width: 32px;
-  height: 28px;
+  width: 34px;
+  height: 32px;
   border: none;
   background: transparent;
   cursor: pointer;
+  flex: none;
 }
 
 .tag-manager-delete {
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   border: none;
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
   border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  transition: all var(--transition-fast);
 }
 
 .tag-manager-delete:hover {
@@ -1796,16 +2187,18 @@ html.compact-mode .task-item {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding-top: 4px;
+  padding-top: 8px;
 }
 
 .tag-manager-input {
   flex: 1;
-  padding: 6px 10px;
+  padding: 8px 10px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   font-size: 13px;
   outline: none;
+  background: var(--bg-panel);
+  color: var(--text-primary);
 }
 
 .tag-manager-input:focus {
@@ -1813,20 +2206,27 @@ html.compact-mode .task-item {
 }
 
 .tag-manager-btn {
-  padding: 6px 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
   border: none;
   background: var(--accent);
   color: var(--on-accent);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   cursor: pointer;
   font-size: 13px;
+  font-weight: 600;
+  transition: background var(--transition-fast);
 }
 
 .tag-manager-btn:hover {
   background: var(--accent-dark);
 }
 
-/* Calendar View */
+/* --------------------------------------------------------------------------
+   日历视图
+   -------------------------------------------------------------------------- */
 .calendar-view {
   display: flex;
   flex-direction: column;
@@ -1859,7 +2259,6 @@ html.compact-mode .task-item {
   background: var(--bg-panel);
   border-radius: var(--radius-sm);
   cursor: pointer;
-  font-size: 18px;
   line-height: 1;
   color: var(--text-secondary);
   transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
@@ -1876,6 +2275,7 @@ html.compact-mode .task-item {
   min-width: 56px;
   padding: 0 12px;
   font-size: 13px;
+  font-weight: 600;
   line-height: 1;
   white-space: nowrap;
   flex: none;
@@ -1884,31 +2284,32 @@ html.compact-mode .task-item {
 .calendar-weekdays {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
+  gap: 6px;
   margin-bottom: 4px;
 }
 
 .cal-weekday {
   text-align: center;
   font-size: 12px;
+  font-weight: 600;
   color: var(--text-muted);
-  padding: 4px 0;
+  padding: 6px 0;
 }
 
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
+  gap: 6px;
 }
 
 .cal-cell {
   height: 134px;
   background: var(--bg-panel);
   border: 1px solid var(--border-light);
-  border-radius: var(--radius-sm);
-  padding: 4px;
+  border-radius: var(--radius-md);
+  padding: 6px;
   cursor: pointer;
-  transition: border-color var(--transition-fast), background var(--transition-fast);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
   overflow: hidden;
 }
 
@@ -1920,6 +2321,7 @@ html.compact-mode .task-item {
 
 .cal-cell:hover {
   border-color: var(--accent);
+  box-shadow: var(--shadow-sm);
 }
 
 .cal-cell.today {
@@ -1931,20 +2333,30 @@ html.compact-mode .task-item {
   background: var(--bg-panel);
 }
 
+.cal-cell.today.has-tasks {
+  background: var(--accent-bg);
+}
+
 .cal-cell[data-date] {
   cursor: pointer;
 }
 
 .cal-cell.selected {
   border-color: var(--primary);
-  box-shadow: inset 0 0 0 1px var(--primary);
+  box-shadow: var(--shadow-focus);
 }
 
 .cal-day-num {
   font-size: 12px;
-  font-weight: 600;
+  line-height: 16px;
+  font-weight: 700;
   color: var(--text-secondary);
-  margin-bottom: 2px;
+  margin-bottom: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.cal-cell.today .cal-day-num {
+  color: var(--accent);
 }
 
 .cal-day-tasks {
@@ -1957,14 +2369,16 @@ html.compact-mode .task-item {
 .cal-task {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   font-size: 11px;
-  padding: 2px 4px;
+  line-height: 14px;
+  padding: 2px 5px;
   background: var(--bg-hover);
-  border-radius: 3px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
+  transition: background var(--transition-fast);
 }
 
 .cal-task:hover {
@@ -1985,14 +2399,16 @@ html.compact-mode .task-item {
 
 .cal-more {
   font-size: 11px;
-  color: var(--text-muted);
-  padding: 1px 4px;
+  line-height: 14px;
+  font-weight: 600;
+  color: var(--accent);
+  padding: 2px 5px;
 }
 
 .calendar-tasks-list {
-  margin-top: 12px;
+  margin-top: 16px;
   border-top: 1px solid var(--border);
-  padding-top: 12px;
+  padding-top: 16px;
 }
 
 .cal-day-header {
@@ -2000,11 +2416,11 @@ html.compact-mode .task-item {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 }
 
 .cal-day-title {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   min-width: 0;
   overflow: hidden;
@@ -2013,14 +2429,17 @@ html.compact-mode .task-item {
 }
 
 .cal-day-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   flex: none;
-  padding: 6px 12px;
+  padding: 7px 14px;
   border: 1px solid var(--accent);
   background: var(--accent);
   color: var(--on-accent);
   font-size: 13px;
-  font-weight: 500;
-  border-radius: var(--radius-sm);
+  font-weight: 600;
+  border-radius: var(--radius-pill);
   cursor: pointer;
   transition: background var(--transition-fast), border-color var(--transition-fast);
 }
@@ -2039,7 +2458,7 @@ html.compact-mode .task-item {
 
 .settings-number {
   width: 96px;
-  padding: 6px 8px;
+  padding: 8px 10px;
 }
 
 .settings-field-row {
@@ -2048,7 +2467,9 @@ html.compact-mode .task-item {
   flex-wrap: wrap;
 }
 
-/* Pomodoro */
+/* --------------------------------------------------------------------------
+   番茄钟
+   -------------------------------------------------------------------------- */
 #pomodoro-panel {
   position: fixed;
   bottom: 24px;
@@ -2057,30 +2478,30 @@ html.compact-mode .task-item {
   background: var(--bg-panel);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
-  padding: 20px;
+  padding: 18px;
   z-index: 1500;
   border: 1px solid var(--border);
   animation: slideInRight var(--transition-normal);
 }
 
-.pomodoro-hint {
-  margin-top: 8px;
-  font-size: 11px;
-  color: var(--text-muted);
-  text-align: center;
-}
-
 .pomodoro-header {
   position: relative;
+  margin-bottom: 12px;
+}
+
+.pomodoro-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   font-size: 15px;
   font-weight: 600;
-  text-align: center;
-  margin-bottom: 12px;
+  color: var(--accent);
 }
 
 .pomodoro-close {
   position: absolute;
-  right: -6px;
+  right: -4px;
   top: 50%;
   transform: translateY(-50%);
   width: 24px;
@@ -2088,7 +2509,6 @@ html.compact-mode .task-item {
   border: none;
   background: transparent;
   color: var(--text-muted);
-  font-size: 13px;
   border-radius: var(--radius-sm);
   cursor: pointer;
   display: flex;
@@ -2102,21 +2522,61 @@ html.compact-mode .task-item {
   color: var(--text-primary);
 }
 
+.pomodoro-ring {
+  position: relative;
+  width: 148px;
+  height: 148px;
+  margin: 4px auto 14px;
+}
+
+.pomodoro-ring-svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.pomodoro-ring-track {
+  fill: none;
+  stroke: var(--border);
+  stroke-width: 8;
+}
+
+.pomodoro-ring-bar {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 8;
+  stroke-linecap: round;
+  transition: stroke-dashoffset var(--transition-normal), stroke var(--transition-fast);
+}
+
+.pomodoro-ring-bar.break {
+  stroke: var(--success);
+}
+
+.pomodoro-ring-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
 .pomodoro-label {
-  text-align: center;
-  font-size: 13px;
-  color: var(--text-secondary);
-  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  text-transform: uppercase;
 }
 
 .pomodoro-time {
-  text-align: center;
-  font-size: 40px;
-  line-height: 1.15;
+  font-size: 34px;
+  line-height: 1.1;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--accent);
-  margin-bottom: 12px;
 }
 
 .pomodoro-time.break {
@@ -2126,7 +2586,7 @@ html.compact-mode .task-item {
 .pomodoro-progress {
   height: 4px;
   background: var(--border);
-  border-radius: 2px;
+  border-radius: 999px;
   overflow: hidden;
   margin-bottom: 16px;
 }
@@ -2146,13 +2606,14 @@ html.compact-mode .task-item {
 
 .pomodoro-btn {
   flex: 1;
-  padding: 8px 0;
+  padding: 9px 0;
   border: 1px solid var(--border);
   background: var(--bg-panel);
   color: var(--text-primary);
   border-radius: var(--radius-md);
   cursor: pointer;
   font-size: 13px;
+  font-weight: 600;
   transition: all var(--transition-fast);
 }
 
@@ -2171,42 +2632,73 @@ html.compact-mode .task-item {
 }
 
 .pomodoro-sessions {
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--text-secondary);
+  margin-bottom: 4px;
 }
 
-/* Utilities */
+.pomodoro-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* --------------------------------------------------------------------------
+   工具类
+   -------------------------------------------------------------------------- */
 .hidden {
   display: none !important;
 }
 
-/* Dark Mode */
+/* --------------------------------------------------------------------------
+   深色表面
+   -------------------------------------------------------------------------- */
 html.dark-mode {
-  --bg-main: var(--grey-14);
-  --bg-panel: #292929;
-  --bg-hover: #3d3d3d;
-  --bg-active: #383838;
-  --text-primary: #ffffff;
-  --text-secondary: #d6d6d6;
-  --text-muted: #adadad;
-  --border: #666666;
-  --border-light: #3d3d3d;
+  --grey-14: #f4f2ee;
+  --grey-26: #d8d5ce;
+  --grey-38: #b9b5ac;
+  --grey-44: #a4a097;
+  --grey-60: #7d7972;
+  --grey-74: #605c55;
+  --grey-82: #43403a;
+  --grey-88: #36332e;
+  --grey-94: #2b2823;
+  --grey-96: #24221d;
+  --grey-98: #1d1b17;
+
+  --bg-main: #1b1a16;
+  --bg-panel: #26241f;
+  --bg-hover: #33312a;
+  --bg-active: #3c392f;
+  --border: #47443b;
+  --border-light: #33312a;
+  --border-soft: rgba(255, 255, 255, 0.08);
+
+  --text-primary: #f4f2ee;
+  --text-secondary: #d8d5ce;
+  --text-muted: #a4a097;
+
+  /* e2e 钉值：深色实底按钮与文字 */
   --success: #54b054;
   --success-btn: #107c10;
-  --warning: #faa06b;
-  --warning-dark: #faa06b;
   --danger: #dc626d;
   --danger-btn: #c50f1f;
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.24), 0 0 2px rgba(0,0,0,0.28);
-  --shadow-md: 0 4px 8px rgba(0,0,0,0.24), 0 0 2px rgba(0,0,0,0.28);
-  --shadow-lg: 0 8px 16px rgba(0,0,0,0.24), 0 0 2px rgba(0,0,0,0.28);
+  --warning: #faa06b;
+  --warning-dark: #faa06b;
+  --on-success: #ffffff;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.30), 0 0 1px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 6px 16px rgba(0, 0, 0, 0.34), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.44), 0 3px 10px rgba(0, 0, 0, 0.3);
+
+  color-scheme: dark;
 }
 
-html.dark-mode .task-input-wrapper {
-  background: var(--bg-panel);
-}
-
+html.dark-mode .task-input-wrapper,
 html.dark-mode .detail-toggle {
   background: var(--bg-panel);
 }
@@ -2222,36 +2714,136 @@ html.dark-mode .detail-select {
   color: var(--text-primary);
 }
 
-/* Animations */
+/* --------------------------------------------------------------------------
+   动画
+   -------------------------------------------------------------------------- */
 @keyframes slideInRight {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
 }
 
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes popIn {
+  from { transform: translateY(6px) scale(0.98); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
 }
 
 #settings-overlay:not(.hidden) {
   animation: fadeIn var(--transition-fast);
 }
 
-/* Drag and Drop */
+/* 拖拽 */
 .task-item.dragging {
   opacity: 0.5;
 }
 
 .task-item.drag-over {
-  border-top: 2px solid var(--accent);
+  border-color: var(--accent);
+  box-shadow: inset 0 2px 0 0 var(--accent);
+}
+
+/* --------------------------------------------------------------------------
+   紧凑模式 (rail)
+   -------------------------------------------------------------------------- */
+html.compact-mode #sidebar {
+  width: 60px;
+  min-width: 60px;
+}
+
+html.compact-mode #sidebar-user {
+  justify-content: center;
+  gap: 0;
+  padding: 12px 0;
+}
+
+html.compact-mode .sidebar-user-label {
+  display: none;
+}
+
+html.compact-mode #sidebar-search {
+  display: none;
+}
+
+html.compact-mode .nav-item-label,
+html.compact-mode .nav-item-count,
+html.compact-mode .list-item-label,
+html.compact-mode .list-item-count,
+html.compact-mode .list-item-actions,
+html.compact-mode .lists-section-label,
+html.compact-mode .lists-section-add,
+html.compact-mode .btn-add-list span,
+html.compact-mode .btn-add-list > div:last-child {
+  display: none;
+}
+
+html.compact-mode #sidebar-nav,
+html.compact-mode #sidebar-lists,
+html.compact-mode #sidebar-footer {
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
+html.compact-mode .nav-item {
+  justify-content: center;
+  padding: 0;
+  height: 42px;
+  border-radius: var(--radius-md);
+}
+
+html.compact-mode .nav-item.active::before {
+  display: none;
+}
+
+html.compact-mode .nav-item.active {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+html.compact-mode .nav-item-icon,
+html.compact-mode .btn-add-list-icon {
+  margin-right: 0;
+}
+
+html.compact-mode .list-item {
+  justify-content: center;
+  padding: 0;
+  height: 40px;
+}
+
+html.compact-mode .list-item.active::before {
+  display: none;
+}
+
+html.compact-mode .list-item-icon {
+  margin-right: 0;
+}
+
+html.compact-mode .btn-add-list {
+  justify-content: center;
+  padding: 0;
+  height: 42px;
+}
+
+html.compact-mode #list-header {
+  padding: 16px 20px 12px;
+}
+
+html.compact-mode #task-input-area {
+  padding: 4px 20px 10px;
+}
+
+html.compact-mode #task-list-area {
+  padding: 8px 20px 40px;
+}
+
+html.compact-mode #detail-panel {
+  width: 320px;
+  min-width: 320px;
+}
+
+html.compact-mode .task-item {
+  padding: 10px 12px;
 }

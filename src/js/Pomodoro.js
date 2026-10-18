@@ -1,5 +1,6 @@
 import { store } from './Store.js';
 import { eventBus } from './EventBus.js';
+import { icon } from './icons.js';
 
 const TICK_INTERVAL = 250;
 
@@ -156,9 +157,12 @@ export class Pomodoro {
     if (seconds === this.lastRenderedSecond) return;
     this.lastRenderedSecond = seconds;
     const timeEl = this.content.querySelector('#pomo-time');
-    const barEl = this.content.querySelector('#pomo-progress-bar');
+    const barEl = this.content.querySelector('#pomo-ring-bar');
     if (timeEl) timeEl.textContent = this.formatTime(seconds);
-    if (barEl) barEl.style.width = `${this.progressOf(seconds)}%`;
+    if (barEl) {
+      const circumference = 2 * Math.PI * 52;
+      barEl.setAttribute('stroke-dashoffset', (circumference * (1 - this.progressOf(seconds) / 100)).toFixed(2));
+    }
   }
 
   progressOf(seconds) {
@@ -183,13 +187,19 @@ export class Pomodoro {
 
     this.content.innerHTML = `
       <div class="pomodoro-header">
-        <span>🍅 番茄钟</span>
-        <button class="pomodoro-close" id="pomo-close" title="关闭">✕</button>
+        <span class="pomodoro-title">${icon('tomato', { size: 16 })}<span>番茄钟</span></span>
+        <button class="pomodoro-close" id="pomo-close" title="关闭">${icon('close', { size: 14 })}</button>
       </div>
-      <div class="pomodoro-label">${this.isWork ? '专注' : '休息'}</div>
-      <div class="pomodoro-time ${this.isWork ? '' : 'break'}" id="pomo-time">${this.formatTime(seconds)}</div>
-      <div class="pomodoro-progress">
-        <div class="pomodoro-progress-bar" id="pomo-progress-bar" style="width: ${this.progressOf(seconds)}%"></div>
+      <div class="pomodoro-ring">
+        <svg class="pomodoro-ring-svg" viewBox="0 0 120 120" aria-hidden="true">
+          <circle class="pomodoro-ring-track" cx="60" cy="60" r="52"/>
+          <circle class="pomodoro-ring-bar ${this.isWork ? '' : 'break'}" id="pomo-ring-bar" cx="60" cy="60" r="52"
+                  stroke-dasharray="${(2 * Math.PI * 52).toFixed(2)}" stroke-dashoffset="${(2 * Math.PI * 52 * (1 - this.progressOf(seconds) / 100)).toFixed(2)}"/>
+        </svg>
+        <div class="pomodoro-ring-center">
+          <div class="pomodoro-label">${this.isWork ? '专注' : '休息'}</div>
+          <div class="pomodoro-time ${this.isWork ? '' : 'break'}" id="pomo-time">${this.formatTime(seconds)}</div>
+        </div>
       </div>
       <div class="pomodoro-actions">
         ${this.isRunning
@@ -197,7 +207,7 @@ export class Pomodoro {
           : `<button class="pomodoro-btn primary" id="pomo-start">${canContinue ? '继续' : '开始'}</button>`}
         <button class="pomodoro-btn" id="pomo-stop">重置</button>
       </div>
-      <div class="pomodoro-sessions">今日完成: ${this.sessions} 个</div>
+      <div class="pomodoro-sessions">${icon('check', { size: 13 })}<span>今日完成 ${this.sessions} 个</span></div>
       <div class="pomodoro-hint">${this.workDuration / 60} / ${this.breakDuration / 60} 分钟 · 时长可在设置中调整</div>
     `;
   }

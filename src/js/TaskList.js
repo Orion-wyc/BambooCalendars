@@ -5,6 +5,7 @@ import {
   addDays, escapeHtml, formatDayLabel, formatDueDateLabel, isImeKeyEvent,
   parseDateKey, startOfToday, toDateKey
 } from './Utils.js';
+import { icon } from './icons.js';
 
 const PRIORITY_COLORS = {
   1: '#c50f1f',
@@ -93,17 +94,17 @@ export class TaskList {
 
   renderHeader() {
     const header = document.getElementById('list-header');
+    let iconName = 'checkSquare';
     let title = '任务';
 
-    if (this.currentView === 'my-day') title = '☀ 我的一天';
-    else if (this.currentView === 'important') title = '★ 重要';
-    else if (this.currentView === 'next7') title = '🗓 最近 7 天';
-    else if (this.currentView === 'calendar') title = '📆 日历';
+    if (this.currentView === 'my-day') { iconName = 'sun'; title = '我的一天'; }
+    else if (this.currentView === 'important') { iconName = 'star'; title = '重要'; }
+    else if (this.currentView === 'next7') { iconName = 'calendarDays'; title = '最近 7 天'; }
+    else if (this.currentView === 'calendar') { iconName = 'calendar'; title = '日历'; }
     else if (this.currentView === 'list' && this.currentListId) {
       const list = store.getList(this.currentListId);
-      title = `📋 ${list ? escapeHtml(list.name) : '清单'}`;
-    } else {
-      title = escapeHtml(title);
+      iconName = 'clipboard';
+      title = list ? escapeHtml(list.name) : '清单';
     }
 
     const parts = [];
@@ -119,7 +120,15 @@ export class TaskList {
       ? `<div class="list-header-subtitle">${parts.join(' · ')}</div>`
       : '';
 
-    header.innerHTML = `<h1>${title}</h1>${subtitle}`;
+    header.innerHTML = `
+      <div class="list-header-inner">
+        <span class="list-header-icon">${icon(iconName)}</span>
+        <div class="list-header-text">
+          <h1>${title}</h1>
+          ${subtitle}
+        </div>
+      </div>
+    `;
   }
 
   renderInput() {
@@ -141,8 +150,8 @@ export class TaskList {
 
     area.innerHTML = `
       <div class="task-input-wrapper">
-        <div class="task-input-icon">+</div>
-        <input type="text" class="task-input" id="task-input" placeholder="添加任务..." autocomplete="off">
+        <span class="task-input-icon">${icon('plus', { size: 18 })}</span>
+        <input type="text" class="task-input" id="task-input" placeholder="添加任务" autocomplete="off">
       </div>
       ${filterHtml}
     `;
@@ -204,9 +213,9 @@ export class TaskList {
     if (completedTasks.length === 0) return '';
     const isCollapsed = this.collapsedSections.completed;
     return `
-      <div class="task-section">
+      <div class="task-section completed-section">
         <div class="task-section-header" data-section="completed">
-          <div class="task-section-toggle ${isCollapsed ? 'collapsed' : ''}">▾</div>
+          <div class="task-section-toggle ${isCollapsed ? 'collapsed' : ''}">${icon('chevronDown', { size: 16 })}</div>
           <div class="task-section-title">已完成</div>
           <div class="task-section-count">${completedTasks.length}</div>
         </div>
@@ -287,9 +296,9 @@ export class TaskList {
     area.innerHTML = `
       <div class="calendar-view">
         <div class="calendar-header">
-          <button class="btn-calendar-nav" id="cal-prev">‹</button>
+          <button class="btn-calendar-nav" id="cal-prev" title="上个月">${icon('chevronLeft', { size: 18 })}</button>
           <div class="calendar-title">${monthName}</div>
-          <button class="btn-calendar-nav" id="cal-next">›</button>
+          <button class="btn-calendar-nav" id="cal-next" title="下个月">${icon('chevronRight', { size: 18 })}</button>
           <button class="btn-calendar-nav btn-calendar-today" id="cal-today">今天</button>
         </div>
         <div class="calendar-weekdays">
@@ -335,7 +344,7 @@ export class TaskList {
     const header = `
       <div class="cal-day-header">
         <div class="cal-day-title">${escapeHtml(dateLabel)}${dayTasks.length ? ` · ${dayTasks.length} 个任务` : ''}</div>
-        <button class="cal-day-add" data-action="calendar-add-task" data-date="${escapeHtml(date)}">＋ 新建任务</button>
+        <button class="cal-day-add" data-action="calendar-add-task" data-date="${escapeHtml(date)}"><span>新建任务</span>${icon('plus', { size: 14 })}</button>
       </div>
     `;
     const body = dayTasks.length
@@ -380,23 +389,24 @@ export class TaskList {
 
     if (suggestions.length > 0) {
       html += `
-        <div class="task-section">
+        <div class="task-section suggestion-section">
           <div class="task-section-header">
-            <div class="task-section-title">💡 建议</div>
+            <span class="task-section-icon">${icon('bulb', { size: 16 })}</span>
+            <div class="task-section-title">建议</div>
             <div class="task-section-desc">未添加到我的日的任务</div>
           </div>
           <div class="task-list">
             ${suggestions.map(task => `
               <div class="task-item suggestion-item" data-task-id="${escapeHtml(task.id)}">
-                <div class="task-suggestion-add" data-action="add-suggestion" data-task-id="${escapeHtml(task.id)}">+</div>
+                <div class="task-priority-bar" style="background:${PRIORITY_COLORS[task.priority] || '#9d9d9d'}"></div>
+                <div class="task-suggestion-add" data-action="add-suggestion" data-task-id="${escapeHtml(task.id)}" title="添加到我的一天">${icon('plus', { size: 14 })}</div>
                 <div class="task-content" data-action="select" data-task-id="${escapeHtml(task.id)}">
                   <div class="task-title">${this.highlightSearch(task.title)}</div>
                   <div class="task-meta">
-                    ${task.important ? '<div>★ 重要</div>' : ''}
-                    ${task.dueDate ? `<div class="task-due-date">📅 ${escapeHtml(formatDueDateLabel(task.dueDate))}</div>` : ''}
+                    ${task.important ? `<div class="task-meta-item is-important">${icon('star', { size: 13 })}<span>重要</span></div>` : ''}
+                    ${task.dueDate ? `<div class="task-meta-item task-due-date">${icon('flag', { size: 13 })}<span>${escapeHtml(formatDueDateLabel(task.dueDate))}</span></div>` : ''}
                   </div>
                 </div>
-                <button class="btn-task-action" data-action="add-suggestion" data-task-id="${escapeHtml(task.id)}" title="添加到我的日">＋</button>
               </div>
             `).join('')}
           </div>
@@ -418,17 +428,17 @@ export class TaskList {
       view = 'search';
     }
     const map = {
-      'my-day': ['🌤', '我的一天是空的', '添加任务或从建议中选择'],
-      'important': ['⭐', '暂无重要任务', '点击任务旁的星标标记重要'],
-      'next7': ['🗓', '未来 7 天没有任务', '为任务设置截止日期'],
-      'tasks': ['📝', '暂无任务', '在上方输入框添加新任务'],
-      'list': ['📋', '此清单暂无任务', '在上方输入框添加新任务'],
-      'search': ['🔍', '未找到匹配任务', '换个关键词或清除筛选条件试试']
+      'my-day': ['cloudSun', '我的一天是空的', '添加任务或从建议中选择'],
+      'important': ['star', '暂无重要任务', '点击任务旁的星标标记重要'],
+      'next7': ['calendarDays', '未来 7 天没有任务', '为任务设置截止日期'],
+      'tasks': ['inbox', '暂无任务', '在上方输入框添加新任务'],
+      'list': ['clipboard', '此清单暂无任务', '在上方输入框添加新任务'],
+      'search': ['search', '未找到匹配任务', '换个关键词或清除筛选条件试试']
     };
-    const [icon, title, desc] = map[view] || map['tasks'];
+    const [iconName, title, desc] = map[view] || map['tasks'];
     return `
       <div class="empty-state">
-        <div class="empty-state-icon">${icon}</div>
+        <div class="empty-state-icon">${icon(iconName, { size: 56, strokeWidth: 1.3 })}</div>
         <div class="empty-state-title">${title}</div>
         <div class="empty-state-desc">${desc}</div>
       </div>
@@ -459,7 +469,7 @@ export class TaskList {
             `).join('')}
           </div>
         ` : ''}
-        ${(this.filterPriority || this.filterTagId) ? `<button class="filter-clear" data-action="clear-filter">清除筛选 ✕</button>` : ''}
+        ${(this.filterPriority || this.filterTagId) ? `<button class="filter-clear" data-action="clear-filter"><span>清除筛选</span>${icon('close', { size: 13 })}</button>` : ''}
       </div>
     `;
   }
@@ -470,27 +480,31 @@ export class TaskList {
     const priorityColor = PRIORITY_COLORS[task.priority] || '#95a5a6';
     const tags = (task.tags || []).map(id => store.getTag(id)).filter(Boolean);
     const isEditing = this.editingTaskId === task.id;
+    const doneSteps = task.subtasks.filter(s => s.completed).length;
 
     return `
       <div class="task-item ${task.completed ? 'completed' : ''} ${this.selectedTaskId === task.id ? 'selected' : ''}"
            data-task-id="${escapeHtml(task.id)}" draggable="${isEditing ? 'false' : 'true'}">
         <div class="task-priority-bar" style="background:${priorityColor}"></div>
         <div class="task-checkbox ${task.completed ? 'checked' : ''}" data-action="toggle-complete" data-task-id="${escapeHtml(task.id)}">
-          ${task.completed ? '✓' : ''}
+          ${task.completed ? icon('check', { size: 13, strokeWidth: 2.4 }) : ''}
         </div>
         <div class="task-content" data-action="select" data-task-id="${escapeHtml(task.id)}">
           <div class="task-title">${isEditing ? this.renderInlineEdit(task) : this.highlightSearch(task.title)}</div>
           <div class="task-meta">
             ${task.priority < 4 ? `<div class="task-priority-badge" style="color:${priorityColor};border-color:${priorityColor}">${PRIORITY_LABELS[task.priority]}</div>` : ''}
-            ${task.important ? '<div>★</div>' : ''}
-            ${task.dueDate ? `<div class="task-due-date ${dueDateClass}">📅 ${escapeHtml(dueDateLabel)}</div>` : ''}
-            ${task.subtasks.length > 0 ? `<div>📝 ${task.subtasks.filter(s => s.completed).length}/${task.subtasks.length}</div>` : ''}
+            ${task.dueDate ? `<div class="task-meta-item task-due-date ${dueDateClass}">${icon('flag', { size: 13 })}<span>${escapeHtml(dueDateLabel)}</span></div>` : ''}
+            ${task.subtasks.length > 0 ? `<div class="task-meta-item">${icon('list', { size: 13 })}<span>${doneSteps}/${task.subtasks.length}</span></div>` : ''}
+            ${task.note ? `<div class="task-meta-item">${icon('note', { size: 13 })}</div>` : ''}
             ${tags.length ? `<div class="task-tags">${tags.map(t => `<span class="task-tag" style="background:${escapeHtml(t.color)}22;color:${escapeHtml(t.color)};border-color:${escapeHtml(t.color)}55">#${escapeHtml(t.name)}</span>`).join('')}</div>` : ''}
           </div>
         </div>
         <div class="task-actions">
-          <button class="btn-task-action ${task.important ? 'active' : ''}" data-action="toggle-important" data-task-id="${escapeHtml(task.id)}" title="重要">
-            ${task.important ? '★' : '☆'}
+          <button class="btn-task-action ${task.inMyDay ? 'active is-myday' : ''}" data-action="toggle-myday-inline" data-task-id="${escapeHtml(task.id)}" title="我的一天">
+            ${icon('sun', { size: 16 })}
+          </button>
+          <button class="btn-task-action ${task.important ? 'active is-star' : ''}" data-action="toggle-important" data-task-id="${escapeHtml(task.id)}" title="重要">
+            ${icon('star', { size: 16, filled: task.important })}
           </button>
         </div>
       </div>
@@ -662,6 +676,10 @@ export class TaskList {
         this.toggleImportant(taskId);
         return;
       }
+      if (action === 'toggle-myday-inline') {
+        this.toggleMyDayTask(taskId);
+        return;
+      }
       if (action === 'add-suggestion') {
         this.addSuggestionToMyDay(taskId);
         return;
@@ -715,6 +733,12 @@ export class TaskList {
 
   toggleImportant(taskId) {
     store.toggleImportant(taskId);
+    this.render();
+    eventBus.emit('task:update', taskId);
+  }
+
+  toggleMyDayTask(taskId) {
+    store.toggleMyDay(taskId);
     this.render();
     eventBus.emit('task:update', taskId);
   }
@@ -780,11 +804,11 @@ export class TaskList {
     menu.style.top = `${Math.max(0, Math.min(y, window.innerHeight - 360))}px`;
 
     const items = [
-      { icon: '✏️', label: task.completed ? '取消完成' : '完成任务', action: 'complete' },
-      { icon: task.important ? '⭐' : '☆', label: task.important ? '取消重要' : '标记重要', action: 'important' },
-      { icon: '☀', label: task.inMyDay ? '从我的日移除' : '添加到我的日', action: 'myday' },
+      { icon: task.completed ? 'check' : 'check', label: task.completed ? '取消完成' : '完成任务', action: 'complete' },
+      { icon: 'star', label: task.important ? '取消重要' : '标记重要', action: 'important' },
+      { icon: 'sun', label: task.inMyDay ? '从我的日移除' : '添加到我的日', action: 'myday' },
       {
-        icon: '⚑', label: '设置优先级', submenu: [1, 2, 3, 4].map(p => ({
+        icon: 'flag', label: '设置优先级', submenu: [1, 2, 3, 4].map(p => ({
           label: `${PRIORITY_LABELS[p]}  ${PRIORITY_NAMES[p]}`,
           action: 'set-priority',
           value: p,
@@ -793,7 +817,7 @@ export class TaskList {
         }))
       },
       {
-        icon: '🏷', label: '添加标签', empty: '暂无标签',
+        icon: 'tag', label: '添加标签', empty: '暂无标签',
         submenu: store.getTags().map(t => ({
           label: `#${t.name}`,
           action: 'toggle-tag',
@@ -801,17 +825,17 @@ export class TaskList {
           checked: (task.tags || []).includes(t.id),
         }))
       },
-      { icon: '✏️', label: '编辑标题', action: 'rename' },
+      { icon: 'edit', label: '编辑标题', action: 'rename' },
       {
-        icon: '📋', label: '移动到...', submenu: store.getLists().map(l => ({
+        icon: 'move', label: '移动到...', submenu: store.getLists().map(l => ({
           label: l.name,
           action: 'move-to',
           value: l.id,
           checked: task.listId === l.id,
         }))
       },
-      { icon: '📝', label: '复制任务', action: 'duplicate' },
-      { icon: '🗑', label: '删除', action: 'delete', danger: true },
+      { icon: 'copy', label: '复制任务', action: 'duplicate' },
+      { icon: 'trash', label: '删除', action: 'delete', danger: true },
     ];
 
     items.forEach(item => {
@@ -819,10 +843,10 @@ export class TaskList {
       el.className = 'context-menu-item';
       if (item.danger) el.classList.add('danger');
 
-      const icon = document.createElement('span');
-      icon.className = 'context-menu-icon';
-      icon.textContent = item.icon;
-      el.appendChild(icon);
+      const iconEl = document.createElement('span');
+      iconEl.className = 'context-menu-icon';
+      iconEl.innerHTML = icon(item.icon, { size: 15 });
+      el.appendChild(iconEl);
       el.appendChild(document.createTextNode(item.label));
 
       if (item.submenu) {
@@ -840,8 +864,8 @@ export class TaskList {
           li.className = 'context-menu-item';
           const mark = document.createElement('span');
           mark.className = 'context-menu-icon';
-          if (subItem.color) mark.style.color = subItem.color;
-          mark.textContent = subItem.checked ? '✓' : (subItem.color ? '•' : '');
+          if (subItem.checked) mark.innerHTML = icon('check', { size: 15, strokeWidth: 2.4 });
+          else if (subItem.color) mark.innerHTML = `<span class="context-menu-dot" style="background:${subItem.color}"></span>`;
           li.appendChild(mark);
           li.appendChild(document.createTextNode(subItem.label));
           li.addEventListener('click', (e) => {

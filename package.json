@@ -1,6 +1,6 @@
 {
   "name": "bamboo-todo",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "离线待办事项桌面应用",
   "main": "main.js",
   "scripts": {

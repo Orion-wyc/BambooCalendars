@@ -26,8 +26,9 @@ export const THEME_PRESETS = [
     darkSurfaces: true,
     darkVariant: 'dark',
     colors: {
-      primary: '#479ef5',
-      accent: '#115ea3',
+      primary: '#7FA37A',
+      accent: '#4F7048',
+      accentDark: '#3E5A38',
       secondary: '#adadad',
       sidebarBg: '#202020',
       sidebarText: '#ffffff',
@@ -38,8 +39,20 @@ export const THEME_PRESETS = [
       sidebarSearchHover: 'rgba(255, 255, 255, 0.14)',
       sidebarPlaceholder: 'rgba(255, 255, 255, 0.5)',
       sidebarIconHover: 'rgba(255, 255, 255, 0.12)',
-      headerBg: '#272727',
-      headerText: '#ffffff'
+      headerBg: '#202020',
+      headerText: '#ffffff',
+      surfaces: {
+        bgMain: '#1b1d17',
+        bgPanel: '#24271e',
+        bgHover: '#2e3227',
+        bgActive: '#363b2e',
+        border: '#454b3a',
+        borderLight: '#2f3326',
+        borderSoft: 'rgba(255, 255, 255, 0.08)',
+        textPrimary: '#ecefe4',
+        textSecondary: '#c6cbba',
+        textMuted: '#929881',
+      }
     }
   },
   {

@@ -12,8 +12,9 @@ function readThemeColors() {
   try {
     if (typeof getComputedStyle !== 'function') return null;
     const cs = getComputedStyle(document.documentElement);
-    const bg = cs.getPropertyValue('--bg-panel').trim();
-    const fg = cs.getPropertyValue('--text-primary').trim();
+    // 标题栏底色 = 侧栏底色，文字 = 侧栏文字色，保持与 unibody 一致
+    const bg = cs.getPropertyValue('--sidebar-bg').trim() || cs.getPropertyValue('--bg-panel').trim();
+    const fg = cs.getPropertyValue('--sidebar-text').trim() || cs.getPropertyValue('--text-primary').trim();
     if (!bg || !fg) return null;
     return { color: bg, symbolColor: fg };
   } catch {

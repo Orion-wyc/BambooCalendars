@@ -4,6 +4,13 @@ import { syncTitlebarOverlay } from './TitleBar.js';
 const NIGHT_START_HOUR = 19;
 const NIGHT_END_HOUR = 7;
 
+// 主题可覆盖的中性面变量（不含 --sidebar-bg / status-btn 等被测试钉死的令牌）
+const SURFACE_KEYS = [
+  '--bg-main', '--bg-panel', '--bg-hover', '--bg-active',
+  '--border', '--border-light', '--border-soft',
+  '--text-primary', '--text-secondary', '--text-muted',
+];
+
 export class Theme {
   constructor() {
     this.currentTheme = 'light';
@@ -75,6 +82,12 @@ export class Theme {
     root.style.setProperty('--header-bg', c.headerBg || `linear-gradient(135deg, ${primary}, ${accent})`);
     root.style.setProperty('--header-text', c.headerText || '#ffffff');
     root.style.setProperty('--accent-bg', this.hexToRgba(accent, 0.08));
+    root.style.setProperty('--accent-soft', this.hexToRgba(accent, 0.18));
+    const surfaces = c.surfaces || {};
+    SURFACE_KEYS.forEach(key => {
+      const value = surfaces[key.slice(2)] || surfaces[key];
+      put(key, value);
+    });
     root.classList.toggle('dark-mode', t.darkSurfaces === true);
     syncTitlebarOverlay();
   }

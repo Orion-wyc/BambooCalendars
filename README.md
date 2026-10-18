@@ -108,6 +108,8 @@ git push github v1.0.0
 
 也可以在 Actions 页面用 `workflow_dispatch` 手动触发构建（只产出 artifact，不建 Release）。
 
+Release 说明取自 `docs/release-notes/<tag>.md`，缺失时回落到提交记录链接。
+
 ## 自定义主题
 
 编辑 `src/themes/presets.js` 添加或调整主题（配色参考 Fluent 2 color tokens：`https://fluent2.microsoft.design/color-tokens2/`，Windows 11 浅色主题可参考系统设置 > 个性化 > 颜色的强调色与浅色表面）：

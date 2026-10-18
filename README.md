@@ -99,6 +99,15 @@ npm run build:linux
 
 打包后的安装包位于 `dist/` 目录。
 
+推送 `v*` 形式的 tag 会触发 GitHub Actions（`.github/workflows/build.yml`）自动构建 Windows 安装包并创建对应 Release：
+
+```bash
+git tag v1.0.0
+git push github v1.0.0
+```
+
+也可以在 Actions 页面用 `workflow_dispatch` 手动触发构建（只产出 artifact，不建 Release）。
+
 ## 自定义主题
 
 编辑 `src/themes/presets.js` 添加或调整主题（配色参考 Fluent 2 color tokens：`https://fluent2.microsoft.design/color-tokens2/`，Windows 11 浅色主题可参考系统设置 > 个性化 > 颜色的强调色与浅色表面）：

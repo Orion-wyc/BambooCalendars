@@ -5,11 +5,23 @@ const NIGHT_START_HOUR = 19;
 const NIGHT_END_HOUR = 7;
 
 // 主题可覆盖的中性面变量（不含 --sidebar-bg / status-btn 等被测试钉死的令牌）
-const SURFACE_KEYS = [
+export const SURFACE_KEYS = [
   '--bg-main', '--bg-panel', '--bg-hover', '--bg-active',
   '--border', '--border-light', '--border-soft',
   '--text-primary', '--text-secondary', '--text-muted',
 ];
+
+// surfaces 既可用 camelCase（bgMain）也可用 kebab（bg-main / --bg-main）声明
+function resolveSurface(surfaces, key) {
+  if (!surfaces) return undefined;
+  const camel = key.replace(/^--/, '').replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+  const kebab = key.replace(/^--/, '');
+  const value = surfaces[camel];
+  if (value !== undefined && value !== null) return value;
+  const alt = surfaces[kebab];
+  if (alt !== undefined && alt !== null) return alt;
+  return surfaces[key];
+}
 
 export class Theme {
   constructor() {
@@ -85,8 +97,7 @@ export class Theme {
     root.style.setProperty('--accent-soft', this.hexToRgba(accent, 0.18));
     const surfaces = c.surfaces || {};
     SURFACE_KEYS.forEach(key => {
-      const value = surfaces[key.slice(2)] || surfaces[key];
-      put(key, value);
+      put(key, resolveSurface(surfaces, key));
     });
     root.classList.toggle('dark-mode', t.darkSurfaces === true);
     syncTitlebarOverlay();

@@ -389,7 +389,6 @@ export class TaskList {
           <div class="task-list">
             ${suggestions.map(task => `
               <div class="task-item suggestion-item" data-task-id="${escapeHtml(task.id)}">
-                <div class="task-priority-bar" style="background:${PRIORITY_COLORS[task.priority] || '#7d857c'}"></div>
                 <div class="task-suggestion-add" data-action="add-suggestion" data-task-id="${escapeHtml(task.id)}" title="添加到我的一天">${icon('plus', { size: 14 })}</div>
                 <div class="task-content" data-action="select" data-task-id="${escapeHtml(task.id)}">
                   <div class="task-title">${this.highlightSearch(task.title)}</div>
@@ -795,7 +794,7 @@ export class TaskList {
     menu.style.top = `${Math.max(0, Math.min(y, window.innerHeight - 360))}px`;
 
     const items = [
-      { icon: task.completed ? 'check' : 'check', label: task.completed ? '取消完成' : '完成任务', action: 'complete' },
+      { icon: 'check', label: task.completed ? '取消完成' : '完成任务', action: 'complete' },
       { icon: 'star', label: task.important ? '取消重要' : '标记重要', action: 'important' },
       { icon: 'sun', label: task.inMyDay ? '从我的日移除' : '添加到我的日', action: 'myday' },
       {

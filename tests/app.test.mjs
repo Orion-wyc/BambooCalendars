@@ -218,6 +218,56 @@ test('BUG-30 数据变更会落盘', async () => {
   assert.ok(mock.writes.at(-1).tasks.some(t => t.title === '落盘测试'));
 });
 
+test('主题 surfaces 覆盖中性面变量并回落（camelCase/kebab 均可）', async () => {
+  const { theme, SURFACE_KEYS } = await import('../src/js/Theme.js');
+  const recorded = {};
+  const realStyle = document.documentElement.style;
+  document.documentElement.style = {
+    setProperty: (k, v) => { recorded[k] = String(v); },
+    removeProperty: (k) => { delete recorded[k]; },
+  };
+  try {
+    theme.userThemes = [{
+      id: 'probe', name: 'Probe', darkSurfaces: true,
+      colors: {
+        primary: '#101010', accent: '#202020', secondary: '#303030', sidebarBg: '#000000',
+        surfaces: {
+          bgMain: '#123456', bgPanel: '#654321', bgHover: '#111111', bgActive: '#222222',
+          border: '#333333', borderLight: '#444444', borderSoft: 'rgba(1,2,3,0.4)',
+          textPrimary: '#abcabc', textSecondary: '#bcbcbc', textMuted: '#cdcdcd',
+        },
+      },
+    }];
+    theme.apply('probe');
+    SURFACE_KEYS.forEach(key => {
+      assert.ok(Object.prototype.hasOwnProperty.call(recorded, key), `surfaces 应设置 ${key}`);
+      assert.notEqual(recorded[key], '', `surfaces ${key} 不应为空`);
+    });
+    assert.equal(recorded['--bg-main'], '#123456');
+    assert.equal(recorded['--text-primary'], '#abcabc');
+    assert.equal(recorded['--border-soft'], 'rgba(1,2,3,0.4)');
+
+    // kebab 写法同样解析
+    theme.userThemes = [{
+      id: 'probe2', name: 'Probe2', colors: {
+        primary: '#000000', accent: '#000000', secondary: '#000000', sidebarBg: '#000000',
+        surfaces: { 'bg-main': '#abcdef' },
+      },
+    }];
+    theme.apply('probe2');
+    assert.equal(recorded['--bg-main'], '#abcdef');
+
+    // 切换到无 surfaces 主题：中性面应被移除（回落 :root/类），不得残留
+    theme.userThemes = [];
+    theme.apply('light');
+    SURFACE_KEYS.forEach(key => {
+      assert.ok(!Object.prototype.hasOwnProperty.call(recorded, key), `切到无 surfaces 主题后 ${key} 应被清除`);
+    });
+  } finally {
+    document.documentElement.style = realStyle;
+  }
+});
+
 test('运行期间无未处理异常或被吞掉的 Promise 拒绝', async () => {
   await new Promise(r => setTimeout(r, 30));
   assert.deepEqual(runtimeErrors, []);

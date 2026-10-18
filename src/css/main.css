@@ -798,6 +798,24 @@ html.dark-mode ::-webkit-scrollbar-thumb:hover {
   font-weight: 400;
 }
 
+/* 已完成分区：标题更弱、列表整体降饱和，弱化历史项 */
+.completed-section .task-section-title {
+  color: var(--text-muted);
+}
+
+.completed-section .task-list {
+  opacity: 0.92;
+}
+
+/* 建议分区：头部用强调色，呼应左侧强调边 */
+.suggestion-section .task-section-title {
+  color: var(--accent);
+}
+
+.suggestion-section .task-section-icon {
+  color: var(--accent);
+}
+
 .task-list {
   display: flex;
   flex-direction: column;
@@ -1252,21 +1270,6 @@ html.dark-mode ::-webkit-scrollbar-thumb:hover {
 .detail-select:focus {
   border-color: var(--accent);
   box-shadow: var(--shadow-focus);
-}
-
-.detail-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 12px;
-  background: var(--bg-main);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: background var(--transition-fast);
-}
-
-.detail-toggle:hover {
-  background: var(--bg-hover);
 }
 
 .toggle-switch {
@@ -2606,20 +2609,6 @@ mark {
   color: var(--success);
 }
 
-.pomodoro-progress {
-  height: 4px;
-  background: var(--border);
-  border-radius: 999px;
-  overflow: hidden;
-  margin-bottom: 16px;
-}
-
-.pomodoro-progress-bar {
-  height: 100%;
-  background: var(--accent);
-  transition: width var(--transition-normal);
-}
-
 .pomodoro-actions {
   display: flex;
   gap: 8px;
@@ -2721,8 +2710,7 @@ html.dark-mode {
   color-scheme: dark;
 }
 
-html.dark-mode .task-input-wrapper,
-html.dark-mode .detail-toggle {
+html.dark-mode .task-input-wrapper {
   background: var(--bg-panel);
 }
 

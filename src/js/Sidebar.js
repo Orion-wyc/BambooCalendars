@@ -7,9 +7,9 @@ import { icon } from './icons.js';
 const NAV_ITEMS = [
   { view: 'my-day', icon: 'sun', label: '我的一天', countKey: 'myDay' },
   { view: 'important', icon: 'star', label: '重要', countKey: 'important' },
-  { view: 'next7', icon: 'calendarDays', label: '最近 7 天' },
+  { view: 'next7', icon: 'calendarCheck', label: '最近 7 天' },
   { view: 'tasks', icon: 'checkSquare', label: '任务', countKey: 'tasks' },
-  { view: 'calendar', icon: 'calendar', label: '日历' },
+  { view: 'calendar', icon: 'calendarGrid', label: '日历' },
 ];
 
 export class Sidebar {

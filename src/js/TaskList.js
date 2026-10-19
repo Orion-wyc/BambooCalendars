@@ -9,8 +9,8 @@ import { icon } from './icons.js';
 import { PRIORITY_COLORS, PRIORITY_LABELS, PRIORITY_NAMES, PRIORITY_FALLBACK } from './priority.js';
 import { renderTaskItem as renderTaskItemHtml, highlightSearch as highlightText } from './taskItem.js';
 
-// 日历单日格内最多展示的彩色圆点数，超出以 +N 汇总
-const CAL_MAX_DOTS = 5;
+// 日历单日格内最多展示的彩色圆点数（两行 × 每行 5），超出不再显示圆点
+const CAL_MAX_DOTS = 10;
 
 export class TaskList {
   constructor() {
@@ -94,8 +94,8 @@ export class TaskList {
 
     if (this.currentView === 'my-day') { iconName = 'sun'; title = '我的一天'; }
     else if (this.currentView === 'important') { iconName = 'star'; title = '重要'; }
-    else if (this.currentView === 'next7') { iconName = 'calendarDays'; title = '最近 7 天'; }
-    else if (this.currentView === 'calendar') { iconName = 'calendar'; title = '日历'; }
+    else if (this.currentView === 'next7') { iconName = 'calendarCheck'; title = '最近 7 天'; }
+    else if (this.currentView === 'calendar') { iconName = 'calendarGrid'; title = '日历'; }
     else if (this.currentView === 'list' && this.currentListId) {
       const list = store.getList(this.currentListId);
       iconName = 'clipboard';
@@ -266,17 +266,24 @@ export class TaskList {
       const dayTasks = tasks.filter(t => t.dueDate === dateStr);
       const isToday = cellDate.getTime() === today.getTime();
       const isSelected = this.calendarSelectedDate === dateStr;
-      const shown = dayTasks.slice(0, CAL_MAX_DOTS);
-      const hidden = dayTasks.length - shown.length;
+      const pending = dayTasks.filter(t => !t.completed);
+      const done = dayTasks.filter(t => t.completed);
+      // 未完成在前、已完成在尾；最多两行（每行 5，共 10）；超出 10 不显示圆点
+      const shown = pending.concat(done).slice(0, CAL_MAX_DOTS);
       cells += `
         <div class="cal-cell ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''} ${dayTasks.length ? 'has-tasks' : ''}"
-             data-date="${dateStr}" tabindex="0" role="button" aria-label="${escapeHtml(formatDayLabel(dateStr))}${dayTasks.length ? `，${dayTasks.length} 个任务` : ''}">
+             data-date="${dateStr}" tabindex="0" role="button" aria-label="${escapeHtml(formatDayLabel(dateStr))}${dayTasks.length ? `，${pending.length} 项待办 / 共 ${dayTasks.length} 个任务` : ''}">
           <div class="cal-day-num">${d}</div>
           ${dayTasks.length ? `
           <div class="cal-dots" aria-hidden="true">
-            ${shown.map(t => `<span class="cal-dot" data-task-id="${escapeHtml(t.id)}" style="background:${PRIORITY_COLORS[t.priority] || PRIORITY_FALLBACK}"></span>`).join('')}
-            ${hidden > 0 ? `<span class="cal-more">+${hidden}</span>` : ''}
-          </div>` : ''}
+            ${shown.map(t => {
+              const c = PRIORITY_COLORS[t.priority] || PRIORITY_FALLBACK;
+              return t.completed
+                ? `<span class="cal-dot is-done" data-task-id="${escapeHtml(t.id)}" style="color:${c}"></span>`
+                : `<span class="cal-dot" data-task-id="${escapeHtml(t.id)}" style="background:${c}"></span>`;
+            }).join('')}
+          </div>
+          <div class="cal-count" aria-hidden="true">${pending.length}<span class="cal-count-sep">|</span>${dayTasks.length}</div>` : ''}
         </div>
       `;
     }
@@ -411,7 +418,7 @@ export class TaskList {
     const map = {
       'my-day': ['cloudSun', '我的一天是空的', '添加任务或从建议中选择'],
       'important': ['star', '暂无重要任务', '点击任务旁的星标标记重要'],
-      'next7': ['calendarDays', '未来 7 天没有任务', '为任务设置截止日期'],
+      'next7': ['calendarCheck', '未来 7 天没有任务', '为任务设置截止日期'],
       'tasks': ['inbox', '暂无任务', '在上方输入框添加新任务'],
       'list': ['clipboard', '此清单暂无任务', '在上方输入框添加新任务'],
       'search': ['search', '未找到匹配任务', '换个关键词或清除筛选条件试试']

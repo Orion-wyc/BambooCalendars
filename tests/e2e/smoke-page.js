@@ -525,37 +525,46 @@
     click($('#sidebar-nav [data-view="tasks"]'));
     await sleep(60);
 
-    // ---- 日历窗格：紧凑固定高度 + 超过上限显示圆点上限与 +N ----
-    const CAL_MAX_DOTS = 5;
+    // ---- 日历窗格：两行 5 列圆点上限 + 尾部空心 + 固定「x|y」计数 ----
     const todayKey = U.toDateKey(U.startOfToday());
-    const createdPaneIds = [];
-    for (let i = 0; i < 7; i++) createdPaneIds.push(store.createTask({ title: `窗格任务${i}`, dueDate: todayKey }).id);
-    const existingToday = store.data.tasks.filter(t => t.dueDate === todayKey && !createdPaneIds.includes(t.id)).length;
     click($('#sidebar-nav [data-view="calendar"]'));
     await sleep(150);
-    const paneCell = $('.cal-cell.today');
-    const paneRect = paneCell.getBoundingClientRect();
-    ok('日历窗格紧凑固定高度 64px', Math.round(paneRect.height) === 64, paneRect.height);
-    ok('窗格内容不溢出固定高度', paneCell.scrollHeight <= paneCell.clientHeight + 1,
-      `${paneCell.scrollHeight}/${paneCell.clientHeight}`);
-    const paneDots = paneCell.querySelectorAll('.cal-dot').length;
-    const paneMore = paneCell.querySelector('.cal-more');
-    const totalToday = existingToday + 7;
-    ok(`超过 ${CAL_MAX_DOTS} 个只显示 ${CAL_MAX_DOTS} 个圆点`, paneDots === CAL_MAX_DOTS, `dots=${paneDots} total=${totalToday}`);
-    ok('圆点上限后显示 +N 汇总', Boolean(paneMore) && paneMore.textContent.includes(`+${totalToday - CAL_MAX_DOTS}`),
-      paneMore && paneMore.textContent);
-    createdPaneIds.forEach(id => store.deleteTask(id));
+    const paneRect = $('.cal-cell.today').getBoundingClientRect();
+    ok('日历窗格固定高度 76px', Math.round(paneRect.height) === 76, paneRect.height);
+
+    const calMonthStart = app.taskList.calendarMonth;
+    const capDate = U.toDateKey(new Date(calMonthStart.getFullYear(), calMonthStart.getMonth(), 24));
+    const capIds = [];
+    for (let i = 0; i < 8; i++) capIds.push(store.createTask({ title: `待办${i}`, dueDate: capDate, priority: 1 }).id);
+    for (let i = 0; i < 4; i++) { const t = store.createTask({ title: `完成${i}`, dueDate: capDate, priority: 2 }); store.toggleComplete(t.id); capIds.push(t.id); }
+    app.taskList.render();
+    await sleep(120);
+    const capCell = $(`.cal-cell[data-date="${capDate}"]`);
+    const capDots = [...capCell.querySelectorAll('.cal-dot')];
+    ok('圆点封顶两行共 10 个', capDots.length === 10, `dots=${capDots.length}`);
+    ok('前 8 为未完成实心、尾部为已完成空心',
+      capDots.slice(0, 8).every(d => !d.classList.contains('is-done'))
+      && capDots.slice(8).every(d => d.classList.contains('is-done')));
+    ok('不再出现「+N」更多标记', !capCell.querySelector('.cal-more'));
+    ok('第三行固定显示 开启数|总数', capCell.querySelector('.cal-count').textContent.replace(/\s/g, '') === '8|12',
+      capCell.querySelector('.cal-count').textContent);
+    ok('窗格内容不溢出固定高度', capCell.scrollHeight <= capCell.clientHeight + 1,
+      `${capCell.scrollHeight}/${capCell.clientHeight}`);
+    capIds.forEach(id => store.deleteTask(id));
     app.taskList.render();
     await sleep(80);
-    const monthStart = app.taskList.calendarMonth;
-    const quietDate = U.toDateKey(new Date(monthStart.getFullYear(), monthStart.getMonth(), 3));
+
+    const quietDate = U.toDateKey(new Date(calMonthStart.getFullYear(), calMonthStart.getMonth(), 3));
     const quietIds = [];
     for (let i = 0; i < 4; i++) quietIds.push(store.createTask({ title: `窗格恰好${i}`, dueDate: quietDate }).id);
     app.taskList.render();
     await sleep(120);
     const quietCell = $(`.cal-cell[data-date="${quietDate}"]`);
-    ok('恰好 4 个时全部以圆点显示且无 +N', Boolean(quietCell)
-      && quietCell.querySelectorAll('.cal-dot').length === 4 && !quietCell.querySelector('.cal-more'));
+    ok('恰好 4 个时全部以实心圆点显示', Boolean(quietCell)
+      && quietCell.querySelectorAll('.cal-dot').length === 4
+      && !quietCell.querySelector('.cal-dot.is-done'));
+    ok('恰好 4 个计数为 4|4', quietCell.querySelector('.cal-count').textContent.replace(/\s/g, '') === '4|4',
+      quietCell.querySelector('.cal-count').textContent);
     ok('恰好4个内容不溢出', Boolean(quietCell) && quietCell.scrollHeight <= quietCell.clientHeight + 1,
       quietCell && `${quietCell.scrollHeight}/${quietCell.clientHeight}`);
     quietIds.forEach(id => store.deleteTask(id));

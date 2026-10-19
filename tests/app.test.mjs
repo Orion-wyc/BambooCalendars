@@ -6,7 +6,7 @@ mock.stored = {
   lists: [{ id: 'tasks', name: '任务', order: 0 }],
   tasks: [],
   tags: [],
-  settings: { compactMode: true, theme: 'dark' },
+  settings: { compactMode: true, theme: 'passion-dark' },
 };
 
 const { store } = await import('../src/js/Store.js');
@@ -35,7 +35,7 @@ test('BUG-10 启动时恢复紧凑模式', () => {
 });
 
 test('启动时应用深色主题', () => {
-  assert.equal(store.getSettings().theme, 'dark');
+  assert.equal(store.getSettings().theme, 'passion-dark');
   assert.equal(document.documentElement.classList.contains('dark-mode'), true);
 });
 
@@ -140,6 +140,52 @@ test('BUG-22 已完成任务与未来提醒不通知', () => {
   assert.equal(mock.notifications.length, 0);
 });
 
+test('到期通知：到期当天触发一次、逾期静默、未来不标记', async () => {
+  const { notificationService } = await import('../src/js/NotificationService.js');
+  mock.notifications.length = 0;
+  const now = new Date(); now.setHours(12, 0, 0, 0); // 已过 09:00 触发时刻
+  const nowMs = now.getTime();
+  const todayKey = U.toDateKey(now);
+
+  const due = store.createTask({ title: '到期任务', dueDate: todayKey });
+  const overdue = store.createTask({ title: '逾期任务', dueDate: U.toDateKey(U.addDays(now, -3)) });
+  const future = store.createTask({ title: '未来任务', dueDate: U.toDateKey(U.addDays(now, 5)) });
+
+  notificationService.checkDueDates(nowMs);
+  assert.equal(mock.notifications.filter(n => n.includes('到期任务')).length, 1, '到期当天应通知一次');
+  assert.equal(mock.notifications.filter(n => n.includes('逾期任务')).length, 0, '逾期不应刷屏');
+  assert.equal(overdue.dueNotified, true, '逾期静默标记');
+  assert.equal(future.dueNotified, false, '未来日期不标记也不通知');
+  assert.equal(due.dueNotified, true);
+
+  notificationService.checkDueDates(nowMs);
+  assert.equal(mock.notifications.filter(n => n.includes('到期任务')).length, 1, '只通知一次');
+});
+
+test('到期通知开关关闭时不发送但仍标记', async () => {
+  const { notificationService } = await import('../src/js/NotificationService.js');
+  mock.notifications.length = 0;
+  const now = new Date(); now.setHours(12, 0, 0, 0);
+  store.updateSettings({ notifyDue: false });
+  const due = store.createTask({ title: '关闭到期', dueDate: U.toDateKey(now) });
+  notificationService.checkDueDates(now.getTime());
+  assert.equal(mock.notifications.filter(n => n.includes('关闭到期')).length, 0);
+  assert.equal(due.dueNotified, true);
+  store.updateSettings({ notifyDue: true });
+});
+
+test('提醒通知开关关闭时不发送', async () => {
+  const { notificationService } = await import('../src/js/NotificationService.js');
+  mock.notifications.length = 0;
+  store.updateSettings({ notifyReminder: false });
+  const soon = store.createTask({ title: '静音提醒' });
+  store.updateTask(soon.id, { reminder: U.toDateTimeLocalValue(new Date(Date.now() + 30000)) });
+  notificationService.checkReminders();
+  assert.equal(mock.notifications.filter(n => n.includes('静音提醒')).length, 0);
+  assert.equal(soon.reminderNotified, true);
+  store.updateSettings({ notifyReminder: true });
+});
+
 test('菜单动作分发：紧凑模式 / 置顶 / 主题切换', () => {
   mock.appliedSettings.length = 0;
   const before = store.getSettings().compactMode;
@@ -150,41 +196,36 @@ test('菜单动作分发：紧凑模式 / 置顶 / 主题切换', () => {
   app.handleAction('always-on-top', true);
   assert.equal(store.getSettings().alwaysOnTop, true);
 
-  app.handleAction('select-theme', 'light');
-  assert.equal(store.getSettings().theme, 'light');
+  app.handleAction('select-theme', 'passion');
+  assert.equal(store.getSettings().theme, 'passion');
   assert.equal(document.documentElement.classList.contains('dark-mode'), false);
-  app.handleAction('select-theme', 'dark');
-  assert.equal(store.getSettings().theme, 'dark');
+  app.handleAction('select-theme', 'passion-dark');
+  assert.equal(store.getSettings().theme, 'passion-dark');
   assert.equal(document.documentElement.classList.contains('dark-mode'), true);
 });
 
 test('BUG-23 自动夜间模式不覆盖用户手选主题', async () => {
   const { theme } = await import('../src/js/Theme.js');
   const night = theme.isNightTime();
-  theme.setUserTheme('dark');
+  theme.setUserTheme('passion-dark');
   theme.setAutoNight(true);
-  assert.equal(theme.userTheme, 'dark');
-  assert.equal(theme.currentTheme, 'dark');
+  assert.equal(theme.userTheme, 'passion-dark');
+  assert.equal(theme.currentTheme, 'passion-dark');
   theme.refreshAutoNight(true);
-  assert.equal(theme.currentTheme, 'dark');
-
-  theme.setUserTheme('light');
-  assert.equal(theme.userTheme, 'light');
-  assert.equal(theme.currentTheme, night ? 'dark' : 'light',
-    '夜间开启自动夜间时手动选浅色，呈现应保持深色');
-  theme.refreshAutoNight();
-  assert.equal(theme.currentTheme, night ? 'dark' : 'light',
-    '定时器非 force 路径不得把夜间手动选择误恢复为浅色');
+  assert.equal(theme.currentTheme, 'passion-dark');
 
   theme.setUserTheme('passion');
   assert.equal(theme.userTheme, 'passion');
   assert.equal(theme.currentTheme, night ? 'passion-dark' : 'passion',
-    '自动夜间下 Passion 应切至自身深色变体而非通用深色');
+    '夜间开启自动夜间时手动选 Passion 浅色，呈现应保持深色变体');
+  theme.refreshAutoNight();
+  assert.equal(theme.currentTheme, night ? 'passion-dark' : 'passion',
+    '定时器非 force 路径不得把夜间手动选择误恢复为浅色');
   assert.equal(document.documentElement.classList.contains('dark-mode'), night);
-  theme.setUserTheme('light');
+  theme.setUserTheme('passion');
   theme.refreshAutoNight();
   theme.setAutoNight(false);
-  assert.equal(theme.currentTheme, 'light', '关闭自动夜间后恢复用户主题');
+  assert.equal(theme.currentTheme, 'passion', '关闭自动夜间后恢复用户主题');
 });
 
 test('BUG-33 add-my-day 只作用于选中任务', () => {
@@ -259,7 +300,7 @@ test('主题 surfaces 覆盖中性面变量并回落（camelCase/kebab 均可）
 
     // 切换到无 surfaces 主题：中性面应被移除（回落 :root/类），不得残留
     theme.userThemes = [];
-    theme.apply('light');
+    theme.apply('passion');
     SURFACE_KEYS.forEach(key => {
       assert.ok(!Object.prototype.hasOwnProperty.call(recorded, key), `切到无 surfaces 主题后 ${key} 应被清除`);
     });

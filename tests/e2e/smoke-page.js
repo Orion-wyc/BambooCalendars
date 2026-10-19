@@ -578,24 +578,23 @@
     ok('日历视图单页内无纵向滚动条', calArea.scrollHeight <= calArea.clientHeight + 2,
       `${calArea.scrollHeight}/${calArea.clientHeight}`);
 
-    // ---- 主题：浅色/深色/Passion/Passion深色 切换 ----
+    // ---- 主题：仅 Passion / Passion 深色 ----
     click($('#sidebar-nav [data-view="tasks"]'));
     await sleep(60);
     app.settings.open();
     await sleep(80);
     const rootVar = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim().toLowerCase();
-    ok('主题卡片为四个', $$('[data-action="select-theme"]').length === 4,
+    ok('主题卡片为两个', $$('[data-action="select-theme"]').length === 2,
       $$('[data-action="select-theme"]').length);
-    click($('[data-theme-id="dark"]'));
+    ok('不再提供浅色/深色入口',
+      !$('[data-theme-id="light"]') && !$('[data-theme-id="dark"]'));
+    click($('[data-theme-id="passion-dark"]'));
     await sleep(450);
-    ok('切换深色主题：类与设置同步', document.documentElement.classList.contains('dark-mode')
-      && store.getSettings().theme === 'dark');
-    ok('深色主题侧边栏配色生效',
-      getComputedStyle($('#sidebar')).backgroundColor === 'rgb(32, 32, 32)',
-      getComputedStyle($('#sidebar')).backgroundColor);
-    ok('深色主题实底状态按钮为深绿/深红', rootVar('--success-btn') === '#107c10'
-      && rootVar('--danger-btn') === '#c50f1f' && rootVar('--on-success') === '#ffffff',
-      `${rootVar('--success-btn')}/${rootVar('--danger-btn')}`);
+    ok('切换Passion深色：深色表面+Passion状态色', document.documentElement.classList.contains('dark-mode')
+      && getComputedStyle($('#sidebar')).backgroundColor === 'rgb(32, 32, 32)'
+      && rootVar('--success-btn') === '#4db6ac' && rootVar('--on-success') === '#212121'
+      && rootVar('--accent') === '#1976d2' && store.getSettings().theme === 'passion-dark',
+      `${rootVar('--success-btn')}/${rootVar('--on-success')}`);
     click($('[data-theme-id="passion"]'));
     await sleep(450);
     ok('切换Passion：退出深色类并保持浅色UI', !document.documentElement.classList.contains('dark-mode')
@@ -611,26 +610,19 @@
       && rootVar('--danger-dark') === '#d32f2f' && rootVar('--success-dark') === '#00897b');
     ok('Passion实底状态按钮跟随主题色', rootVar('--success-btn') === '#4db6ac'
       && rootVar('--danger-btn') === '#ef5350', `${rootVar('--success-btn')}/${rootVar('--danger-btn')}`);
-    click($('[data-theme-id="passion-dark"]'));
-    await sleep(450);
-    ok('切换Passion深色：深色表面+Passion状态色', document.documentElement.classList.contains('dark-mode')
-      && getComputedStyle($('#sidebar')).backgroundColor === 'rgb(32, 32, 32)'
-      && rootVar('--success-btn') === '#4db6ac' && rootVar('--on-success') === '#212121'
-      && rootVar('--accent') === '#1976d2' && store.getSettings().theme === 'passion-dark',
-      `${rootVar('--success-btn')}/${rootVar('--on-success')}`);
     app.settings.close();
     await sleep(50);
+
+    // ---- 通知设置：到期/提醒开关存在且可切换并持久化 ----
     app.settings.open();
     await sleep(80);
-    click($('[data-theme-id="light"]'));
-    await sleep(450);
-    ok('切换浅色主题：恢复浅色配色', !document.documentElement.classList.contains('dark-mode')
-      && getComputedStyle($('#sidebar')).backgroundColor === 'rgb(243, 243, 243)'
-      && store.getSettings().theme === 'light');
-    ok('Passion状态色已清除回退默认', rootVar('--accent') === '#0067c0'
-      && rootVar('--success') === '#107c10' && rootVar('--success-btn') === '#107c10'
-      && rootVar('--on-success') === '#ffffff' && rootVar('--on-accent') === '#ffffff',
-      `${rootVar('--accent')}/${rootVar('--success')}/${rootVar('--success-btn')}`);
+    const dueToggle = $('[data-action="toggle-setting"][data-setting="notifyDue"]');
+    const remToggle = $('[data-action="toggle-setting"][data-setting="notifyReminder"]');
+    ok('通知设置提供到期/提醒开关', Boolean(dueToggle) && Boolean(remToggle));
+    const dueBefore = store.getSettings().notifyDue;
+    if (dueToggle) { click(dueToggle); await sleep(80); }
+    ok('到期开关点击后持久化', store.getSettings().notifyDue === !dueBefore,
+      `${dueBefore} → ${store.getSettings().notifyDue}`);
     app.settings.close();
     await sleep(50);
 

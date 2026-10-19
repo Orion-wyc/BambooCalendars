@@ -27,7 +27,11 @@ contextBridge.exposeInMainWorld('api', {
   themes: {
     readUser: () => ipcRenderer.invoke('themes:readUser'),
   },
-  notify: (title, body) => ipcRenderer.invoke('notify', { title, body }),
+  notify: (title, body, opts) => ipcRenderer.invoke('notify', {
+    title, body,
+    silent: opts && opts.silent,
+    taskId: opts && opts.taskId,
+  }),
   window: {
     show: () => ipcRenderer.invoke('window:show'),
     getPath: (name) => ipcRenderer.invoke('app:getPath', name),

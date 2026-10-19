@@ -25,8 +25,8 @@ function resolveSurface(surfaces, key) {
 
 export class Theme {
   constructor() {
-    this.currentTheme = 'light';
-    this.userTheme = 'light';
+    this.currentTheme = 'passion';
+    this.userTheme = 'passion';
     this.autoNight = false;
     this.autoApplied = false;
     this.lastNightState = null;
@@ -106,7 +106,10 @@ export class Theme {
   _nightTarget(themeId) {
     const t = this.getTheme(themeId);
     if (t.darkVariant) return t.darkVariant;
-    return t.darkSurfaces ? t.id : 'dark';
+    if (t.darkSurfaces) return t.id;
+    // 无深色变体时，回退到第一个深色预设
+    const firstDark = this.getAllThemes().find(x => x.darkSurfaces);
+    return firstDark ? firstDark.id : t.id;
   }
 
   setUserTheme(themeId) {

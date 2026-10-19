@@ -27,7 +27,7 @@
   - 拖拽排序（自动切换为手动排序）
   - 优先级 P1-P4 与标签
 - **搜索与筛选**：全局搜索，支持按优先级、标签筛选（在所有视图生效）
-- **系统通知**：提醒时间到时推送系统通知，错过的提醒会补发一次
+- **系统通知**：任务到期或提醒到点时推送系统通知，错过的提醒补发一次；可在设置中分别开关"到期通知""提醒通知"并测试发送。跨平台适配：Windows 归属 AppUserModelId、macOS 首次请求授权、Linux 依赖桌面通知服务与应用图标
 - **离线存储**：数据保存在本地 JSON 文件，原子写入避免损坏
 - **可选更新检查**：默认启动时查询 GitHub Releases，可在设置中关闭
 
@@ -35,13 +35,11 @@
 - 有机极简（Organic Minimalist / Nordic·Morandi）设计风格：大圆角（12–16px）、柔和弥散阴影、1px 微光描边（`rgba(255,255,255,.05)`）替代硬边框、暖色中性面、统一 Feather/Lucide 线性图标（`src/js/icons.js`，`stroke=currentColor`，随主题自动取色）；字体优先 Inter / Plus Jakarta Sans / SF Pro
 - 三栏桌面布局：pill 式侧边栏导航（圆角选中态 + 主题色指示条）＋ 卡片化任务列表（宽屏居中为 ≤860px 阅读列）＋ 右侧详情 sheet（柔描边卡片 + 快捷 chip）
 - 主题令牌分层：品牌/状态色由 `Theme.js` 注入，中性面（背景/边框/文字）可由每个主题的 `colors.surfaces` 覆盖，缺省回退 `:root` / `html.dark-mode`
-- 内置四套主题（原"显示模式"已并入主题体系）：
-  - 浅色模式（暖色底 `#f7f6f2` + 白卡片）：强调蓝 `#0067c0`/`#0078d4`、浅灰侧边栏 `#f3f3f3`、深色文字
-  - 深色模式（Soft Dark Organic 旗舰）：深哑光墨绿底 `#1a1d1a` + 柔和炭黑暖面 `#272b2a`，侧边栏 `#202020`，强调色为柔鼠尾草绿 `#94b093`/`#a8c3a7`（实底鼠尾草按钮用深墨字 `#171a18` 保对比），文字暖白 `#f0f2f0` / 沙灰 `#a2aa9f`；实底状态按钮仍为深绿/深红以兼容既有约定
+- 内置两套主题（浅色/深色独立主题已并入 Passion 体系，默认 Passion）：
   - Passion（浅色 UI + Material 状态色）：进行中 `#4285F4`（实底按钮用深一档 `#1976D2` + 白字保证对比度）、处理中 `#FFCA28`、已完成 `#4DB6AC`、已取消 `#EF5350`（浅状态色上文字统一 `#212121`），hover 用更深的 `#1565C0`/`#FB8C00`/`#00897B`/`#D32F2F`
-  - Passion 深色：深色表面 + 上述 Passion 状态色，是 Passion 在自动夜间下的联动变体
-- 自动夜间模式：夜间（19:00 - 07:00）自动切换到所选主题对应的深色变体（浅色→深色模式，Passion→Passion 深色），日间恢复用户所选主题
-- 主题配置入口：`src/themes/presets.js`；旧版本的 `theme: default/win11-light` 与 `mode` 数据自动迁移
+  - Passion 深色：深色表面 + 上述 Passion 状态色，也是自动夜间的联动变体
+- 自动夜间模式：夜间（19:00 - 07:00）自动切换到所选主题对应的深色变体（Passion→Passion 深色），日间恢复用户所选主题
+- 主题配置入口：`src/themes/presets.js`；旧版本的 `theme: light/dark/default/win11-light` 与 `mode: dark/black` 数据自动迁移为 Passion / Passion 深色
 
 > v2.0 为纯界面重构（不新增功能、不改数据结构与主题 ID）；交互契约、快捷键、数据迁移与全部回归测试保持通过。
 
@@ -118,46 +116,39 @@ Release 说明取自 `docs/release-notes/<tag>.md`，缺失时回落到提交记
 
 ## 自定义主题
 
-编辑 `src/themes/presets.js` 添加或调整主题（配色参考 Fluent 2 color tokens：`https://fluent2.microsoft.design/color-tokens2/`，Windows 11 浅色主题可参考系统设置 > 个性化 > 颜色的强调色与浅色表面）：
+编辑 `src/themes/presets.js` 调整内置主题或在 `user-themes.json` 增加自定义主题。主题对象字段：
 
 ```javascript
 export const THEME_PRESETS = [
   {
-    id: 'light',
-    name: '浅色模式',
+    id: 'passion',            // 主题 id（设置/菜单据此切换，数据中持久化）
+    name: 'Passion',          // 显示名
+    darkVariant: 'passion-dark', // 自动夜间的夜间联动变体 id
+    // darkSurfaces: true,   // 深色主题：启用 html.dark-mode 深色表面
     colors: {
-      primary: '#0078d4',     // 主色（日历选中、渐变起点）
-      accent: '#0067c0',      // 强调色（按钮、高亮、选中指示条）
+      primary: '#4285F4',     // 主色（日历选中、渐变起点）
+      accent: '#1976D2',      // 强调色（按钮、高亮、选中指示条）
+      accentDark: '#1565C0',  // 强调色悬浮/实底圆形深底
       secondary: '#5c5c5c',   // 辅助色
-      // 以下可选，缺省时使用深色侧边栏回退值
-      sidebarBg: '#f3f3f3',                 // 侧边栏背景（浅色主题用浅灰）
-      sidebarText: '#1b1b1b',               // 侧边栏文字
-      sidebarHover: 'rgba(0, 0, 0, 0.06)',  // 悬浮背景
-      sidebarActive: 'rgba(0, 0, 0, 0.12)', // 选中背景
-      sidebarBorder: 'rgba(0, 0, 0, 0.08)',
-      sidebarSearchBg: 'rgba(0, 0, 0, 0.05)',
-      sidebarSearchHover: 'rgba(0, 0, 0, 0.10)',
-      sidebarPlaceholder: 'rgba(0, 0, 0, 0.45)',
-      sidebarIconHover: 'rgba(0, 0, 0, 0.10)',
-      headerBg: '#f3f3f3',    // 列表头部背景（缺省为 primary→accent 渐变）
-      headerText: '#1b1b1b',  // 列表头部文字
-      // 状态色（可选，缺省回退 Fluent 默认值；对应 进行中/已完成/处理中/已取消）
-      accentDark: '#1976D2',                  // 强调色悬浮/图标圆形深底
-      success: '#4DB6AC', successDark: '#00897B',
-      warning: '#FFCA28', warningDark: '#FB8C00',
-      danger: '#EF5350',  dangerDark: '#D32F2F',
-      onAccent: '#212121', onSuccess: '#212121',    // 实底状态色上的文字
-      onWarning: '#212121', onDanger: '#212121'
+      sidebarBg: '#f3f3f3',   // 侧边栏/标题栏背景
+      sidebarText: '#1b1b1b', // 侧边栏文字
+      // 其余 sidebar* / header* 可选，缺省使用回退值
+      // 状态色族可选：success/warning/danger 及各 *Dark，与实底按钮 successBtn/dangerBtn
+      // 文字对比：onAccent/onSuccess/onWarning/onDanger
+      // 中性面（可选）：surfaces: { bgMain, bgPanel, bgHover, bgActive, border,
+      //   borderLight, borderSoft, textPrimary, textSecondary, textMuted }
     }
   }
 ];
 ```
 
-- `id: 'dark'` 的主题会额外启用 `html.dark-mode`，套用 Fluent dark tokens（表面/文字/描边/状态色）
-- 状态色族（`success/warning/danger` 及各自 `*Dark`/`on*`）为可选内联覆盖：主题未定义时会回退到 CSS 默认值/深色模式值，切换主题不会残留；`successBtn/dangerBtn` 可单独控制实底状态按钮背景（与文字/指示用途的 `success/danger` 分离）
-- 主题对象支持 `darkSurfaces: true`（启用 `html.dark-mode` 深色表面）与 `darkVariant`（自动夜间的夜间联动变体 id，缺省回落 `dark`）
-- 主题切换入口：设置 > 主题，或菜单 视图 > 主题模式
-- "显示模式"体系及其 `Ctrl/Cmd + H/B/G`、`Ctrl/Cmd + Shift + G` 快捷键已移除，由主题切换替代
+- `darkSurfaces: true` 会启用 `html.dark-mode`，套用深色表面/文字/描边令牌；未提供 `surfaces` 时回退该类的中性色
+- `surfaces` 支持 camelCase（`bgMain`）或 kebab（`bg-main`）两种写法，逐主题覆盖中性面
+- 状态色族与 `surfaces` 均为可选内联覆盖：主题未定义时回退 CSS 默认值，切换主题不残留
+- `darkVariant` 指定自动夜间联动变体；缺省时回退到第一个 `darkSurfaces` 主题
+- 主题切换入口：设置 > 主题（含"自动夜间"），或菜单 视图 > 主题模式
+- 历史 `theme: light/dark/default/win11-light`、`mode: dark/black` 数据在加载时自动迁移为 Passion / Passion 深色；"显示模式"体系及其快捷键已移除
+
 
 ## 数据存储位置
 

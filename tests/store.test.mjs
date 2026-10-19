@@ -250,16 +250,25 @@ test('BUG-29 hideCompleted 死配置已移除', () => {
   assert.equal(s.data.settings.checkUpdateOnStartup, true);
 });
 
-test('主题合并：旧 theme/mode 数据迁移', () => {
-  assert.equal(freshStore({ settings: { theme: 'default', mode: 'dark' } }).data.settings.theme, 'dark');
-  assert.equal(freshStore({ settings: { theme: 'default', mode: 'black' } }).data.settings.theme, 'dark');
-  assert.equal(freshStore({ settings: { theme: 'win11-light', mode: 'sepia' } }).data.settings.theme, 'light');
-  assert.equal(freshStore({ settings: { theme: 'default', mode: 'normal' } }).data.settings.theme, 'light');
-  assert.equal(freshStore({ settings: { theme: 'dark' } }).data.settings.theme, 'dark');
-  assert.equal(freshStore({ settings: { theme: 'light' } }).data.settings.theme, 'light');
+test('主题合并：旧 light/dark/mode 数据迁移到 Passion 系', () => {
+  assert.equal(freshStore({ settings: { theme: 'default', mode: 'dark' } }).data.settings.theme, 'passion-dark');
+  assert.equal(freshStore({ settings: { theme: 'default', mode: 'black' } }).data.settings.theme, 'passion-dark');
+  assert.equal(freshStore({ settings: { theme: 'win11-light', mode: 'sepia' } }).data.settings.theme, 'passion');
+  assert.equal(freshStore({ settings: { theme: 'default', mode: 'normal' } }).data.settings.theme, 'passion');
+  assert.equal(freshStore({ settings: { theme: 'dark' } }).data.settings.theme, 'passion-dark');
+  assert.equal(freshStore({ settings: { theme: 'light' } }).data.settings.theme, 'passion');
   const s = freshStore(null);
-  assert.equal(s.data.settings.theme, 'light');
+  assert.equal(s.data.settings.theme, 'passion');
   assert.equal('mode' in s.data.settings, false, 'mode 键已废弃');
+});
+
+test('通知设置默认开启且可持久化', () => {
+  const s = freshStore(null);
+  assert.equal(s.data.settings.notifyReminder, true);
+  assert.equal(s.data.settings.notifyDue, true);
+  s.updateSettings({ notifyDue: false });
+  assert.equal(s.getSettings().notifyDue, false);
+  assert.equal(freshStore({ settings: { notifyReminder: false } }).data.settings.notifyReminder, false);
 });
 
 test('BUG-45 updateSettings 忽略未知键', () => {

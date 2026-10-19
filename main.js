@@ -25,6 +25,11 @@ let saveWindowStateTimer = null;
 const TITLEBAR_HEIGHT = 36;
 const overlayState = { color: '#ffffff', symbolColor: '#242424', height: TITLEBAR_HEIGHT };
 
+function appIconPath() {
+  return path.join(__dirname, 'assets', 'icons',
+    process.platform === 'win32' ? 'icon.ico' : 'icon@256.png');
+}
+
 function applyTitleBarOverlay(patch) {
   if (process.platform === 'darwin') return;
   if (!mainWindow || mainWindow.isDestroyed() || !mainWindow.setTitleBarOverlay) return;
@@ -194,8 +199,6 @@ function createMenu() {
       submenu: [
         {
           label: '主题模式', submenu: [
-            { label: '浅色模式', click: () => send('select-theme', 'light') },
-            { label: '深色模式', click: () => send('select-theme', 'dark') },
             { label: 'Passion', click: () => send('select-theme', 'passion') },
             { label: 'Passion 深色', click: () => send('select-theme', 'passion-dark') },
           ]
@@ -299,7 +302,7 @@ function toggleWindowVisibility() {
 }
 
 function createTray() {
-  const iconPath = path.join(__dirname, 'assets', 'icons', process.platform === 'win32' ? 'icon.ico' : 'icon@32.png');
+  const iconPath = appIconPath();
   try {
     tray = new Tray(iconPath);
     tray.setToolTip('Bamboo Todo');
@@ -466,9 +469,28 @@ function setupIPC() {
     const mapper = require('./src/main/mapper');
     return mapper.assembleThemes(repositories.themes.selectAll(db));
   });
-  ipcMain.handle('notify', (_, { title, body }) => {
-    if (Notification.isSupported()) new Notification({ title, body }).show();
-    return true;
+  ipcMain.handle('notify', (_, payload = {}) => {
+    const { title, body, silent, taskId } = payload;
+    if (!Notification.isSupported()) return false;
+    const options = { title: String(title || 'Bamboo Todo'), body: String(body || '') };
+    if (silent) options.silent = true;
+    // macOS 使用打包图标；Windows/Linux 需显式 icon 路径才显示应用图标
+    if (process.platform !== 'darwin') options.icon = appIconPath();
+    try {
+      const n = new Notification(options);
+      n.on('click', () => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          if (!mainWindow.isVisible()) mainWindow.show();
+          mainWindow.focus();
+        }
+        if (taskId) send('open-task', String(taskId));
+      });
+      n.show();
+      return true;
+    } catch (e) {
+      console.warn('系统通知发送失败:', e && e.message);
+      return false;
+    }
   });
   ipcMain.handle('window:show', () => {
     if (mainWindow && !mainWindow.isDestroyed()) {
@@ -503,6 +525,15 @@ function setupIPC() {
 }
 
 app.whenReady().then(() => {
+  // 跨平台系统通知身份标识
+  if (process.platform === 'win32') {
+    // Windows 归属到本应用，通知才会进入「操作中心」并可被系统设置放行
+    app.setAppUserModelId('com.bamboo.todo');
+  } else if (process.platform === 'linux') {
+    // Linux 桌面名需与 .desktop 文件名一致，否则通知可能不显示或无图标
+    try { app.setName('Bamboo Todo'); } catch {}
+    try { app.setDesktopName('com.bamboo.todo'); } catch {}
+  }
   ensureDataDir();
   const { report } = initStorage(DATA_DIR, { appVersion: app.getVersion() });
   if (report.action === 'migrate' && !report.error) {

@@ -8,7 +8,8 @@ const BUILTIN_LIST_ID = 'tasks';
 const SETTING_KEYS = [
   'theme', 'autoNightMode', 'requestExitConfirmation',
   'compactMode', 'sortBy', 'alwaysOnTop', 'checkUpdateOnStartup',
-  'pomodoroWorkMinutes', 'pomodoroBreakMinutes'
+  'pomodoroWorkMinutes', 'pomodoroBreakMinutes',
+  'notifyReminder', 'notifyDue'
 ];
 
 const POMODORO_LIMITS = {
@@ -20,7 +21,7 @@ const REPEAT_VALUES = ['none', 'daily', 'weekdays', 'weekly', 'monthly', 'yearly
 
 function defaultSettings() {
   return {
-    theme: 'light',
+    theme: 'passion',
     autoNightMode: false,
     requestExitConfirmation: true,
     compactMode: false,
@@ -29,6 +30,8 @@ function defaultSettings() {
     checkUpdateOnStartup: true,
     pomodoroWorkMinutes: 25,
     pomodoroBreakMinutes: 5,
+    notifyReminder: true,
+    notifyDue: true,
   };
 }
 
@@ -121,9 +124,16 @@ export class Store {
       SETTING_KEYS.forEach(key => {
         if (saved.settings[key] !== undefined) settings[key] = saved.settings[key];
       });
-      if (settings.theme === 'default' || settings.theme === 'win11-light') settings.theme = 'light';
+      // 主题迁移：已废弃的 light/dark/default/黑白模式统一并入 Passion 系
       const legacyMode = saved.settings.mode;
-      if (legacyMode === 'dark' || legacyMode === 'black') settings.theme = 'dark';
+      const t = settings.theme;
+      if (legacyMode === 'dark' || legacyMode === 'black') {
+        settings.theme = 'passion-dark';
+      } else if (t === 'light' || t === 'default' || t === 'win11-light') {
+        settings.theme = 'passion';
+      } else if (t === 'dark' || t === 'black') {
+        settings.theme = 'passion-dark';
+      }
     }
     Object.keys(POMODORO_LIMITS).forEach(key => {
       settings[key] = clampSettingNumber(settings[key], POMODORO_LIMITS[key]);
@@ -160,6 +170,7 @@ export class Store {
       dueDate,
       reminder: typeof task.reminder === 'string' && task.reminder ? task.reminder : null,
       reminderNotified: Boolean(task.reminderNotified),
+      dueNotified: Boolean(task.dueNotified),
       repeat: REPEAT_VALUES.includes(task.repeat) ? task.repeat : 'none',
       subtasks: subtasks
         .filter(s => s && typeof s === 'object' && s.id)
@@ -364,6 +375,7 @@ export class Store {
       dueDate: parseDateKey(taskData.dueDate) ? toDateKey(parseDateKey(taskData.dueDate)) : null,
       reminder: taskData.reminder || null,
       reminderNotified: false,
+      dueNotified: false,
       repeat: REPEAT_VALUES.includes(taskData.repeat) ? taskData.repeat : 'none',
       subtasks: [],
       createdAt: now,
@@ -381,7 +393,13 @@ export class Store {
     const rest = this._safeUpdates(updates, ['id', 'createdAt']);
     if (rest.dueDate !== undefined) {
       const parsed = parseDateKey(rest.dueDate);
-      rest.dueDate = parsed ? toDateKey(parsed) : null;
+      const norm = parsed ? toDateKey(parsed) : null;
+      if (norm !== task.dueDate) rest.dueNotified = false;
+      rest.dueDate = norm;
+    }
+    if (rest.reminder !== undefined) {
+      const norm = rest.reminder || null;
+      if (norm !== task.reminder) rest.reminderNotified = false;
     }
     if (rest.priority !== undefined) {
       rest.priority = rest.priority >= 1 && rest.priority <= 4 ? rest.priority : 4;
@@ -579,6 +597,7 @@ export class Store {
       completed: false,
       completedAt: null,
       reminderNotified: false,
+      dueNotified: false,
       tags: [...(task.tags || [])],
       subtasks: (task.subtasks || []).map(s => ({ ...s, id: this.generateId(), completed: false })),
       dueDate: toDateKey(date),
@@ -697,6 +716,7 @@ export class Store {
       completed: false,
       completedAt: null,
       reminderNotified: false,
+      dueNotified: false,
       tags: [...(task.tags || [])],
       subtasks: (task.subtasks || []).map(s => ({ ...s, id: this.generateId(), completed: false })),
       createdAt: Date.now(),

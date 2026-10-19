@@ -130,6 +130,7 @@ export class Settings {
         <div class="theme-grid">
           ${themes.map(t => `
             <div class="theme-card ${settings.theme === t.id ? 'active' : ''}" data-action="select-theme" data-theme-id="${escapeHtml(t.id)}">
+              <span class="theme-check">${icon('check', { size: 13, strokeWidth: 2.6 })}</span>
               <div class="theme-preview">
                 <div class="theme-color" style="background: ${escapeHtml(t.colors.primary)}"></div>
                 <div class="theme-color" style="background: ${escapeHtml(t.colors.accent)}"></div>
@@ -139,7 +140,19 @@ export class Settings {
             </div>
           `).join('')}
         </div>
-        ${this.toggleRow('autoNightMode', '自动夜间模式', '夜间（19:00 - 07:00）自动切换到深色模式', Boolean(settings.autoNightMode))}
+        ${this.toggleRow('autoNightMode', '自动夜间模式', '夜间（19:00 - 07:00）自动切换到深色主题', Boolean(settings.autoNightMode))}
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">通知</div>
+        ${this.toggleRow('notifyReminder', '提醒通知', '到达提醒时间时发送系统通知', settings.notifyReminder !== false)}
+        ${this.toggleRow('notifyDue', '到期通知', '任务到期当天发送系统通知', settings.notifyDue !== false)}
+        <div class="settings-actions" style="margin-top: 12px; display: flex; gap: 8px;">
+          <button class="tag-manager-btn" data-action="test-notify">${icon('bell', { size: 14 })}<span>发送测试通知</span></button>
+        </div>
+        <div class="settings-toggle-desc" style="margin-top: 8px;">
+          系统通知由操作系统托管：Windows 需系统通知设置允许本应用，macOS 首次会请求授权，Linux 依赖桌面环境的通知服务（notification daemon）。
+        </div>
       </div>
 
       <div class="settings-section">
@@ -231,7 +244,8 @@ export class Settings {
         <div class="settings-section-title">特色功能</div>
         <div style="color: var(--text-secondary); font-size: 13px; line-height: 2;">
           <div>• 有机极简设计（大圆角、柔和弥散阴影、Feather 线性图标）</div>
-          <div>• 主题（暖色浅色 / 鼠尾草深色 / Passion / Passion 深色 + 自动夜间）</div>
+          <div>• 主题（Passion / Passion 深色 + 自动夜间）</div>
+          <div>• 系统通知：任务到期与提醒到点跨平台推送（Win/macOS/Linux）</div>
           <div>• 键盘快捷键 + 全局快捷键</div>
           <div>• 系统托盘 / 窗口状态记忆 / 缩放</div>
           <div>• 子任务 / 备注 / 重复 / 提醒 / 番茄钟 / 日历</div>
@@ -277,6 +291,9 @@ export class Settings {
         break;
       case 'check-update':
         window.api.app.checkUpdate();
+        break;
+      case 'test-notify':
+        window.api.notify('Bamboo Todo', '这是一条测试通知。若未显示，请检查系统通知设置。');
         break;
       case 'quit-app':
         this.quitApp();

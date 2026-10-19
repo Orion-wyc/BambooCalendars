@@ -8,11 +8,10 @@ import { Settings } from './Settings.js';
 import { Pomodoro } from './Pomodoro.js';
 import { dialog } from './Dialog.js';
 import { initTitleBar } from './TitleBar.js';
-import { isImeKeyEvent, parseDateTimeLocal } from './Utils.js';
+import { isImeKeyEvent } from './Utils.js';
 import { icon } from './icons.js';
+import { notificationService } from './NotificationService.js';
 
-const REMINDER_WINDOW_MS = 60 * 1000;
-const REMINDER_MISSED_GRACE_MS = 10 * 60 * 1000;
 const AUTOSAVE_INTERVAL_MS = 30 * 1000;
 
 class App {
@@ -252,6 +251,9 @@ class App {
       case 'popup-search':
         window.api.window.show().then(() => this.sidebar.focusSearch());
         break;
+      case 'open-task':
+        if (data) this.taskList.selectTask(String(data));
+        break;
       default:
         break;
     }
@@ -374,45 +376,14 @@ class App {
   }
 
   setupReminderChecker() {
-    this.checkReminders();
-    setInterval(() => this.checkReminders(), REMINDER_WINDOW_MS);
+    notificationService.start();
   }
 
+  // 委托给 NotificationService；保留方法名以兼容编排测试
   checkReminders() {
-    const now = Date.now();
-    let changed = false;
-
-    store.data.tasks.forEach(task => {
-      if (task.completed || !task.reminder || task.reminderNotified) return;
-      const when = parseDateTimeLocal(task.reminder);
-      if (!when) {
-        task.reminderNotified = true;
-        changed = true;
-        return;
-      }
-      const diff = when.getTime() - now;
-      if (diff > REMINDER_WINDOW_MS) return;
-
-      if (diff > 0) {
-        this.notifyReminder(task, when, false);
-      } else if (-diff <= REMINDER_MISSED_GRACE_MS) {
-        this.notifyReminder(task, when, true);
-      }
-      task.reminderNotified = true;
-      changed = true;
-    });
-
+    const changed = notificationService.checkReminders();
     if (changed) store.save();
-  }
-
-  notifyReminder(task, when, missed) {
-    const timeText = when.toLocaleString('zh-CN', {
-      month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'
-    });
-    window.api.notify(
-      missed ? '任务提醒（已错过）' : '任务提醒',
-      `${task.title} - ${timeText}`
-    );
+    return changed;
   }
 }
 

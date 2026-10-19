@@ -2839,13 +2839,18 @@ html.dark-mode .dialog-input {
   animation-delay: calc(var(--i, 0) * var(--motion-stagger));
 }
 
-/* 详情面板 / 当日清单：open 跃迁时在常驻 #detail-panel 上挂一次性类 */
+/* 详情面板 / 当日清单：open 跃迁时在常驻 #detail-panel 上挂一次性类。
+   fill-mode 必须为 backwards：否则 .detail-content 在 animation-delay 期间会先
+   渲染最终态再跳到起始态，产生闪跳；will-change 仅在动画期间生效，结束后随类移除。 */
+#detail-panel.anim-in .detail-header,
+#detail-panel.anim-in .detail-content {
+  will-change: opacity, transform;
+}
 #detail-panel.anim-in .detail-header {
-  animation: panelIn var(--dur-3) var(--ease-decelerate);
+  animation: panelIn var(--dur-3) var(--ease-decelerate) backwards;
 }
 #detail-panel.anim-in .detail-content {
-  animation: panelIn var(--dur-3) var(--ease-decelerate);
-  animation-delay: 0.04s;
+  animation: panelIn var(--dur-3) var(--ease-decelerate) 0.04s backwards;
 }
 
 #settings-overlay:not(.hidden) {

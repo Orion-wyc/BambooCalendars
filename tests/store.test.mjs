@@ -302,6 +302,19 @@ test('排序：priority/dueDate/alpha 且已完成置底', () => {
   assert.equal(s.getTasks({ sortBy: 'priority' }).at(-1).title, 'a');
 });
 
+test('日历当日清单：未完成在前、已完成置底', () => {
+  const s = freshStore(null);
+  const today = U.toDateKey(new Date());
+  s.createTask({ title: '未完成A', dueDate: today });
+  const done = s.createTask({ title: '已完成B', dueDate: today });
+  s.createTask({ title: '未完成C', dueDate: today });
+  s.data.tasks.find(t => t.id === done.id).completed = true;
+  const titles = s.getTasksByDate(today).map(t => t.title);
+  assert.equal(titles.at(-1), '已完成B');
+  assert.equal(titles.length, 3);
+  assert.equal(titles.slice(0, 2).includes('已完成B'), false);
+});
+
 test('BUG-15 escapeHtml 转义引号', () => {
   assert.equal(U.escapeHtml('a"b\'c<d>&e'), 'a&quot;b&#39;c&lt;d&gt;&amp;e');
   assert.equal(U.escapeHtml(null), '');

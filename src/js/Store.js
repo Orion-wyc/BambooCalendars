@@ -693,7 +693,8 @@ export class Store {
   }
 
   getTasksByDate(dateKey, filter = {}) {
-    return this.data.tasks.filter(t => t.dueDate === dateKey && this._matches(t, filter));
+    const tasks = this.data.tasks.filter(t => t.dueDate === dateKey && this._matches(t, filter));
+    return this._sortTasks(tasks, filter.sortBy || this.data.settings.sortBy || 'created');
   }
 
   moveTaskToList(taskId, listId) {

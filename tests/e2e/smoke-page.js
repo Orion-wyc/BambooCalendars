@@ -97,7 +97,9 @@
     ok('BUG-05 日历中 today 格子日期正确', todayCell && todayCell.dataset.date === today,
       todayCell && todayCell.dataset.date);
     ok('BUG-05 今天的任务显示在今天的格子里', todayCell && todayCell.classList.contains('has-tasks'));
-    ok('BUG-05 日历格子含任务条目', todayCell && todayCell.querySelectorAll('.cal-task').length === 1);
+    ok('BUG-05 日历格子含任务圆点', todayCell && todayCell.querySelectorAll('.cal-dot').length === 1);
+    ok('BUG-05 圆点带任务 id 便于下钻', todayCell && todayCell.querySelector('.cal-dot')
+      && Boolean(todayCell.querySelector('.cal-dot').dataset.taskId));
 
     click($('#sidebar-nav [data-view="next7"]'));
     await sleep(50);
@@ -438,13 +440,40 @@
       `${navRect.width}x${navRect.height}`);
     ok('BUG-49 今天按钮比翻页按钮宽', btnRect.width > navRect.width, `${btnRect.width}/${navRect.width}`);
 
-    // ---- 日历：点击日期后可直接新建任务 ----
+    // ---- 日历：点击日期→右侧当日清单→下钻单任务→返回 ----
     const calTodayCell = $('.cal-cell.today');
+    const todayDateStr = calTodayCell && calTodayCell.dataset.date;
     ok('日历存在今天单元格', Boolean(calTodayCell));
+    const dayPaneBefore = $('#detail-panel').getBoundingClientRect().width;
     click(calTodayCell);
     await sleep(150);
+    ok('点击日期在右侧打开当日清单(day 模式)',
+      app.taskDetail.isOpen() && app.taskDetail.currentTaskId === null
+      && app.taskDetail.dayContext === todayDateStr,
+      JSON.stringify({ open: app.taskDetail.isOpen(), day: app.taskDetail.dayContext }));
+    ok('当日清单渲染在详情面板内',
+      Boolean($('#detail-panel .day-sheet-add')) && Boolean($('#detail-panel .day-sheet-summary')));
+    ok('当日清单不改变详情面板宽度',
+      Math.abs($('#detail-panel').getBoundingClientRect().width - dayPaneBefore) <= 0.5,
+      `${dayPaneBefore} → ${$('#detail-panel').getBoundingClientRect().width}`);
+
+    const firstRow = $('#detail-panel .day-sheet-body .task-item .task-title');
+    ok('当日清单含任务行', Boolean(firstRow));
+    if (firstRow) {
+      click(firstRow);
+      await sleep(120);
+      ok('二次点击任务进入单任务详情',
+        app.taskDetail.isOpen() && Boolean(app.taskDetail.currentTaskId) && Boolean($('#detail-title')),
+        JSON.stringify(app.taskDetail.currentTaskId));
+      click($('[data-action="close-detail"]'));
+      await sleep(120);
+      ok('关闭单任务详情后返回当日清单（保留当日选中）',
+        app.taskDetail.isOpen() && app.taskDetail.currentTaskId === null
+        && app.taskDetail.dayContext === todayDateStr && Boolean($('#detail-panel .day-sheet-summary')));
+    }
+
     const calAdd = $('[data-action="calendar-add-task"]');
-    ok('点击日期后出现「新建任务」按钮', Boolean(calAdd));
+    ok('当日清单仍带「新建任务」按钮', Boolean(calAdd));
     const targetDate = calAdd && calAdd.dataset.date;
     const calBefore = store.data.tasks.length;
     click(calAdd);
@@ -458,6 +487,12 @@
       calCreated && calCreated.dueDate);
     ok('日历新建任务数量 +1', store.data.tasks.length === calBefore + 1);
     if (calCreated) { store.deleteTask(calCreated.id); await sleep(30); }
+
+    // 关闭当日清单→回到占位并清除日历选中
+    click($('#detail-panel [data-action="close-detail"]'));
+    await sleep(120);
+    ok('关闭当日清单显示占位且无选中态',
+      !app.taskDetail.isOpen() && Boolean($('.detail-empty')) && !$('.cal-cell.selected'));
 
     // ---- 详情面板：固定宽度 + 占位提示 ----
     click($('#sidebar-nav [data-view="tasks"]'));
@@ -490,7 +525,8 @@
     click($('#sidebar-nav [data-view="tasks"]'));
     await sleep(60);
 
-    // ---- 日历窗格：固定高度 + 超过4个显示「更多 N」 ----
+    // ---- 日历窗格：紧凑固定高度 + 超过上限显示圆点上限与 +N ----
+    const CAL_MAX_DOTS = 5;
     const todayKey = U.toDateKey(U.startOfToday());
     const createdPaneIds = [];
     for (let i = 0; i < 7; i++) createdPaneIds.push(store.createTask({ title: `窗格任务${i}`, dueDate: todayKey }).id);
@@ -498,15 +534,15 @@
     click($('#sidebar-nav [data-view="calendar"]'));
     await sleep(150);
     const paneCell = $('.cal-cell.today');
-    ok('日历窗格固定高度 134px', Math.round(paneCell.getBoundingClientRect().height) === 134,
-      paneCell.getBoundingClientRect().height);
+    const paneRect = paneCell.getBoundingClientRect();
+    ok('日历窗格紧凑固定高度 64px', Math.round(paneRect.height) === 64, paneRect.height);
     ok('窗格内容不溢出固定高度', paneCell.scrollHeight <= paneCell.clientHeight + 1,
       `${paneCell.scrollHeight}/${paneCell.clientHeight}`);
-    const paneTasks = paneCell.querySelectorAll('.cal-task').length;
+    const paneDots = paneCell.querySelectorAll('.cal-dot').length;
     const paneMore = paneCell.querySelector('.cal-more');
     const totalToday = existingToday + 7;
-    ok('超过4个只显示3条任务', paneTasks === 3, `rows=${paneTasks}`);
-    ok('第四行显示更多及未显示数量', Boolean(paneMore) && paneMore.textContent.includes(`更多 ${totalToday - 3}`),
+    ok(`超过 ${CAL_MAX_DOTS} 个只显示 ${CAL_MAX_DOTS} 个圆点`, paneDots === CAL_MAX_DOTS, `dots=${paneDots} total=${totalToday}`);
+    ok('圆点上限后显示 +N 汇总', Boolean(paneMore) && paneMore.textContent.includes(`+${totalToday - CAL_MAX_DOTS}`),
       paneMore && paneMore.textContent);
     createdPaneIds.forEach(id => store.deleteTask(id));
     app.taskList.render();
@@ -518,13 +554,20 @@
     app.taskList.render();
     await sleep(120);
     const quietCell = $(`.cal-cell[data-date="${quietDate}"]`);
-    ok('恰好4个时全部显示', Boolean(quietCell)
-      && quietCell.querySelectorAll('.cal-task').length === 4 && !quietCell.querySelector('.cal-more'));
+    ok('恰好 4 个时全部以圆点显示且无 +N', Boolean(quietCell)
+      && quietCell.querySelectorAll('.cal-dot').length === 4 && !quietCell.querySelector('.cal-more'));
     ok('恰好4个内容不溢出', Boolean(quietCell) && quietCell.scrollHeight <= quietCell.clientHeight + 1,
       quietCell && `${quietCell.scrollHeight}/${quietCell.clientHeight}`);
     quietIds.forEach(id => store.deleteTask(id));
     app.taskList.render();
     await sleep(80);
+
+    // ---- 日历默认单页内不触发滚动条 ----
+    click($('#sidebar-nav [data-view="calendar"]'));
+    await sleep(150);
+    const calArea = $('#task-list-area');
+    ok('日历视图单页内无纵向滚动条', calArea.scrollHeight <= calArea.clientHeight + 2,
+      `${calArea.scrollHeight}/${calArea.clientHeight}`);
 
     // ---- 主题：浅色/深色/Passion/Passion深色 切换 ----
     click($('#sidebar-nav [data-view="tasks"]'));

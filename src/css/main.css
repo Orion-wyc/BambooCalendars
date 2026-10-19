@@ -2263,7 +2263,6 @@ mark {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 8px;
 }
 
 .calendar-title {
@@ -2329,11 +2328,13 @@ mark {
 }
 
 .cal-cell {
-  height: 134px;
+  height: 64px;
+  display: flex;
+  flex-direction: column;
   background: var(--bg-panel);
-  border: 1px solid var(--border-light);
+  border: 1px solid var(--border-soft);
   border-radius: var(--radius-md);
-  padding: 6px;
+  padding: 6px 8px;
   cursor: pointer;
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
   overflow: hidden;
@@ -2368,7 +2369,7 @@ mark {
 }
 
 .cal-cell.selected {
-  border-color: var(--primary);
+  border-color: var(--accent);
   box-shadow: var(--shadow-focus);
 }
 
@@ -2377,7 +2378,6 @@ mark {
   line-height: 16px;
   font-weight: 700;
   color: var(--text-secondary);
-  margin-bottom: 4px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -2385,81 +2385,47 @@ mark {
   color: var(--accent);
 }
 
-.cal-day-tasks {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  overflow: hidden;
+.cal-cell.selected .cal-day-num {
+  color: var(--accent);
 }
 
-.cal-task {
+/* 当日任务用彩色圆点表示，颜色随优先级标记（单行，垂直不溢出） */
+.cal-dots {
   display: flex;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 5px;
-  font-size: 11px;
-  line-height: 14px;
-  padding: 2px 5px;
-  background: var(--bg-hover);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  white-space: nowrap;
+  margin-top: auto;
   overflow: hidden;
-  transition: background var(--transition-fast);
 }
 
-.cal-task:hover {
-  background: var(--bg-active);
-}
-
-.cal-priority {
-  width: 6px;
-  height: 6px;
+.cal-dot {
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.cal-task-title {
-  overflow: hidden;
-  text-overflow: ellipsis;
+  flex: none;
 }
 
 .cal-more {
-  font-size: 11px;
-  line-height: 14px;
-  font-weight: 600;
-  color: var(--accent);
-  padding: 2px 5px;
+  font-size: 10px;
+  line-height: 8px;
+  font-weight: 700;
+  color: var(--text-muted);
 }
 
-.calendar-tasks-list {
-  margin-top: 16px;
-  border-top: 1px solid var(--border);
-  padding-top: 16px;
-}
-
-.cal-day-header {
+/* 日历当日清单：渲染在右侧详情面板 */
+.day-sheet-actions {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 12px;
+  gap: 6px;
 }
 
-.cal-day-title {
-  font-size: 15px;
-  font-weight: 600;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.cal-day-add {
+.day-sheet-add {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   flex: none;
-  padding: 7px 14px;
+  padding: 6px 12px;
   border: 1px solid var(--accent);
   background: var(--accent);
   color: var(--on-accent);
@@ -2470,16 +2436,45 @@ mark {
   transition: background var(--transition-fast), border-color var(--transition-fast);
 }
 
-.cal-day-add:hover {
+.day-sheet-add:hover {
   background: var(--accent-dark);
   border-color: var(--accent-dark);
 }
 
-.cal-day-empty {
-  font-size: 13px;
+.day-sheet-summary {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
   color: var(--text-muted);
-  padding: 12px;
-  text-align: center;
+  margin-bottom: 12px;
+}
+
+.day-sheet-summary em {
+  font-style: normal;
+  color: var(--success);
+}
+
+.day-sheet-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 48px 16px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.day-sheet-body {
+  background: var(--bg-panel);
+}
+
+/* 详情面板内的当日清单行更紧凑 */
+.day-sheet-body .task-item {
+  padding: 11px 12px;
 }
 
 .settings-number {

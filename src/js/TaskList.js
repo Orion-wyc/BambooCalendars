@@ -2,11 +2,15 @@ import { store } from './Store.js';
 import { eventBus } from './EventBus.js';
 import { dialog } from './Dialog.js';
 import {
-  addDays, escapeHtml, formatDayLabel, formatDueDateLabel, isImeKeyEvent,
-  parseDateKey, startOfToday, toDateKey
+  escapeHtml, formatDayLabel, formatDueDateLabel, isImeKeyEvent,
+  startOfToday, toDateKey
 } from './Utils.js';
 import { icon } from './icons.js';
-import { PRIORITY_COLORS, PRIORITY_LABELS, PRIORITY_NAMES } from './priority.js';
+import { PRIORITY_COLORS, PRIORITY_LABELS, PRIORITY_NAMES, PRIORITY_FALLBACK } from './priority.js';
+import { renderTaskItem as renderTaskItemHtml, highlightSearch as highlightText } from './taskItem.js';
+
+// 日历单日格内最多展示的彩色圆点数，超出以 +N 汇总
+const CAL_MAX_DOTS = 5;
 
 export class TaskList {
   constructor() {
@@ -254,7 +258,7 @@ export class TaskList {
     const daysInMonth = new Date(year, month + 1, 0).getDate();
 
     let cells = '';
-    for (let i = 0; i < startOffset; i++) cells += `<div class="cal-cell empty"></div>`;
+    for (let i = 0; i < startOffset; i++) cells += `<div class="cal-cell empty" aria-hidden="true"></div>`;
 
     for (let d = 1; d <= daysInMonth; d++) {
       const cellDate = new Date(year, month, d);
@@ -262,21 +266,17 @@ export class TaskList {
       const dayTasks = tasks.filter(t => t.dueDate === dateStr);
       const isToday = cellDate.getTime() === today.getTime();
       const isSelected = this.calendarSelectedDate === dateStr;
-      const maxRows = 4;
-      const shownTasks = dayTasks.length <= maxRows ? dayTasks : dayTasks.slice(0, maxRows - 1);
-      const hiddenCount = dayTasks.length - shownTasks.length;
+      const shown = dayTasks.slice(0, CAL_MAX_DOTS);
+      const hidden = dayTasks.length - shown.length;
       cells += `
-        <div class="cal-cell ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''} ${dayTasks.length ? 'has-tasks' : ''}" data-date="${dateStr}">
+        <div class="cal-cell ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''} ${dayTasks.length ? 'has-tasks' : ''}"
+             data-date="${dateStr}" tabindex="0" role="button" aria-label="${escapeHtml(formatDayLabel(dateStr))}${dayTasks.length ? `，${dayTasks.length} 个任务` : ''}">
           <div class="cal-day-num">${d}</div>
-          <div class="cal-day-tasks">
-            ${shownTasks.map(t => `
-              <div class="cal-task" data-task-id="${escapeHtml(t.id)}">
-                <span class="cal-priority" style="background:${PRIORITY_COLORS[t.priority] || '#7d857c'}"></span>
-                <span class="cal-task-title">${escapeHtml(t.title)}</span>
-              </div>
-            `).join('')}
-            ${hiddenCount > 0 ? `<div class="cal-more">更多 ${hiddenCount}</div>` : ''}
-          </div>
+          ${dayTasks.length ? `
+          <div class="cal-dots" aria-hidden="true">
+            ${shown.map(t => `<span class="cal-dot" data-task-id="${escapeHtml(t.id)}" style="background:${PRIORITY_COLORS[t.priority] || PRIORITY_FALLBACK}"></span>`).join('')}
+            ${hidden > 0 ? `<span class="cal-more">+${hidden}</span>` : ''}
+          </div>` : ''}
         </div>
       `;
     }
@@ -298,50 +298,39 @@ export class TaskList {
         <div class="calendar-grid">
           ${cells}
         </div>
-        <div class="calendar-tasks-list" id="calendar-day-detail"></div>
       </div>
     `;
 
     this.bindCalendarEvents();
-    if (this.calendarSelectedDate) {
-      this.showCalendarDayTasks(this.calendarSelectedDate);
-    }
+  }
+
+  selectCalendarDay(dateStr) {
+    this.calendarSelectedDate = dateStr;
+    this.render();
+    eventBus.emit('calendar:select', { date: dateStr, filter: this.getFilter() });
   }
 
   bindCalendarEvents() {
     const area = document.getElementById('task-list-area');
     area.querySelector('#cal-prev').addEventListener('click', () => {
       this.calendarMonth = new Date(this.calendarMonth.getFullYear(), this.calendarMonth.getMonth() - 1, 1);
-      this.calendarSelectedDate = null;
-      this.render();
+      this.clearCalendarSelection();
     });
     area.querySelector('#cal-next').addEventListener('click', () => {
       this.calendarMonth = new Date(this.calendarMonth.getFullYear(), this.calendarMonth.getMonth() + 1, 1);
-      this.calendarSelectedDate = null;
-      this.render();
+      this.clearCalendarSelection();
     });
     area.querySelector('#cal-today').addEventListener('click', () => {
       this.calendarMonth = startOfToday();
-      this.calendarSelectedDate = toDateKey(startOfToday());
-      this.render();
+      this.selectCalendarDay(toDateKey(startOfToday()));
     });
   }
 
-  showCalendarDayTasks(date) {
-    const detail = document.getElementById('calendar-day-detail');
-    if (!detail) return;
-    const dayTasks = store.getTasksByDate(date, this.getFilter());
-    const dateLabel = formatDayLabel(date);
-    const header = `
-      <div class="cal-day-header">
-        <div class="cal-day-title">${escapeHtml(dateLabel)}${dayTasks.length ? ` · ${dayTasks.length} 个任务` : ''}</div>
-        <button class="cal-day-add" data-action="calendar-add-task" data-date="${escapeHtml(date)}"><span>新建任务</span>${icon('plus', { size: 14 })}</button>
-      </div>
-    `;
-    const body = dayTasks.length
-      ? `<div class="task-list">${dayTasks.map(t => this.renderTaskItem(t)).join('')}</div>`
-      : '<div class="cal-day-empty">这一天暂无任务</div>';
-    detail.innerHTML = header + body;
+  clearCalendarSelection() {
+    if (this.calendarSelectedDate === null) { this.render(); return; }
+    this.calendarSelectedDate = null;
+    this.render();
+    eventBus.emit('calendar:deselect');
   }
 
   async createTaskForDate(date) {
@@ -360,6 +349,8 @@ export class TaskList {
     this.calendarSelectedDate = date;
     this.render();
     eventBus.emit('task:create', task.id);
+    // 新建后刷新右侧当日清单（若正显示该日）
+    eventBus.emit('calendar:select', { date, filter: this.getFilter() });
   }
 
   renderMyDayView(area) {
@@ -465,40 +456,11 @@ export class TaskList {
   }
 
   renderTaskItem(task) {
-    const dueDateLabel = formatDueDateLabel(task.dueDate);
-    const dueDateClass = this.getDueDateClass(task.dueDate, task.completed);
-    const priorityColor = PRIORITY_COLORS[task.priority] || '#7d857c';
-    const tags = (task.tags || []).map(id => store.getTag(id)).filter(Boolean);
-    const isEditing = this.editingTaskId === task.id;
-    const doneSteps = task.subtasks.filter(s => s.completed).length;
-
-    return `
-      <div class="task-item ${task.completed ? 'completed' : ''} ${this.selectedTaskId === task.id ? 'selected' : ''}"
-           data-task-id="${escapeHtml(task.id)}" draggable="${isEditing ? 'false' : 'true'}">
-        <div class="task-priority-bar" style="background:${priorityColor}"></div>
-        <div class="task-checkbox ${task.completed ? 'checked' : ''}" data-action="toggle-complete" data-task-id="${escapeHtml(task.id)}">
-          ${task.completed ? icon('check', { size: 13, strokeWidth: 2.4 }) : ''}
-        </div>
-        <div class="task-content" data-action="select" data-task-id="${escapeHtml(task.id)}">
-          <div class="task-title">${isEditing ? this.renderInlineEdit(task) : this.highlightSearch(task.title)}</div>
-          <div class="task-meta">
-            ${task.priority < 4 ? `<div class="task-priority-badge" style="color:${priorityColor};border-color:${priorityColor}">${PRIORITY_LABELS[task.priority]}</div>` : ''}
-            ${task.dueDate ? `<div class="task-meta-item task-due-date ${dueDateClass}">${icon('flag', { size: 13 })}<span>${escapeHtml(dueDateLabel)}</span></div>` : ''}
-            ${task.subtasks.length > 0 ? `<div class="task-meta-item">${icon('list', { size: 13 })}<span>${doneSteps}/${task.subtasks.length}</span></div>` : ''}
-            ${task.note ? `<div class="task-meta-item">${icon('note', { size: 13 })}</div>` : ''}
-            ${tags.length ? `<div class="task-tags">${tags.map(t => `<span class="task-tag" style="background:${escapeHtml(t.color)}22;color:${escapeHtml(t.color)};border-color:${escapeHtml(t.color)}55">#${escapeHtml(t.name)}</span>`).join('')}</div>` : ''}
-          </div>
-        </div>
-        <div class="task-actions">
-          <button class="btn-task-action ${task.inMyDay ? 'active is-myday' : ''}" data-action="toggle-myday-inline" data-task-id="${escapeHtml(task.id)}" title="我的一天">
-            ${icon('sun', { size: 16 })}
-          </button>
-          <button class="btn-task-action ${task.important ? 'active is-star' : ''}" data-action="toggle-important" data-task-id="${escapeHtml(task.id)}" title="重要">
-            ${icon('star', { size: 16, filled: task.important })}
-          </button>
-        </div>
-      </div>
-    `;
+    return renderTaskItemHtml(task, {
+      query: this.searchQuery,
+      selected: this.selectedTaskId === task.id,
+      editing: this.editingTaskId === task.id,
+    });
   }
 
   renderInlineEdit(task) {
@@ -506,13 +468,7 @@ export class TaskList {
   }
 
   highlightSearch(title) {
-    const text = escapeHtml(title);
-    if (!this.searchQuery) return text;
-    const escaped = escapeHtml(this.searchQuery).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    if (!escaped) return text;
-    try {
-      return text.replace(new RegExp(`(${escaped})`, 'gi'), '<mark>$1</mark>');
-    } catch { return text; }
+    return highlightText(title, this.searchQuery);
   }
 
   bindEvents() {
@@ -628,25 +584,22 @@ export class TaskList {
         this.closeContextMenu();
       }
     });
+
+    // 详情面板"当日清单"里的新建按钮回流到列表侧创建
+    eventBus.on('calendar:add-task', ({ date }) => this.createTaskForDate(date));
+    // 详情面板关闭日清单时，同步清除日历选中态
+    eventBus.on('calendar:deselect', () => {
+      if (this.calendarSelectedDate !== null) {
+        this.calendarSelectedDate = null;
+        this.render();
+      }
+    });
   }
 
   handleAreaClick(e) {
     const calCell = e.target.closest('.cal-cell[data-date]');
-    const calTask = e.target.closest('.cal-task');
-
-    if (calTask) {
-      this.selectTask(calTask.dataset.taskId);
-      return;
-    }
     if (calCell) {
-      this.calendarSelectedDate = calCell.dataset.date;
-      this.render();
-      return;
-    }
-
-    const dateAddBtn = e.target.closest('[data-action="calendar-add-task"]');
-    if (dateAddBtn) {
-      this.createTaskForDate(dateAddBtn.dataset.date);
+      this.selectCalendarDay(calCell.dataset.date);
       return;
     }
 
@@ -685,7 +638,7 @@ export class TaskList {
     }
 
     const interactive = e.target.closest(
-      '.task-item, .cal-cell, .cal-task, .task-section-header, [data-action], button, input, textarea, select, a, label'
+      '.task-item, .cal-cell, .cal-dot, .task-section-header, [data-action], button, input, textarea, select, a, label'
     );
     if (!interactive && this.selectedTaskId !== null) {
       eventBus.emit('task:deselect');
@@ -997,16 +950,5 @@ export class TaskList {
   toggleHideCompleted() {
     this.collapsedSections.completed = !this.collapsedSections.completed;
     this.render();
-  }
-
-  getDueDateClass(dateStr, completed) {
-    if (!dateStr || completed) return '';
-    const date = parseDateKey(dateStr);
-    if (!date) return '';
-    const today = startOfToday();
-    if (date < today) return 'overdue';
-    if (date.getTime() === today.getTime()) return 'today';
-    if (date.getTime() === addDays(today, 1).getTime()) return 'tomorrow';
-    return '';
   }
 }

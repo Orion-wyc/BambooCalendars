@@ -1,36 +1,61 @@
 import { store } from './Store.js';
 import { eventBus } from './EventBus.js';
 import { dialog } from './Dialog.js';
-import { escapeHtml, isImeKeyEvent, preserveScroll } from './Utils.js';
+import { escapeHtml, isImeKeyEvent, preserveScroll, formatDayLabel } from './Utils.js';
 import { icon } from './icons.js';
 import { priorityColor, PRIORITY_NAMES } from './priority.js';
+import { renderTaskItem as renderTaskItemHtml } from './taskItem.js';
 
 export class TaskDetail {
   constructor() {
     this.currentTaskId = null;
     this.lastRenderedTaskId = null;
     this.selfUpdating = false;
+    this.dayContext = null;   // 日历"当日清单"模式下的日期键
+    this.dayFilter = {};
     this.panel = document.getElementById('detail-panel');
     this.bindEvents();
     this.renderPlaceholder();
   }
 
   isOpen() {
-    return Boolean(this.currentTaskId);
+    return Boolean(this.currentTaskId || this.dayContext);
   }
 
   open(taskId) {
     if (!taskId || !store.data.tasks.some(t => t.id === taskId)) return;
     this.currentTaskId = taskId;
+    this.lastRenderedTaskId = null;
     this.render();
   }
 
-  close() {
-    if (!this.currentTaskId) return;
+  openDay(date, filter = {}) {
+    if (!date) return;
+    this.dayContext = date;
+    this.dayFilter = filter || {};
     this.currentTaskId = null;
     this.lastRenderedTaskId = null;
-    this.renderPlaceholder();
-    eventBus.emit('task:deselect');
+    this.renderDay();
+  }
+
+  close() {
+    // 任务模式：若在日历当日清单里打开的任务，返回当日清单（保留选中）
+    if (this.currentTaskId) {
+      this.currentTaskId = null;
+      this.lastRenderedTaskId = null;
+      if (this.dayContext) { this.renderDay(); return; }
+      this.renderPlaceholder();
+      eventBus.emit('task:deselect');
+      return;
+    }
+    // 日模式：退出并清除日历选中
+    if (this.dayContext) {
+      this.dayContext = null;
+      this.dayFilter = {};
+      this.renderPlaceholder();
+      eventBus.emit('calendar:deselect');
+      return;
+    }
   }
 
   renderPlaceholder() {
@@ -39,6 +64,34 @@ export class TaskDetail {
       <div class="detail-empty">
         <div class="detail-empty-icon">${icon('note', { size: 40, strokeWidth: 1.3 })}</div>
         <div class="detail-empty-text">点击任务标题显示详情</div>
+      </div>
+    `;
+  }
+
+  renderDay() {
+    if (!this.panel || !this.dayContext) return;
+    const date = this.dayContext;
+    const filter = this.dayFilter;
+    const tasks = store.getTasksByDate(date, filter);
+    const done = tasks.filter(t => t.completed).length;
+    const dateLabel = formatDayLabel(date);
+    const list = tasks.length
+      ? `<div class="task-list">${tasks.map(t => renderTaskItemHtml(t, { query: filter.search || '' })).join('')}</div>`
+      : `<div class="day-sheet-empty">${icon('calendar', { size: 34, strokeWidth: 1.3 })}<span>这一天暂无任务</span></div>`;
+
+    this.panel.innerHTML = `
+      <div class="detail-header">
+        <div class="detail-title">${icon('calendar', { size: 18 })}<span>${escapeHtml(dateLabel)}</span></div>
+        <div class="day-sheet-actions">
+          <button class="day-sheet-add" data-action="calendar-add-task" data-date="${escapeHtml(date)}" title="新建任务">${icon('plus', { size: 15 })}<span>新建</span></button>
+          <button class="btn-close-detail" data-action="close-detail" title="关闭">${icon('close', { size: 18 })}</button>
+        </div>
+      </div>
+      <div class="detail-content day-sheet-body">
+        <div class="day-sheet-summary">
+          ${tasks.length ? `<span>${tasks.length} 个任务</span>${done ? `<em>已完成 ${done}</em>` : ''}` : '<span>无任务</span>'}
+        </div>
+        ${list}
       </div>
     `;
   }
@@ -59,13 +112,18 @@ export class TaskDetail {
 
   refreshIfShowing(taskId) {
     if (this.selfUpdating) return;
-    if (!this.currentTaskId) return;
-    if (taskId && taskId !== this.currentTaskId) return;
-    if (!this.getTask()) {
-      this.close();
+    if (this.currentTaskId) {
+      if (taskId && taskId !== this.currentTaskId) return;
+      if (!this.getTask()) {
+        this.close();
+        return;
+      }
+      this.render();
       return;
     }
-    this.render();
+    if (this.dayContext) {
+      this.renderDay();
+    }
   }
 
   render() {
@@ -213,14 +271,24 @@ export class TaskDetail {
     });
 
     eventBus.on('task:select', (taskId) => this.open(taskId));
-    eventBus.on('task:deselect', () => this.close());
+    eventBus.on('task:deselect', () => { if (this.currentTaskId) this.close(); });
     eventBus.on('task:deleted', (taskId) => {
       if (this.currentTaskId === taskId) this.close();
+      else if (this.dayContext) this.renderDay();
     });
     eventBus.on('list:delete', () => {
+      if (this.dayContext) { this.renderDay(); return; }
       const task = this.getTask();
       if (!task) this.close();
       else this.render();
+    });
+    eventBus.on('calendar:select', ({ date, filter }) => this.openDay(date, filter));
+    eventBus.on('calendar:deselect', () => {
+      if (!this.currentTaskId && this.dayContext) {
+        this.dayContext = null;
+        this.dayFilter = {};
+        this.renderPlaceholder();
+      }
     });
   }
 
@@ -228,13 +296,30 @@ export class TaskDetail {
     const target = e.target.closest('[data-action]');
     if (!target || !this.panel.contains(target)) return;
     const action = target.dataset.action;
+
+    // 通用：关闭 / 日清单新建
+    if (action === 'close-detail') { this.close(); return; }
+    if (action === 'calendar-add-task') {
+      eventBus.emit('calendar:add-task', { date: target.dataset.date });
+      return;
+    }
+
+    // 日模式：列表行操作
+    if (this.dayContext && !this.currentTaskId) {
+      const taskId = target.dataset.taskId;
+      switch (action) {
+        case 'select': this.open(taskId); return;
+        case 'toggle-complete': store.toggleComplete(taskId); this.renderDay(); this.emitUpdate(taskId); return;
+        case 'toggle-important': store.toggleImportant(taskId); this.renderDay(); this.emitUpdate(taskId); return;
+        case 'toggle-myday-inline': store.toggleMyDay(taskId); this.renderDay(); this.emitUpdate(taskId); return;
+        default: return;
+      }
+    }
+
     const task = this.getTask();
-    if (!task && action !== 'close-detail') return;
+    if (!task) return;
 
     switch (action) {
-      case 'close-detail':
-        this.close();
-        break;
       case 'toggle-myday':
         store.toggleMyDay(task.id);
         this.render();

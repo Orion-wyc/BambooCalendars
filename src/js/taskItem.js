@@ -30,16 +30,17 @@ export function inlineEditInput(task) {
 }
 
 export function renderTaskItem(task, opts = {}) {
-  const { query = '', selected = false, editing = false } = opts;
+  const { query = '', selected = false, editing = false, enter = false, index = 0 } = opts;
   const dueLabel = formatDueDateLabel(task.dueDate);
   const dClass = dueDateClass(task.dueDate, task.completed);
   const priorityColor = PRIORITY_COLORS[task.priority] || PRIORITY_FALLBACK;
   const tags = (task.tags || []).map(id => store.getTag(id)).filter(Boolean);
   const doneSteps = task.subtasks.filter(s => s.completed).length;
+  const anim = enter ? ` data-anim="enter" style="--i:${index}"` : '';
 
   return `
     <div class="task-item ${task.completed ? 'completed' : ''} ${selected ? 'selected' : ''}"
-         data-task-id="${escapeHtml(task.id)}" draggable="${editing ? 'false' : 'true'}">
+         data-task-id="${escapeHtml(task.id)}" draggable="${editing ? 'false' : 'true'}"${anim}>
       <div class="task-priority-bar" style="background:${priorityColor}"></div>
       <div class="task-checkbox ${task.completed ? 'checked' : ''}" data-action="toggle-complete" data-task-id="${escapeHtml(task.id)}">
         ${task.completed ? icon('check', { size: 13, strokeWidth: 2.4 }) : ''}

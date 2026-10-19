@@ -35,6 +35,7 @@ export class Settings {
     this.currentTab = 'general';
     this.lastRenderedTab = null;
     this.isOpen = false;
+    this._enter = false;
     this.appVersion = '';
     this.dataDir = '';
     this.bindEvents();
@@ -55,6 +56,7 @@ export class Settings {
     this.isOpen = true;
     this.currentTab = tab;
     this.lastRenderedTab = null;
+    this._enter = true;
     this.overlay.classList.remove('hidden');
     this.render();
   }
@@ -67,6 +69,7 @@ export class Settings {
     if (!this.isOpen) return;
     this.isOpen = false;
     this.lastRenderedTab = null;
+    this._enter = false;
     this.overlay.classList.add('hidden');
     this.overlay.innerHTML = '';
   }
@@ -77,10 +80,13 @@ export class Settings {
     const sameTab = this.lastRenderedTab === this.currentTab;
     const focusKey = buttonFocusKey(document.activeElement, this.overlay);
     this.lastRenderedTab = this.currentTab;
+    // 入场动画只在刚 open 的那一次渲染触发，避免切主题/切页签重建 modal 时重放导致闪动
+    const enter = this._enter;
+    this._enter = false;
 
     const rebuild = () => {
       this.overlay.innerHTML = `
-        <div class="settings-modal">
+        <div class="settings-modal${enter ? ' settings-modal--enter' : ''}">
           <div class="settings-header">
             <div class="settings-title">设置</div>
             <button class="btn-close-settings" data-action="close-settings" title="关闭">${icon('close', { size: 18 })}</button>

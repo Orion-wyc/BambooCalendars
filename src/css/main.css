@@ -93,6 +93,16 @@
   --transition-normal: 0.28s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-slow: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 
+  /* 动效令牌（P1）：只驱动 opacity / transform，避免 scale 影响几何测量 */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-decelerate: cubic-bezier(0, 0, 0.2, 1);
+  --ease-accelerate: cubic-bezier(0.4, 0, 1, 1);
+  --dur-1: 0.12s;
+  --dur-2: 0.2s;
+  --dur-3: 0.32s;
+  --motion-slide: 8px;
+  --motion-stagger: 22ms;
+
   --titlebar-h: 36px;
   --titlebar-controls-w: 138px;
 
@@ -1647,7 +1657,12 @@ html.dark-mode ::-webkit-scrollbar-thumb:hover {
   flex-direction: column;
   box-shadow: var(--shadow-lg);
   overflow: hidden;
-  animation: popIn var(--transition-normal);
+  /* 不再常驻 popIn：切换主题/标签会重建 modal，常驻动画会重放导致闪动；
+     入场动画改为仅 open 时由 .settings-modal--enter 触发一次 */
+}
+
+.settings-modal--enter {
+  animation: popIn var(--dur-3) var(--ease-decelerate);
 }
 
 .settings-header {
@@ -2796,8 +2811,50 @@ html.dark-mode .dialog-input {
   to { transform: translateY(0) scale(1); opacity: 1; }
 }
 
+/* P1 入场动效：只用 opacity + translate，绝不用 scale 于被测试量几何的容器 */
+@keyframes viewIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes rowIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes panelIn {
+  from { opacity: 0; transform: translateX(10px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* 视图切换：#task-list-area / #list-header 上的一次性入场类（由 motion.js 挂载并自动清除） */
+#task-list-area.anim-in,
+#list-header.anim-in {
+  animation: viewIn var(--dur-3) var(--ease-decelerate);
+}
+
+/* 任务行新增：仅带 data-anim="enter" 的行播放（延迟按 --i 轻微错峰） */
+.task-item[data-anim="enter"] {
+  animation: rowIn var(--dur-2) var(--ease-decelerate) backwards;
+  animation-delay: calc(var(--i, 0) * var(--motion-stagger));
+}
+
+/* 详情面板 / 当日清单：open 跃迁时在常驻 #detail-panel 上挂一次性类 */
+#detail-panel.anim-in .detail-header {
+  animation: panelIn var(--dur-3) var(--ease-decelerate);
+}
+#detail-panel.anim-in .detail-content {
+  animation: panelIn var(--dur-3) var(--ease-decelerate);
+  animation-delay: 0.04s;
+}
+
 #settings-overlay:not(.hidden) {
   animation: fadeIn var(--transition-fast);
+}
+
+/* 右键菜单：从光标处缩入；transform-origin 由 JS 依点击点设定 */
+.context-menu {
+  transform-origin: top left;
 }
 
 /* 拖拽 */

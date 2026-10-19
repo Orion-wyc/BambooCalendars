@@ -8,6 +8,7 @@ import {
 import { icon } from './icons.js';
 import { PRIORITY_COLORS, PRIORITY_LABELS, PRIORITY_NAMES, PRIORITY_FALLBACK } from './priority.js';
 import { renderTaskItem as renderTaskItemHtml, highlightSearch as highlightText } from './taskItem.js';
+import { flashEnter, clearClassAfterAnim } from './motion.js';
 
 // 日历单日格内最多展示的彩色圆点数（两行 × 每行 5），超出不再显示圆点
 const CAL_MAX_DOTS = 10;
@@ -27,6 +28,11 @@ export class TaskList {
     this.editingTaskId = null;
     this.lastFilterHtml = null;
     this.notice = '';
+    // 一次性入场控制：'all'=切换视图时整体淡入；Set=仅指定任务（如新建）入场
+    this._animate = null;
+    this._enterAll = false;
+    this._enterIds = null;
+    this._animIndex = 0;
     this.render();
     this.bindEvents();
   }
@@ -37,6 +43,7 @@ export class TaskList {
     this.selectedTaskId = null;
     this.notice = '';
     this.calendarSelectedDate = null;
+    this._animate = 'all';
     this.render();
   }
 
@@ -82,9 +89,25 @@ export class TaskList {
   }
 
   render() {
+    this._animIndex = 0;
+    this._enterAll = this._animate === 'all';
+    this._enterIds = (this._animate instanceof Set) ? this._animate : null;
+    const flash = this._enterAll;
+    this._animate = null;
+
     this.renderHeader();
     this.renderInput();
     this.renderTasks();
+
+    // 视图切换：整体淡入一次（仅 opacity+轻微位移，不影响任何几何测量）
+    if (flash) {
+      const area = document.getElementById('task-list-area');
+      const header = document.getElementById('list-header');
+      flashEnter(area, 'anim-in');
+      flashEnter(header, 'anim-in');
+      clearClassAfterAnim(area, 'anim-in');
+      clearClassAfterAnim(header, 'anim-in');
+    }
   }
 
   renderHeader() {
@@ -463,10 +486,14 @@ export class TaskList {
   }
 
   renderTaskItem(task) {
+    const enter = this._enterAll || (this._enterIds && this._enterIds.has(task.id));
+    const index = Math.min(this._animIndex++, 12);
     return renderTaskItemHtml(task, {
       query: this.searchQuery,
       selected: this.selectedTaskId === task.id,
       editing: this.editingTaskId === task.id,
+      enter: !!enter,
+      index,
     });
   }
 
@@ -669,6 +696,7 @@ export class TaskList {
 
     const task = store.createTask({ title, listId, ...extra });
     input.value = '';
+    this._animate = new Set([task.id]);
     this.render();
     const fresh = document.getElementById('task-input');
     if (fresh) fresh.focus();

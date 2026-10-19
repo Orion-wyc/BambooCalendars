@@ -5,6 +5,7 @@ import { escapeHtml, isImeKeyEvent, preserveScroll, formatDayLabel } from './Uti
 import { icon } from './icons.js';
 import { priorityColor, PRIORITY_NAMES } from './priority.js';
 import { renderTaskItem as renderTaskItemHtml } from './taskItem.js';
+import { flashEnter, clearClassAfterAnim } from './motion.js';
 
 export class TaskDetail {
   constructor() {
@@ -13,9 +14,18 @@ export class TaskDetail {
     this.selfUpdating = false;
     this.dayContext = null;   // 日历"当日清单"模式下的日期键
     this.dayFilter = {};
+    this._enterPending = false;
     this.panel = document.getElementById('detail-panel');
     this.bindEvents();
     this.renderPlaceholder();
+  }
+
+  // 仅在"打开/切换到某内容"的一次性跃迁后，于常驻面板上重放一次入场动画
+  _consumeEnter() {
+    if (!this._enterPending || !this.panel) return;
+    this._enterPending = false;
+    flashEnter(this.panel, 'anim-in');
+    clearClassAfterAnim(this.panel, 'anim-in');
   }
 
   isOpen() {
@@ -24,8 +34,10 @@ export class TaskDetail {
 
   open(taskId) {
     if (!taskId || !store.data.tasks.some(t => t.id === taskId)) return;
+    const switching = this.currentTaskId !== taskId;
     this.currentTaskId = taskId;
     this.lastRenderedTaskId = null;
+    if (switching) this._enterPending = true;
     this.render();
   }
 
@@ -35,6 +47,7 @@ export class TaskDetail {
     this.dayFilter = filter || {};
     this.currentTaskId = null;
     this.lastRenderedTaskId = null;
+    this._enterPending = true;
     this.renderDay();
   }
 
@@ -43,7 +56,7 @@ export class TaskDetail {
     if (this.currentTaskId) {
       this.currentTaskId = null;
       this.lastRenderedTaskId = null;
-      if (this.dayContext) { this.renderDay(); return; }
+      if (this.dayContext) { this._enterPending = true; this.renderDay(); return; }
       this.renderPlaceholder();
       eventBus.emit('task:deselect');
       return;
@@ -94,6 +107,7 @@ export class TaskDetail {
         ${list}
       </div>
     `;
+    this._consumeEnter();
   }
 
   getTask() {
@@ -258,6 +272,7 @@ export class TaskDetail {
         <button class="btn-delete-task" data-action="delete-task">${icon('trash', { size: 15 })}<span>删除任务</span></button>
       </div>
     `;
+    this._consumeEnter();
   }
 
   bindEvents() {

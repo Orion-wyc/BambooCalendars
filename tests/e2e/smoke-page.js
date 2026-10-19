@@ -525,7 +525,66 @@
     click($('#sidebar-nav [data-view="tasks"]'));
     await sleep(60);
 
-    // ---- 日历窗格：两行 5 列圆点上限 + 尾部空心 + 固定「x|y」计数 ----
+    // ---- 详情：提醒滚轮浮层（仿 iPhone 时间轮） ----
+    {
+      const seed = $$('.task-item:not(.completed)')[0] || $('.task-item');
+      click(seed.querySelector('.task-title'));
+      await sleep(100);
+      const taskId = app.taskDetail.currentTaskId;
+      const remField = $('#detail-reminder');
+      ok('提醒字段为可点击按钮', Boolean(remField) && remField.tagName === 'BUTTON');
+
+      click(remField);
+      await sleep(80);
+      let pop = $('.popover--reminder');
+      ok('点击提醒字段弹出浮层', Boolean(pop));
+      ok('浮层含时/分两个滚轮', Boolean(pop) && pop.querySelectorAll('.wheel').length === 2);
+      ok('滚轮存在居中高亮项', Boolean(pop) && Boolean(pop.querySelector('.wheel__item.is-center')));
+
+      const hourWheel = pop.querySelectorAll('.wheel')[0];
+      const before = hourWheel.getAttribute('aria-valuetext');
+      const mkPtr = (type, y) => new PointerEvent(type, {
+        pointerId: 1, clientY: y, button: 0, buttons: 1, bubbles: true, cancelable: true, view: window,
+      });
+      // 缓慢上拖共 80px（40px/项 → +2 项），尾部零速位移消除惯性
+      hourWheel.dispatchEvent(mkPtr('pointerdown', 100));
+      await sleep(30); window.dispatchEvent(mkPtr('pointermove', 60));
+      await sleep(30); window.dispatchEvent(mkPtr('pointermove', 20));
+      await sleep(60); window.dispatchEvent(mkPtr('pointermove', 20));
+      window.dispatchEvent(mkPtr('pointerup', 20));
+      await sleep(700);
+      const after = hourWheel.getAttribute('aria-valuetext');
+      const expect = String((parseInt(before, 10) + 2) % 24).padStart(2, '0');
+      ok('滚轮可拖拽并吸附到目标项', after === expect, `${before} → ${after}（期望 ${expect}）`);
+      ok('居中高亮跟随选中项', pop.querySelector('.wheel__item.is-center')?.textContent === after,
+        pop.querySelector('.wheel__item.is-center')?.textContent);
+
+      click(pop.querySelector('[data-role="ok"]'));
+      await sleep(220);
+      const stored = store.data.tasks.find(x => x.id === taskId);
+      ok('完成写回提醒（YYYY-MM-DDTHH:mm）',
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(stored.reminder || ''), stored.reminder);
+      ok('完成后浮层关闭', !$('.popover--reminder'));
+      ok('提醒字段显示已设置值', Boolean($('#detail-reminder')) && !$('#detail-reminder').classList.contains('is-empty'));
+
+      click($('#detail-reminder'));
+      await sleep(80);
+      ok('可重新打开滚轮浮层', Boolean($('.popover--reminder')));
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      await sleep(240);
+      ok('Esc 关闭浮层', !$('.popover--reminder'));
+
+      click($('#detail-reminder'));
+      await sleep(80);
+      click($('.popover--reminder [data-role="clear"]'));
+      await sleep(220);
+      ok('清除按钮清空提醒', store.data.tasks.find(x => x.id === taskId).reminder === null);
+      ok('清除后字段回到未设置态', $('#detail-reminder').classList.contains('is-empty'));
+      app.taskDetail.close();
+      await sleep(60);
+    }
+
+
     const todayKey = U.toDateKey(U.startOfToday());
     click($('#sidebar-nav [data-view="calendar"]'));
     await sleep(150);

@@ -10,10 +10,39 @@ const { Settings } = await import('../src/js/Settings.js');
 const { Pomodoro } = await import('../src/js/Pomodoro.js');
 const { Sidebar } = await import('../src/js/Sidebar.js');
 const { dialog } = await import('../src/js/Dialog.js');
+const { mod, snapPosition, slotLayout } = await import('../src/js/wheelPicker.js');
 
 const { test, run } = createSuite('组件层回归（假 DOM）');
 
 store.data = store.normalize(null);
+
+test('滚轮：snapPosition 取整、惯性前冲并受 maxFling 约束', () => {
+  assert.equal(snapPosition(3.4, 0, 40), 3);
+  assert.equal(snapPosition(3.6, 0, 40), 4);
+  // 向上速度（负）应继续增大索引
+  assert.equal(snapPosition(10, -1, 40, { flingFactor: 80 }), 12);
+  // 异常速度被 maxFling 夹取，避免甩飞
+  assert.equal(snapPosition(10, -1000, 40, { maxFling: 8 }), 18);
+  assert.equal(snapPosition(10, 1000, 40, { maxFling: 8 }), 2);
+  // 低于阈值不产生惯性
+  assert.equal(snapPosition(10.2, 0.1, 40), 10);
+});
+
+test('滚轮：slotLayout 环绕取模、中心偏移正确', () => {
+  const slots = slotLayout(0, 24, 5);
+  assert.equal(slots.length, 5);
+  assert.equal(slots[2].index, 0);
+  assert.equal(slots[2].offset, 0);
+  assert.equal(slots[3].index, 1);
+  assert.equal(slots[1].index, 23);
+  assert.equal(slots[0].index, 22);   // 0 - 2 环绕到 22
+  assert.equal(slots[4].index, 2);
+  const shifted = slotLayout(0.5, 24, 5);
+  assert.equal(shifted[2].index, 1);
+  assert.equal(shifted[2].offset, 0.5);
+  assert.equal(mod(-1, 24), 23);
+  assert.deepEqual(slotLayout(0, 0, 5), []);
+});
 
 const clickEvent = (target) => ({ target, stopPropagation() {}, preventDefault() {} });
 const keyEvent = (target, key, opts = {}) => ({

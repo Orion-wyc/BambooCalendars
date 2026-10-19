@@ -1,11 +1,13 @@
 import { store } from './Store.js';
 import { eventBus } from './EventBus.js';
 import { dialog } from './Dialog.js';
-import { escapeHtml, isImeKeyEvent, preserveScroll, formatDayLabel } from './Utils.js';
+import { escapeHtml, isImeKeyEvent, preserveScroll, formatDayLabel, parseDateTimeLocal } from './Utils.js';
 import { icon } from './icons.js';
 import { priorityColor, PRIORITY_NAMES } from './priority.js';
 import { renderTaskItem as renderTaskItemHtml } from './taskItem.js';
 import { flashEnter, clearClassAfterAnim } from './motion.js';
+import { Popover } from './popover.js';
+import { buildReminderContent } from './ReminderPicker.js';
 
 export class TaskDetail {
   constructor() {
@@ -15,6 +17,7 @@ export class TaskDetail {
     this.dayContext = null;   // 日历"当日清单"模式下的日期键
     this.dayFilter = {};
     this._enterPending = false;
+    this.popover = new Popover();
     this.panel = document.getElementById('detail-panel');
     this.bindEvents();
     this.renderPlaceholder();
@@ -34,6 +37,7 @@ export class TaskDetail {
 
   open(taskId) {
     if (!taskId || !store.data.tasks.some(t => t.id === taskId)) return;
+    if (this.popover) this.popover.close();
     const switching = this.currentTaskId !== taskId;
     this.currentTaskId = taskId;
     this.lastRenderedTaskId = null;
@@ -43,6 +47,7 @@ export class TaskDetail {
 
   openDay(date, filter = {}) {
     if (!date) return;
+    if (this.popover) this.popover.close();
     this.dayContext = date;
     this.dayFilter = filter || {};
     this.currentTaskId = null;
@@ -52,6 +57,7 @@ export class TaskDetail {
   }
 
   close() {
+    if (this.popover) this.popover.close();
     // 任务模式：若在日历当日清单里打开的任务，返回当日清单（保留选中）
     if (this.currentTaskId) {
       this.currentTaskId = null;
@@ -73,6 +79,7 @@ export class TaskDetail {
 
   renderPlaceholder() {
     if (!this.panel) return;
+    if (this.popover) this.popover.close();
     this.panel.innerHTML = `
       <div class="detail-empty">
         <div class="detail-empty-icon">${icon('note', { size: 40, strokeWidth: 1.3 })}</div>
@@ -83,6 +90,7 @@ export class TaskDetail {
 
   renderDay() {
     if (!this.panel || !this.dayContext) return;
+    if (this.popover) this.popover.close();
     const date = this.dayContext;
     const filter = this.dayFilter;
     const tasks = store.getTasksByDate(date, filter);
@@ -157,6 +165,7 @@ export class TaskDetail {
   }
 
   paint(task, lists, subtaskProgress) {
+    if (this.popover) this.popover.close();
     const completedSubtasks = task.subtasks.filter(s => s.completed).length;
     this.panel.innerHTML = `
       <div class="detail-header">
@@ -210,7 +219,11 @@ export class TaskDetail {
 
           <div class="detail-field">
             <div class="detail-field-label">${icon('bell', { size: 14 })}<span>提醒</span></div>
-            <input type="datetime-local" class="detail-input" id="detail-reminder" value="${escapeHtml(task.reminder || '')}">
+            <button type="button" id="detail-reminder" class="detail-picker-btn ${task.reminder ? '' : 'is-empty'}"
+                    data-action="open-reminder" aria-haspopup="dialog">
+              <span class="detail-picker-btn__text">${task.reminder ? escapeHtml(this.formatReminder(task.reminder)) : '未设置'}</span>
+              ${icon('chevronDown', { size: 15 })}
+            </button>
           </div>
 
           <div class="detail-field">
@@ -335,6 +348,9 @@ export class TaskDetail {
     if (!task) return;
 
     switch (action) {
+      case 'open-reminder':
+        this.openReminderPopover(target);
+        break;
       case 'toggle-myday':
         store.toggleMyDay(task.id);
         this.render();
@@ -477,11 +493,53 @@ export class TaskDetail {
   }
 
   focusReminder(taskId) {
-    this.focusField(taskId, 'detail-reminder');
+    const id = taskId || this.currentTaskId;
+    if (!id) return;
+    this.open(id);
+    const btn = document.getElementById('detail-reminder');
+    if (btn) {
+      btn.focus();
+      this.openReminderPopover(btn);
+    }
   }
 
   focusDueDate(taskId) {
     this.focusField(taskId, 'detail-due-date');
+  }
+
+  formatReminder(value) {
+    const d = parseDateTimeLocal(value);
+    if (!d) return '';
+    return d.toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+
+  openReminderPopover(anchor) {
+    const task = this.getTask();
+    if (!task || !this.popover) return;
+    // 再次点击同一字段：收起
+    if (this.popover.isOpen()) { this.popover.close(); return; }
+    const build = buildReminderContent({
+      value: task.reminder,
+      onApply: (val) => {
+        this.popover.close();
+        store.updateTask(task.id, { reminder: val, reminderNotified: false });
+        this.render();
+        this.emitUpdate(task.id);
+      },
+      onClear: () => {
+        this.popover.close();
+        store.updateTask(task.id, { reminder: null, reminderNotified: false });
+        this.render();
+        this.emitUpdate(task.id);
+      },
+      onCancel: () => this.popover.close(),
+    });
+    this.popover.open({
+      anchor,
+      content: build.el,
+      className: 'popover--reminder',
+      onClose: () => build.destroy(),
+    });
   }
 
   priorityLabel(p) {

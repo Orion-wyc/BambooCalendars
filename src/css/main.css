@@ -2852,7 +2852,8 @@ html.dark-mode .dialog-input {
   animation: fadeIn var(--transition-fast);
 }
 
-/* 右键菜单：从光标处缩入；transform-origin 由 JS 依点击点设定 */
+/* 右键菜单：从光标处缩入；transform-origin 由 JS 在 showContextMenu 依点击点设定，
+   此处为兜底默认（JS 未设定/异常时仍从左上缩入） */
 .context-menu {
   transform-origin: top left;
 }

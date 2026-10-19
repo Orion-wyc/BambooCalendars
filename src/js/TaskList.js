@@ -30,7 +30,6 @@ export class TaskList {
     this.notice = '';
     // 一次性入场控制：'all'=切换视图时整体淡入；Set=仅指定任务（如新建）入场
     this._animate = null;
-    this._enterAll = false;
     this._enterIds = null;
     this._animIndex = 0;
     this.render();
@@ -90,17 +89,16 @@ export class TaskList {
 
   render() {
     this._animIndex = 0;
-    this._enterAll = this._animate === 'all';
     this._enterIds = (this._animate instanceof Set) ? this._animate : null;
-    const flash = this._enterAll;
+    const flashView = this._animate === 'all';
     this._animate = null;
 
     this.renderHeader();
     this.renderInput();
     this.renderTasks();
 
-    // 视图切换：整体淡入一次（仅 opacity+轻微位移，不影响任何几何测量）
-    if (flash) {
+    // 视图切换：仅容器整体淡入一次（不再对每行叠加 rowIn，避免双层动画）
+    if (flashView) {
       const area = document.getElementById('task-list-area');
       const header = document.getElementById('list-header');
       flashEnter(area, 'anim-in');
@@ -377,6 +375,7 @@ export class TaskList {
     if (this.filterTagId) extra.tags = [this.filterTagId];
     const task = store.createTask({ title, listId: 'tasks', dueDate: date, ...extra });
     this.calendarSelectedDate = date;
+    this._animate = new Set([task.id]);
     this.render();
     eventBus.emit('task:create', task.id);
     // 新建后刷新右侧当日清单（若正显示该日）
@@ -486,13 +485,14 @@ export class TaskList {
   }
 
   renderTaskItem(task) {
-    const enter = this._enterAll || (this._enterIds && this._enterIds.has(task.id));
-    const index = Math.min(this._animIndex++, 12);
+    const enter = !!(this._enterIds && this._enterIds.has(task.id));
+    // stagger 仅在实际入场的行之间递增：新建单个任务时其 index 为 0，立即播放
+    const index = enter ? Math.min(this._animIndex++, 12) : 0;
     return renderTaskItemHtml(task, {
       query: this.searchQuery,
       selected: this.selectedTaskId === task.id,
       editing: this.editingTaskId === task.id,
-      enter: !!enter,
+      enter,
       index,
     });
   }
@@ -778,8 +778,14 @@ export class TaskList {
 
     const menu = document.createElement('div');
     menu.className = 'context-menu';
-    menu.style.left = `${Math.max(0, Math.min(x, window.innerWidth - 240))}px`;
-    menu.style.top = `${Math.max(0, Math.min(y, window.innerHeight - 360))}px`;
+    const maxLeft = window.innerWidth - 240;
+    const maxTop = window.innerHeight - 360;
+    menu.style.left = `${Math.max(0, Math.min(x, maxLeft))}px`;
+    menu.style.top = `${Math.max(0, Math.min(y, maxTop))}px`;
+    // 依点击点设定缩放原点：菜单被视口边缘夹取时，从靠近光标的那角缩入
+    const originX = x > maxLeft ? 'right' : 'left';
+    const originY = y > maxTop ? 'bottom' : 'top';
+    menu.style.transformOrigin = `${originY} ${originX}`;
 
     const items = [
       { icon: 'check', label: task.completed ? '取消完成' : '完成任务', action: 'complete' },

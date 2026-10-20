@@ -1344,16 +1344,27 @@ html.dark-mode ::-webkit-scrollbar-thumb:hover {
 }
 
 /* Subtasks */
+/* 步骤列表：卡片化容器 + 行内高亮 */
 .subtask-list {
   display: flex;
   flex-direction: column;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  background: var(--bg-main);
+  overflow: hidden;
 }
 
 .subtask-item {
   display: flex;
   align-items: center;
-  padding: 9px 2px;
+  gap: var(--space-3, 12px);
+  padding: 11px var(--space-3, 12px);
   border-bottom: 1px solid var(--border-light);
+  transition: background var(--transition-fast);
+}
+
+.subtask-item:hover {
+  background: var(--bg-hover);
 }
 
 .subtask-item:last-child {
@@ -1361,22 +1372,25 @@ html.dark-mode ::-webkit-scrollbar-thumb:hover {
 }
 
 .subtask-checkbox {
-  width: 18px;
-  height: 18px;
-  border: 1.8px solid var(--grey-74);
-  border-radius: 6px;
-  margin-right: 10px;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--grey-82);
+  border-radius: 7px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all var(--transition-fast);
+  transition: background var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
   flex: none;
   color: transparent;
 }
 
 .subtask-checkbox:hover {
   border-color: var(--accent);
+}
+
+.subtask-checkbox:active {
+  transform: scale(0.9);
 }
 
 .subtask-checkbox.checked {
@@ -1410,11 +1424,12 @@ html.dark-mode ::-webkit-scrollbar-thumb:hover {
   align-items: center;
   justify-content: center;
   opacity: 0;
-  transition: all var(--transition-fast);
+  transition: background var(--transition-fast), color var(--transition-fast), opacity var(--transition-fast);
   flex: none;
 }
 
-.subtask-item:hover .btn-delete-subtask {
+.subtask-item:hover .btn-delete-subtask,
+.btn-delete-subtask:focus-visible {
   opacity: 1;
 }
 
@@ -1426,19 +1441,20 @@ html.dark-mode ::-webkit-scrollbar-thumb:hover {
 .add-subtask-wrapper {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 12px;
+  gap: var(--space-2, 8px);
+  margin-top: var(--space-3, 12px);
 }
 
 .add-subtask-input {
   flex: 1;
   min-width: 0;
-  padding: 9px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  padding: 9px var(--space-3, 12px);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
   font-size: 14px;
+  font-family: inherit;
   outline: none;
-  background: var(--bg-panel);
+  background: var(--bg-main);
   color: var(--text-primary);
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
@@ -1455,11 +1471,11 @@ html.dark-mode ::-webkit-scrollbar-thumb:hover {
   background: var(--accent);
   color: var(--on-accent);
   cursor: pointer;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-pill);
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background var(--transition-fast);
+  transition: background var(--transition-fast), transform var(--transition-fast);
   flex: none;
 }
 
@@ -1467,17 +1483,21 @@ html.dark-mode ::-webkit-scrollbar-thumb:hover {
   background: var(--accent-dark);
 }
 
+.btn-add-subtask:active {
+  transform: scale(0.94);
+}
+
 .subtask-progress {
-  margin-bottom: 10px;
-  height: 5px;
-  background: var(--border);
+  margin-bottom: var(--space-3, 12px);
+  height: 6px;
+  background: var(--border-light);
   border-radius: 999px;
   overflow: hidden;
 }
 
 .subtask-progress-bar {
   height: 100%;
-  background: var(--accent);
+  background: linear-gradient(90deg, var(--accent), var(--accent-light));
   border-radius: 999px;
   transition: width var(--transition-normal);
 }
@@ -2043,40 +2063,56 @@ mark {
 .priority-selector {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
+  gap: var(--space-2, 8px);
 }
 
 .priority-option {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 4px;
-  border: 1px solid var(--border);
+  align-items: stretch;
+  gap: var(--space-2, 8px);
+  padding: 10px;
+  border: 1px solid var(--border-soft);
   border-radius: var(--radius-md);
+  background: var(--bg-main);
   cursor: pointer;
-  transition: all var(--transition-fast);
-  background: var(--bg-panel);
+  transition: border-color var(--transition-fast), background var(--transition-fast),
+    transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .priority-option:hover {
-  border-color: var(--accent);
+  border-color: var(--border);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
 }
 
 .priority-option.active {
   border-color: var(--accent);
-  background: var(--accent-bg);
+  background: var(--accent-soft);
 }
 
 .priority-flag {
   width: 100%;
   height: 6px;
   border-radius: 999px;
+  opacity: 0.45;
+  transition: height var(--transition-fast), opacity var(--transition-fast);
+}
+
+.priority-option.active .priority-flag {
+  height: 8px;
+  opacity: 1;
 }
 
 .priority-label {
   font-size: 12px;
   color: var(--text-secondary);
+  text-align: center;
+}
+
+.priority-option.active .priority-label {
+  color: var(--accent);
+  font-weight: 600;
 }
 
 /* --------------------------------------------------------------------------
@@ -2100,30 +2136,32 @@ mark {
 .tag-selector {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--space-2, 8px);
 }
 
 .tag-option {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   padding: 7px 12px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-soft);
   border-radius: var(--radius-pill);
   cursor: pointer;
   font-size: 13px;
-  background: var(--bg-panel);
+  background: var(--bg-main);
   color: var(--text-secondary);
-  transition: all var(--transition-fast);
+  transition: border-color var(--transition-fast), background var(--transition-fast),
+    color var(--transition-fast), transform var(--transition-fast);
 }
 
 .tag-option:hover {
-  border-color: var(--accent);
+  border-color: var(--border);
+  transform: translateY(-1px);
 }
 
 .tag-option.active {
   border-color: var(--accent);
-  background: var(--accent-bg);
+  background: var(--accent-soft);
   color: var(--accent);
 }
 
@@ -2132,6 +2170,11 @@ mark {
   height: 10px;
   border-radius: 50%;
   flex: none;
+  transition: box-shadow var(--transition-fast);
+}
+
+.tag-option.active .tag-dot {
+  box-shadow: 0 0 0 2px var(--accent-soft);
 }
 
 /* --------------------------------------------------------------------------

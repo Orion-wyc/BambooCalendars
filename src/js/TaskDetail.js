@@ -266,7 +266,7 @@ export class TaskDetail {
               <div class="subtask-progress-bar" style="width: ${subtaskProgress}%"></div>
             </div>
           ` : ''}
-          <div class="subtask-list">
+          ${task.subtasks.length ? `<div class="subtask-list">
             ${task.subtasks.map(subtask => `
               <div class="subtask-item ${subtask.completed ? 'completed' : ''}">
                 <div class="subtask-checkbox ${subtask.completed ? 'checked' : ''}"
@@ -277,7 +277,7 @@ export class TaskDetail {
                 <button class="btn-delete-subtask" data-action="delete-subtask" data-subtask-id="${escapeHtml(subtask.id)}" title="删除步骤">${icon('close', { size: 14 })}</button>
               </div>
             `).join('')}
-          </div>
+          </div>` : ''}
           <div class="add-subtask-wrapper">
             <input type="text" class="add-subtask-input" id="add-subtask-input" placeholder="添加步骤">
             <button class="btn-add-subtask" data-action="add-subtask" title="添加">${icon('plus', { size: 16 })}</button>

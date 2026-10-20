@@ -217,7 +217,7 @@ export class TaskDetail {
           </div>
         </div>
 
-        <div class="detail-card">
+        <div class="detail-section">
           <div class="detail-field">
             <div class="detail-field-label">${icon('calendar', { size: 14 })}<span>截止日期</span></div>
             <button type="button" id="detail-due-date" class="detail-picker-btn ${task.dueDate ? '' : 'is-empty'}"

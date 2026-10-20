@@ -1202,20 +1202,6 @@ html.dark-mode ::-webkit-scrollbar-thumb:hover {
   margin-bottom: var(--space-5, 20px);
 }
 
-/* 功能卡片：将成组的字段（日期/提醒/重复/清单）包进微阴影描边卡片 */
-.detail-card {
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-lg);
-  background: var(--bg-panel);
-  box-shadow: var(--shadow-sm);
-  padding: var(--space-4, 16px);
-  margin-bottom: var(--space-5, 20px);
-}
-
-.detail-card .detail-field:last-child {
-  margin-bottom: 0;
-}
-
 .detail-section-title {
   display: flex;
   align-items: center;

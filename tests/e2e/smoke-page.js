@@ -559,6 +559,18 @@
       const activeEl = hourWheel.querySelector('.wheel__item.active');
       ok('高亮项跟随居中项', Boolean(activeEl) && activeEl.textContent === after, activeEl && activeEl.textContent);
 
+      // 滚轮事件：一格一项（修复前 active 的 transform 破坏 scroll-snap 几何导致无法调整）
+      const wBefore = parseInt(hourWheel.getAttribute('aria-valuetext'), 10);
+      scroller.dispatchEvent(new WheelEvent('wheel', { deltaY: 100, bubbles: true, cancelable: true }));
+      await sleep(420);
+      const wDown = parseInt(hourWheel.getAttribute('aria-valuetext'), 10);
+      ok('滚轮一格前进一项', wDown === (wBefore + 1) % 24, `${wBefore} → ${wDown}`);
+      scroller.dispatchEvent(new WheelEvent('wheel', { deltaY: -100, bubbles: true, cancelable: true }));
+      await sleep(420);
+      ok('滚轮反向一格回退一项', parseInt(hourWheel.getAttribute('aria-valuetext'), 10) === wBefore);
+      ok('吸附项不含 transform（避免破坏 scroll-snap 几何）',
+        getComputedStyle(activeEl).transform === 'none', getComputedStyle(activeEl).transform);
+
       // 键盘方向键切换（当前为 before+2，↑ 应回到 before+1）
       hourWheel.focus();
       hourWheel.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true }));

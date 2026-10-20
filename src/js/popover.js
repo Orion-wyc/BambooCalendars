@@ -47,7 +47,11 @@ export class Popover {
         this.close();
       }
     };
-    const onReflow = () => this._position();
+    const onReflow = (e) => {
+      // 浮层内部自身的滚动（如时间滚轮）不触发重定位，避免逐帧 layout 抖动
+      if (e && e.target && this.el && this.el.contains(e.target)) return;
+      this._position();
+    };
     // 延迟挂载，避免“打开浮层的那次点击”立即被判定为外部点击
     const timer = setTimeout(() => document.addEventListener('pointerdown', onPointerDown, true), 0);
     document.addEventListener('keydown', onKeyDown, true);

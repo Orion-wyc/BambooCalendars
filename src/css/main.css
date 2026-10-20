@@ -3160,14 +3160,16 @@ button:focus-visible,
   line-height: 1;
   font-variant-numeric: tabular-nums;
   color: var(--text-secondary);
-  transform-origin: center center;
-  transition: transform var(--dur-2) var(--ease-standard), color var(--dur-2) var(--ease-standard);
+  opacity: 0.55;
+  /* 吸附项禁止使用 transform：带变换的吸附目标会破坏 scroll-snap 几何，
+     使原生滚轮位移被吸附回原位、时间无法调整。用颜色/字重/透明度表达选中态。 */
+  transition: color var(--dur-2) var(--ease-standard), opacity var(--dur-2) var(--ease-standard);
 }
 
 .wheel__item.active {
   color: var(--accent);
   font-weight: 600;
-  transform: scale(1.15);
+  opacity: 1;
 }
 
 /* 居中高亮框：绝对定位，不随内容滚动 */

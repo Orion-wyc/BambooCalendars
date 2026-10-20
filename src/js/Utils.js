@@ -140,11 +140,11 @@ export function formatDueDateLabel(key) {
 export function formatDayLabel(key) {
   const date = parseDateKey(key);
   if (!date) return '';
-  // 数字与「月/日」之间各留 1 个空格，星期与日期之间留 2 个空格
+  // 数字与「月/日」之间不留空格，星期与日期之间留 2 个空格
   const month = date.getMonth() + 1;
   const day = date.getDate();
   const weekday = date.toLocaleDateString('zh-CN', { weekday: 'long' });
-  return `${month} 月 ${day} 日  ${weekday}`;
+  return `${month}月${day}日  ${weekday}`;
 }
 
 export function formatWeekdayLabel(date, offset) {

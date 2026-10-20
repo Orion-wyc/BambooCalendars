@@ -315,9 +315,9 @@ test('日历当日清单：未完成在前、已完成置底', () => {
   assert.equal(titles.slice(0, 2).includes('已完成B'), false);
 });
 
-test('formatDayLabel 数字与月/日间空格、星期前两空格', () => {
-  assert.equal(U.formatDayLabel('2026-10-19'), '10 月 19 日  星期一');
-  assert.equal(U.formatDayLabel('2026-1-3'), '1 月 3 日  星期六');
+test('formatDayLabel 月/日紧排、星期前两空格', () => {
+  assert.equal(U.formatDayLabel('2026-10-19'), '10月19日  星期一');
+  assert.equal(U.formatDayLabel('2026-1-3'), '1月3日  星期六');
   assert.equal(U.formatDayLabel('bad'), '');
 });
 

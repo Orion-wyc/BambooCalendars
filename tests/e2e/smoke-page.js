@@ -539,25 +539,33 @@
       let pop = $('.popover--reminder');
       ok('点击提醒字段弹出浮层', Boolean(pop));
       ok('浮层含时/分两个滚轮', Boolean(pop) && pop.querySelectorAll('.wheel').length === 2);
-      ok('滚轮存在居中高亮项', Boolean(pop) && Boolean(pop.querySelector('.wheel__item.is-center')));
+      ok('滚轮使用原生 scroll-snap 吸附',
+        Boolean(pop) && getComputedStyle(pop.querySelector('.wheel__scroller')).scrollSnapType.startsWith('y mandatory'),
+        pop && getComputedStyle(pop.querySelector('.wheel__scroller')).scrollSnapType);
+      ok('存在居中高亮框 selection-overlay', Boolean(pop) && Boolean(pop.querySelector('.selection-overlay')));
 
       const hourWheel = pop.querySelectorAll('.wheel')[0];
+      const scroller = hourWheel.querySelector('.wheel__scroller');
+      const itemH = 40;
       const before = hourWheel.getAttribute('aria-valuetext');
-      const mkPtr = (type, y) => new PointerEvent(type, {
-        pointerId: 1, clientY: y, button: 0, buttons: 1, bubbles: true, cancelable: true, view: window,
-      });
-      // 缓慢上拖共 80px（40px/项 → +2 项），尾部零速位移消除惯性
-      hourWheel.dispatchEvent(mkPtr('pointerdown', 100));
-      await sleep(30); window.dispatchEvent(mkPtr('pointermove', 60));
-      await sleep(30); window.dispatchEvent(mkPtr('pointermove', 20));
-      await sleep(60); window.dispatchEvent(mkPtr('pointermove', 20));
-      window.dispatchEvent(mkPtr('pointerup', 20));
-      await sleep(700);
+      ok('初始选中项已高亮', Boolean(hourWheel.querySelector('.wheel__item.active')));
+      // 程序化滚动 2 项（scroll-snap 会吸附并对齐到目标项）
+      const baseG = Math.round(scroller.scrollTop / itemH);
+      scroller.scrollTop = (baseG + 2) * itemH;
+      await sleep(280);
       const after = hourWheel.getAttribute('aria-valuetext');
       const expect = String((parseInt(before, 10) + 2) % 24).padStart(2, '0');
-      ok('滚轮可拖拽并吸附到目标项', after === expect, `${before} → ${after}（期望 ${expect}）`);
-      ok('居中高亮跟随选中项', pop.querySelector('.wheel__item.is-center')?.textContent === after,
-        pop.querySelector('.wheel__item.is-center')?.textContent);
+      ok('滚轮滚动并吸附到目标项', after === expect, `${before} → ${after}（期望 ${expect}）`);
+      const activeEl = hourWheel.querySelector('.wheel__item.active');
+      ok('高亮项跟随居中项', Boolean(activeEl) && activeEl.textContent === after, activeEl && activeEl.textContent);
+
+      // 键盘方向键切换（当前为 before+2，↑ 应回到 before+1）
+      hourWheel.focus();
+      hourWheel.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true }));
+      await sleep(320);
+      const back = String((parseInt(before, 10) + 1) % 24).padStart(2, '0');
+      ok('方向键回退一项', hourWheel.getAttribute('aria-valuetext') === back,
+        hourWheel.getAttribute('aria-valuetext'));
 
       click(pop.querySelector('[data-role="ok"]'));
       await sleep(220);

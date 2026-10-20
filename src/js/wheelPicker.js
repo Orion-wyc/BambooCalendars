@@ -1,33 +1,28 @@
-// 仿 iPhone 闹钟的滚轮选择器（原生 JS）。
-// 特性：无限循环、惯性滚动（momentum）、居中对齐（snap-to-center）、
-//       上下渐隐遮罩（CSS mask）、鼠标滚轮 / 拖拽 / 键盘均可操作。
-// 几何与吸附逻辑抽成纯函数（mod / snapPosition / slotLayout），便于无 DOM 单测。
+// 仿 iPhone 闹钟的滚轮选择器（原生 JS + 纯 CSS scroll-snap）。
+// 特性：CSS 原生吸附（scroll-snap-type: y mandatory）、原生惯性、上下渐隐
+//       （mask-image）、居中高亮（selection-overlay）、无限循环。
+// 与旧版的区别：不再用 transform + requestAnimationFrame 自绘惯性，惯性与吸附
+// 全部交给浏览器原生滚动，逻辑更少、手感更真。
+// 纯索引数学抽成纯函数（mod / centerIndex / wrapIndex / shortestDelta），便于无 DOM 单测。
 
 export const mod = (a, n) => ((a % n) + n) % n;
 
-// 由当前位置与释放速度推算吸附后的整数位置。
-// pos：连续“值坐标”，整数对应某一项索引；
-// velocity：px/ms（正=向下，负=向上）；itemHeight：单项像素高度。
-// 手指向上（velocity<0）应继续增大索引，故减去 velocity 项。
-// maxFling 限制惯性冲刺的项数，避免异常速度（如合成事件的极短 dt）把滚轮甩飞。
-export function snapPosition(pos, velocity, itemHeight, { flingFactor = 130, minVelocity = 0.25, maxFling = 8 } = {}) {
-  if (Math.abs(velocity) < minVelocity) return Math.round(pos);
-  let fling = -(velocity / itemHeight) * flingFactor;
-  fling = Math.max(-maxFling, Math.min(maxFling, fling));
-  return Math.round(pos + fling);
+// 由滚动位移换算“全局项索引”（含拷贝副本，未取模）。
+export function centerIndex(scrollTop, itemHeight) {
+  return Math.round(scrollTop / itemHeight);
 }
 
-// 生成以 pos 为中心、共 rows 个可见槽位的布局：值索引 + 相对中心的偏移（单位：项）。
-export function slotLayout(pos, count, rows) {
-  if (!count) return [];
-  const base = Math.round(pos);
-  const delta = pos - base;
-  const half = Math.floor(rows / 2);
-  const slots = [];
-  for (let k = -half; k <= half; k += 1) {
-    slots.push({ index: mod(base + k, count), offset: k - delta });
-  }
-  return slots;
+// 全局索引 → 逻辑值索引（环绕）。
+export function wrapIndex(globalIndex, count) {
+  return count ? mod(globalIndex, count) : 0;
+}
+
+// 从 from 到 to 的最短环绕步数（用于 setIndex 走最近路径）。
+export function shortestDelta(from, to, count) {
+  if (!count) return 0;
+  let d = mod(to - from, count);
+  if (d > count / 2) d -= count;
+  return d;
 }
 
 function prefersReduced() {
@@ -41,18 +36,20 @@ function prefersReduced() {
 }
 
 export class WheelPicker {
-  constructor({ values = [], index = 0, rows = 5, itemHeight = 40, onChange = null, ariaLabel = '' } = {}) {
+  constructor({ values = [], index = 0, rows = 5, itemHeight = 40, onChange = null, ariaLabel = '', copies = 3 } = {}) {
     this.values = Array.isArray(values) ? values.slice() : [];
     this.count = this.values.length;
     this.rows = rows % 2 === 0 ? rows + 1 : rows; // 保持奇数，保证有正中心
     this.itemHeight = itemHeight;
+    this.copies = Math.max(3, copies);            // 复制多份以实现无限循环
     this.onChange = onChange;
-    this.pos = this.count ? mod(index, this.count) : 0;
-    this._lastEmitted = this.count ? mod(index, this.count) : 0;
-    this._anim = null;
-    this._drag = null;
-    this._wheelTimer = null;
-    this._slots = [];
+
+    this._active = this.count ? mod(index, this.count) : 0; // 逻辑索引
+    this._activeGlobal = -1;
+    this._suppress = false;                       // 静默平移拷贝时抑制事件
+    this._settleTimer = null;
+    this._initTries = 0;
+    this._destroyed = false;
 
     const el = document.createElement('div');
     el.className = 'wheel';
@@ -61,24 +58,39 @@ export class WheelPicker {
     el.setAttribute('aria-label', ariaLabel || '滚动选择');
     el.style.setProperty('--wheel-row-h', `${itemHeight}px`);
     el.style.setProperty('--wheel-rows', String(this.rows));
-    el.innerHTML = '<div class="wheel__slots"></div><div class="wheel__highlight" aria-hidden="true"></div>';
-    this.el = el;
-    this.slotsEl = el.querySelector('.wheel__slots');
 
-    for (let i = 0; i < this.rows; i += 1) {
-      const slot = document.createElement('div');
-      slot.className = 'wheel__item';
-      slot.setAttribute('role', 'option');
-      this.slotsEl.appendChild(slot);
-      this._slots.push(slot);
+    const scroller = document.createElement('div');
+    scroller.className = 'wheel__scroller';
+    scroller.appendChild(this._makePad());
+
+    this._items = [];
+    const total = this.copies * this.count;
+    for (let g = 0; g < total; g += 1) {
+      const item = document.createElement('div');
+      item.className = 'wheel__item';
+      item.setAttribute('role', 'option');
+      item.textContent = String(this.values[g % this.count]);
+      scroller.appendChild(item);
+      this._items.push(item);
     }
+    scroller.appendChild(this._makePad());
+
+    const overlay = document.createElement('div');
+    overlay.className = 'selection-overlay';
+    overlay.setAttribute('aria-hidden', 'true');
+
+    el.appendChild(scroller);
+    el.appendChild(overlay);
+    this.el = el;
+    this.scroller = scroller;
 
     this._bindEvents();
-    this._render();
+    this._applyInitial(index);
   }
 
   getIndex() {
-    return this.count ? mod(Math.round(this.pos), this.count) : 0;
+    if (!this.count) return 0;
+    return wrapIndex(centerIndex(this.scroller.scrollTop, this.itemHeight), this.count);
   }
 
   getValue() {
@@ -88,16 +100,14 @@ export class WheelPicker {
   setIndex(i, { animate = false } = {}) {
     if (!this.count) return;
     const target = mod(Math.round(i), this.count);
-    if (animate && !prefersReduced()) {
-      const cur = Math.round(this.pos);
-      const diff = mod(target - cur, this.count);
-      const wrapped = diff > this.count / 2 ? diff - this.count : diff; // 走最短路径
-      this._animateTo(cur + wrapped, 0.22);
+    const curG = centerIndex(this.scroller.scrollTop, this.itemHeight);
+    const delta = shortestDelta(wrapIndex(curG, this.count), target, this.count);
+    const top = (curG + delta) * this.itemHeight;
+    if (animate && !prefersReduced() && typeof this.scroller.scrollTo === 'function') {
+      this.scroller.scrollTo({ top, behavior: 'smooth' });
     } else {
-      this._stopAnim();
-      this.pos = target;
-      this._render();
-      this._emitChange();
+      this.scroller.scrollTop = top;
+      this._setActive(curG + delta);
     }
   }
 
@@ -107,71 +117,84 @@ export class WheelPicker {
   }
 
   destroy() {
-    this._stopAnim();
-    if (this._wheelTimer) clearTimeout(this._wheelTimer);
+    this._destroyed = true;
+    if (this._settleTimer) clearTimeout(this._settleTimer);
     if (this.el && this.el.parentNode) this.el.parentNode.removeChild(this.el);
     this.el = null;
-    this._slots = [];
+    this.scroller = null;
+    this._items = [];
   }
 
   // ---- 内部实现 ----
 
+  _makePad() {
+    const pad = document.createElement('div');
+    pad.className = 'wheel__pad';
+    pad.setAttribute('aria-hidden', 'true');
+    return pad;
+  }
+
   _bindEvents() {
-    const el = this.el;
-    el.addEventListener('pointerdown', (e) => this._onPointerDown(e));
-    el.addEventListener('wheel', (e) => this._onWheel(e), { passive: false });
-    el.addEventListener('keydown', (e) => this._onKeyDown(e));
-    el.addEventListener('dragstart', (e) => e.preventDefault());
+    this._onScroll = () => this._scheduleActive();
+    this._onScrollEnd = () => this._settle();
+    this.scroller.addEventListener('scroll', this._onScroll, { passive: true });
+    this.scroller.addEventListener('scrollend', this._onScrollEnd);
+    this.el.addEventListener('keydown', (e) => this._onKeyDown(e));
   }
 
-  _onPointerDown(e) {
-    if (e.button != null && e.button !== 0) return;
-    this._stopAnim();
-    if (this._wheelTimer) { clearTimeout(this._wheelTimer); this._wheelTimer = null; }
-    try { this.el.setPointerCapture(e.pointerId); } catch { /* 某些环境不支持，忽略 */ }
-    this._drag = { id: e.pointerId, lastY: e.clientY, lastT: performance.now(), v: 0 };
-    this.el.classList.add('is-dragging');
-    const move = (ev) => this._onPointerMove(ev);
-    const up = (ev) => {
-      this._onPointerUp(ev);
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', up);
-      window.removeEventListener('pointercancel', up);
+  // 初次定位：必须在元素具备布局后再设置 scrollTop（否则会被夹到 0）。
+  // 构造时组件可能尚未挂载，故用 rAF 重试若干帧。
+  _applyInitial(index) {
+    const initialLogical = this.count ? mod(index, this.count) : 0;
+    const middleCopy = Math.floor(this.copies / 2);
+    const initialG = middleCopy * this.count + initialLogical;
+    const apply = () => {
+      if (this._destroyed || !this.scroller) return;
+      if (this.scroller.clientHeight > 0) {
+        this.scroller.scrollTop = initialG * this.itemHeight;
+        this._setActive(initialG);
+        return;
+      }
+      if (this._initTries < 30 && typeof requestAnimationFrame === 'function') {
+        this._initTries += 1;
+        requestAnimationFrame(apply);
+      }
     };
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', up);
-    window.addEventListener('pointercancel', up);
+    apply();
   }
 
-  _onPointerMove(e) {
-    const d = this._drag;
-    if (!d || e.pointerId !== d.id) return;
-    const now = performance.now();
-    const dt = Math.max(1, now - d.lastT);
-    const dy = e.clientY - d.lastY;
-    d.v = dy / dt;
-    d.lastY = e.clientY;
-    d.lastT = now;
-    this.pos -= dy / this.itemHeight;
-    this._render();
+  _scheduleActive() {
+    if (this._suppress) return;
+    this._setActive(centerIndex(this.scroller.scrollTop, this.itemHeight));
+    // 滚动停止后再做吸附校正与无限循环平移（无 scrollend 时同样适用）
+    if (this._settleTimer) clearTimeout(this._settleTimer);
+    this._settleTimer = setTimeout(() => this._settle(), 110);
   }
 
-  _onPointerUp() {
-    if (!this._drag) return;
-    const v = this._drag.v;
-    this._drag = null;
-    if (this.el) this.el.classList.remove('is-dragging');
-    this._settle(v);
+  _settle() {
+    if (this._suppress || this._destroyed || !this.scroller) return;
+    const g = centerIndex(this.scroller.scrollTop, this.itemHeight);
+    this._setActive(g);
+    this._normalizeLoop(g);
   }
 
-  _onWheel(e) {
-    e.preventDefault();
-    this._stopAnim();
-    // 一格滚轮约 100px ≈ 一项；触控板的小 delta 会平滑累积
-    this.pos += e.deltaY / 100;
-    this._render();
-    if (this._wheelTimer) clearTimeout(this._wheelTimer);
-    this._wheelTimer = setTimeout(() => { this._wheelTimer = null; this._settle(0); }, 120);
+  // 无限循环：当停在首/末拷贝区时，按“一份拷贝”的高度静默平移 scrollTop。
+  _normalizeLoop(g) {
+    const n = this.count;
+    if (!n) return;
+    const copyH = n * this.itemHeight;
+    if (g < n) this._shiftCopy(+copyH);
+    else if (g >= (this.copies - 1) * n) this._shiftCopy(-copyH);
+  }
+
+  _shiftCopy(dy) {
+    this._suppress = true;
+    const prev = this.scroller.style.scrollSnapType;
+    this.scroller.style.scrollSnapType = 'none'; // 临时关吸附，避免平移时跳动
+    this.scroller.scrollTop += dy;
+    void this.scroller.offsetHeight;             // 强制回流后再恢复
+    this.scroller.style.scrollSnapType = prev || '';
+    this._suppress = false;
   }
 
   _onKeyDown(e) {
@@ -181,87 +204,21 @@ export class WheelPicker {
           : e.key === 'PageDown' ? 5 : 0;
     if (!step) return;
     e.preventDefault();
-    this._stopAnim();
-    this._animateTo(Math.round(this.pos) + step, 0.18);
+    this.setIndex(this.getIndex() + step, { animate: true });
   }
 
-  _settle(velocity) {
-    const target = snapPosition(this.pos, velocity, this.itemHeight);
-    const dist = Math.abs(target - this.pos);
-    const seconds = prefersReduced() ? 0 : Math.min(0.6, (200 + dist * 45) / 1000);
-    this._animateTo(target, seconds);
-  }
-
-  _animateTo(target, seconds) {
-    this._stopAnim();
-    const from = this.pos;
-    if (seconds <= 0 || from === target) {
-      this.pos = target;
-      this._normalize();
-      this._render();
-      this._emitChange();
-      return;
-    }
-    const t0 = performance.now();
-    const dur = seconds * 1000;
-    const tick = (now) => {
-      const t = Math.min(1, (now - t0) / dur);
-      const eased = 1 - (1 - t) ** 3; // easeOutCubic
-      this.pos = from + (target - from) * eased;
-      this._render();
-      if (t < 1) {
-        this._anim = requestAnimationFrame(tick);
-      } else {
-        this._anim = null;
-        this.pos = target;
-        this._normalize();
-        this._render();
-        this._emitChange();
-      }
-    };
-    this._anim = requestAnimationFrame(tick);
-  }
-
-  _stopAnim() {
-    if (this._anim) {
-      cancelAnimationFrame(this._anim);
-      this._anim = null;
-    }
-  }
-
-  // 把 pos 收进 [0, count)，防止长滚后数值无限增长（视觉不变）
-  _normalize() {
-    if (this.count) this.pos = mod(this.pos, this.count);
-  }
-
-  _emitChange() {
-    const idx = this.getIndex();
-    if (idx === this._lastEmitted) return;
-    this._lastEmitted = idx;
-    if (this.onChange) this.onChange(idx, this.values[idx], this);
-  }
-
-  _render() {
-    if (!this.count || !this.el) return;
-    const slots = slotLayout(this.pos, this.count, this.rows);
-    const h = this.itemHeight;
-    const centerY = (this.rows * h) / 2;
-    for (let i = 0; i < slots.length; i += 1) {
-      const s = slots[i];
-      const el = this._slots[i];
-      if (!el) continue;
-      const y = centerY + s.offset * h - h / 2;
-      const d = Math.min(Math.abs(s.offset), 2.5);
-      const scale = 1 - d * 0.07;
-      const opacity = 1 - d * 0.30;
-      el.style.transform = `translateY(${y.toFixed(2)}px) scale(${scale.toFixed(3)})`;
-      el.style.opacity = opacity.toFixed(3);
-      const text = String(this.values[s.index]);
-      if (el.textContent !== text) el.textContent = text;
-      const isCenter = Math.abs(s.offset) < 0.5;
-      el.classList.toggle('is-center', isCenter);
-      el.setAttribute('aria-selected', isCenter ? 'true' : 'false');
-    }
-    this.el.setAttribute('aria-valuetext', String(this.values[this.getIndex()]));
+  _setActive(g) {
+    const n = this.count;
+    if (!n || !this._items.length) return;
+    const clamped = Math.max(0, Math.min(this._items.length - 1, g));
+    if (this._activeGlobal === clamped) return;
+    if (this._items[this._activeGlobal]) this._items[this._activeGlobal].classList.remove('active');
+    this._items[clamped].classList.add('active');
+    this._activeGlobal = clamped;
+    const logical = wrapIndex(clamped, n);
+    const changed = logical !== this._active;
+    this._active = logical;
+    this.el.setAttribute('aria-valuetext', String(this.values[logical]));
+    if (changed && this.onChange) this.onChange(logical, this.values[logical], this);
   }
 }

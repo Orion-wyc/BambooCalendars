@@ -315,6 +315,12 @@ test('日历当日清单：未完成在前、已完成置底', () => {
   assert.equal(titles.slice(0, 2).includes('已完成B'), false);
 });
 
+test('formatDayLabel 数字与月/日间空格、星期前两空格', () => {
+  assert.equal(U.formatDayLabel('2026-10-19'), '10 月 19 日  星期一');
+  assert.equal(U.formatDayLabel('2026-1-3'), '1 月 3 日  星期六');
+  assert.equal(U.formatDayLabel('bad'), '');
+});
+
 test('BUG-15 escapeHtml 转义引号', () => {
   assert.equal(U.escapeHtml('a"b\'c<d>&e'), 'a&quot;b&#39;c&lt;d&gt;&amp;e');
   assert.equal(U.escapeHtml(null), '');

@@ -11,6 +11,7 @@ const { Pomodoro } = await import('../src/js/Pomodoro.js');
 const { Sidebar } = await import('../src/js/Sidebar.js');
 const { dialog } = await import('../src/js/Dialog.js');
 const { mod, centerIndex, wrapIndex, shortestDelta } = await import('../src/js/wheelPicker.js');
+const { nextMondayDelta, monthGrid } = await import('../src/js/DateTimePicker.js');
 
 const { test, run } = createSuite('组件层回归（假 DOM）');
 
@@ -41,6 +42,22 @@ test('滚轮：mod 环绕取模', () => {
   assert.equal(mod(5, 24), 5);
   assert.equal(mod(-1, 24), 23);
   assert.equal(mod(25, 24), 1);
+});
+
+test('日期选择器：nextMondayDelta 取严格下一个周一', () => {
+  assert.equal(nextMondayDelta(new Date(2026, 9, 19)), 7);  // 周一 → 下周一
+  assert.equal(nextMondayDelta(new Date(2026, 9, 20)), 6);  // 周二
+  assert.equal(nextMondayDelta(new Date(2026, 9, 18)), 1);  // 周日 → 明天
+});
+
+test('日期选择器：monthGrid 42 格、相邻月补位', () => {
+  const cells = monthGrid(2026, 9);                          // 2026-10
+  assert.equal(cells.length, 42);
+  assert.equal(cells[0].key, '2026-09-27');                  // 10-01 是周四，前补 4 格
+  assert.equal(cells[0].out, true);
+  assert.equal(cells[4].key, '2026-10-01');
+  assert.equal(cells[4].out, false);
+  assert.equal(cells.filter(c => !c.out).length, 31);        // 10 月 31 天
 });
 
 const clickEvent = (target) => ({ target, stopPropagation() {}, preventDefault() {} });

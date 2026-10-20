@@ -536,7 +536,7 @@
 
       click(remField);
       await sleep(80);
-      let pop = $('.popover--reminder');
+      let pop = $('.popover--datetime');
       ok('点击提醒字段弹出浮层', Boolean(pop));
       ok('浮层含时/分两个滚轮', Boolean(pop) && pop.querySelectorAll('.wheel').length === 2);
       ok('滚轮使用原生 scroll-snap 吸附',
@@ -572,22 +572,92 @@
       const stored = store.data.tasks.find(x => x.id === taskId);
       ok('完成写回提醒（YYYY-MM-DDTHH:mm）',
         /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(stored.reminder || ''), stored.reminder);
-      ok('完成后浮层关闭', !$('.popover--reminder'));
+      ok('完成后浮层关闭', !$('.popover--datetime'));
       ok('提醒字段显示已设置值', Boolean($('#detail-reminder')) && !$('#detail-reminder').classList.contains('is-empty'));
 
       click($('#detail-reminder'));
       await sleep(80);
-      ok('可重新打开滚轮浮层', Boolean($('.popover--reminder')));
+      ok('可重新打开滚轮浮层', Boolean($('.popover--datetime')));
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       await sleep(240);
-      ok('Esc 关闭浮层', !$('.popover--reminder'));
+      ok('Esc 关闭浮层', !$('.popover--datetime'));
 
       click($('#detail-reminder'));
       await sleep(80);
-      click($('.popover--reminder [data-role="clear"]'));
+      click($('.popover--datetime [data-role="clear"]'));
       await sleep(220);
       ok('清除按钮清空提醒', store.data.tasks.find(x => x.id === taskId).reminder === null);
       ok('清除后字段回到未设置态', $('#detail-reminder').classList.contains('is-empty'));
+      app.taskDetail.close();
+      await sleep(60);
+    }
+
+    // ---- 详情：截止日期统一选择器（date 模式）+ 重复/清单下拉 ----
+    {
+      const seed = $$('.task-item:not(.completed)')[0] || $('.task-item');
+      click(seed.querySelector('.task-title'));
+      await sleep(100);
+      const taskId = app.taskDetail.currentTaskId;
+
+      const dueBtn = $('#detail-due-date');
+      ok('截止日期字段为可点击按钮', Boolean(dueBtn) && dueBtn.tagName === 'BUTTON');
+      click(dueBtn);
+      await sleep(80);
+      let dtp = $('.popover--datetime');
+      ok('截止日期弹出选择器（date 模式）', Boolean(dtp) && Boolean(dtp.querySelector('.dt-picker--date')));
+      ok('date 模式仅日历无滚轮',
+        Boolean(dtp.querySelector('.dt-cal-grid')) && dtp.querySelectorAll('.dt-wheels .wheel').length === 0);
+      ok('日历含 6×7=42 个日期格', dtp.querySelectorAll('.dt-cal-grid .dt-day').length === 42);
+      ok('含 今天/明天/下周一/清除 快捷项', dtp.querySelectorAll('.dt-chip').length === 4);
+
+      const expectTomorrow = U.toDateKey(U.addDays(U.startOfToday(), 1));
+      click(dtp.querySelector('[data-chip="tomorrow"]'));
+      await sleep(30);
+      ok('点击「明天」chips 高亮且唯一选中', dtp.querySelector('[data-chip="tomorrow"]').classList.contains('active')
+        && dtp.querySelectorAll('.dt-day.is-selected').length === 1);
+      click(dtp.querySelector('[data-role="ok"]'));
+      await sleep(150);
+      ok('截止日期写回为明天', store.data.tasks.find(x => x.id === taskId).dueDate === expectTomorrow,
+        store.data.tasks.find(x => x.id === taskId).dueDate);
+      ok('截止日期字段显示「明天」', $('#detail-due-date').textContent.includes('明天'));
+
+      // 日历导航
+      click($('#detail-due-date'));
+      await sleep(80);
+      dtp = $('.popover--datetime');
+      const month0 = dtp.querySelector('.dt-cal-month').textContent;
+      click(dtp.querySelector('[data-nav="1"]'));
+      await sleep(30);
+      ok('日历可翻到下个月', dtp.querySelector('.dt-cal-month').textContent !== month0);
+      click(dtp.querySelector('[data-role="cancel"]'));
+      await sleep(220);
+      ok('取消关闭选择器且不改值',
+        !$('.popover--datetime') && store.data.tasks.find(x => x.id === taskId).dueDate === expectTomorrow);
+
+      // 重复下拉
+      const repBtn = $('#detail-repeat');
+      ok('重复字段为可点击按钮', Boolean(repBtn) && repBtn.tagName === 'BUTTON');
+      click(repBtn);
+      await sleep(60);
+      let menu = $('.popover--options');
+      ok('重复弹出选项浮层', Boolean(menu) && menu.querySelectorAll('.option-menu__item').length === 6);
+      click(menu.querySelector('[data-value="weekly"]'));
+      await sleep(150);
+      ok('重复写回 store 且按钮文案更新',
+        store.data.tasks.find(x => x.id === taskId).repeat === 'weekly'
+        && $('#detail-repeat').textContent.includes('每周'));
+
+      // 清单下拉（带色点）
+      click($('#detail-list'));
+      await sleep(60);
+      menu = $('.popover--options');
+      ok('清单弹出选项浮层且带色点',
+        Boolean(menu) && menu.querySelectorAll('.option-menu__item').length >= 1
+        && menu.querySelectorAll('.option-menu__dot').length >= 1);
+      click(menu.querySelector('.option-menu__item.is-active'));
+      await sleep(120);
+      ok('选择当前清单写回 listId', store.data.tasks.find(x => x.id === taskId).listId === 'tasks');
+
       app.taskDetail.close();
       await sleep(60);
     }

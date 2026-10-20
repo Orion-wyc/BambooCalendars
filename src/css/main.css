@@ -89,6 +89,14 @@
   --nav-radius: 10px;
   --content-max: 860px;
 
+  /* 间距节奏（详情页重构采用，步进 4px） */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+
   --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-normal: 0.28s cubic-bezier(0.4, 0, 0.2, 1);
   --transition-slow: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
@@ -1136,8 +1144,8 @@ html.dark-mode ::-webkit-scrollbar-thumb:hover {
 .detail-sheet {
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-lg);
-  padding: 16px;
-  margin-bottom: 22px;
+  padding: var(--space-4, 16px);
+  margin-bottom: var(--space-5, 20px);
   background: var(--bg-main);
   box-shadow: var(--shadow-sm);
 }
@@ -1191,7 +1199,21 @@ html.dark-mode ::-webkit-scrollbar-thumb:hover {
 }
 
 .detail-section {
-  margin-bottom: 20px;
+  margin-bottom: var(--space-5, 20px);
+}
+
+/* 功能卡片：将成组的字段（日期/提醒/重复/清单）包进微阴影描边卡片 */
+.detail-card {
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  background: var(--bg-panel);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-4, 16px);
+  margin-bottom: var(--space-5, 20px);
+}
+
+.detail-card .detail-field:last-child {
+  margin-bottom: 0;
 }
 
 .detail-section-title {
@@ -3135,91 +3157,278 @@ button:focus-visible,
 }
 
 /* ---- 提醒选择器内容 ---- */
-.popover--reminder {
-  width: 296px;
+/* ---- 统一的日期时间选择器 ---- */
+.popover--datetime {
   padding: 14px;
 }
 
-.reminder-picker {
+.dt-picker {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--space-4, 16px);
+  width: 300px;
 }
 
-.reminder-picker__date {
+.dt-picker--datetime {
+  width: 420px;
+}
+
+.dt-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dt-chip {
+  padding: 6px 12px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text-secondary);
+  background: var(--bg-main);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.dt-chip:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.dt-chip.active {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+.dt-chip--clear {
+  margin-left: auto;
+}
+
+.dt-chip--clear:hover {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.dt-body {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-4, 16px);
+}
+
+.dt-calendar {
+  flex: 1;
+  min-width: 0;
+}
+
+.dt-divider {
+  flex: none;
+  width: 1px;
+  background: var(--border-soft);
+}
+
+.dt-cal-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  margin-bottom: 8px;
 }
 
-.reminder-picker__label {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+.dt-cal-month {
   font-size: 13px;
-  color: var(--text-secondary);
-}
-
-.reminder-picker__date-input {
-  flex: none;
-  padding: 7px 10px;
-  font-size: 13px;
-  font-family: inherit;
+  font-weight: 600;
   color: var(--text-primary);
-  background: var(--bg-main);
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius-sm);
-  outline: none;
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
-.reminder-picker__date-input:focus {
-  border-color: var(--accent);
-  box-shadow: var(--shadow-focus);
-}
-
-.reminder-picker__time {
+.dt-cal-nav {
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast), color var(--transition-fast);
 }
 
-.reminder-picker__col {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+.dt-cal-nav:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.dt-cal-week {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  margin-bottom: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.dt-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
   gap: 2px;
 }
 
-.reminder-picker__col-label {
-  font-size: 11px;
+.dt-day {
+  position: relative;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.dt-day:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.dt-day.is-out {
   color: var(--text-muted);
+  opacity: 0.5;
 }
 
-.reminder-picker__wheel {
-  width: 84px;
+.dt-day.is-today {
+  color: var(--accent);
+  font-weight: 600;
 }
 
-.reminder-picker__sep {
-  align-self: center;
-  margin-top: 16px;
-  padding: 0 6px;
+.dt-day.is-selected {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.dt-day.has-dot::after {
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.dt-day.is-selected.has-dot::after {
+  background: currentColor;
+}
+
+.dt-wheels {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dt-wheels .wheel {
+  width: 68px;
+}
+
+.dt-wheels-sep {
   font-size: 20px;
   font-weight: 600;
   color: var(--text-muted);
 }
 
-.reminder-picker__footer {
+.dt-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  padding-top: var(--space-4, 16px);
+  border-top: 1px solid var(--border-soft);
 }
 
-.reminder-picker__footer-right {
+.dt-footer-right {
   display: inline-flex;
   gap: 8px;
+}
+
+/* ---- 重复 / 清单 下拉浮层 ---- */
+.popover--options {
+  padding: 6px;
+  min-width: 200px;
+}
+
+.option-menu {
+  display: flex;
+  flex-direction: column;
+}
+
+.option-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  font-size: 13px;
+  font-family: inherit;
+  text-align: left;
+  color: var(--text-primary);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.option-menu__item:hover {
+  background: var(--bg-hover);
+}
+
+.option-menu__item.is-active {
+  color: var(--accent);
+}
+
+.option-menu__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.option-menu__label {
+  flex: 1;
+}
+
+.option-menu__check {
+  display: inline-flex;
+  color: var(--accent);
+  opacity: 0;
+}
+
+.option-menu__item.is-active .option-menu__check {
+  opacity: 1;
+}
+
+.detail-picker-btn__text--dot {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.list-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: none;
 }
 
 .rp-btn {
@@ -3249,11 +3458,6 @@ button:focus-visible,
 
 .rp-btn--primary:hover {
   background: var(--accent-dark);
-}
-
-html.dark-mode .reminder-picker__date-input {
-  background: var(--bg-main);
-  color: var(--text-primary);
 }
 
 @media (prefers-reduced-motion: reduce) {

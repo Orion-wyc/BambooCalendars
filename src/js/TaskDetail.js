@@ -1,13 +1,19 @@
 import { store } from './Store.js';
 import { eventBus } from './EventBus.js';
 import { dialog } from './Dialog.js';
-import { escapeHtml, isImeKeyEvent, preserveScroll, formatDayLabel, parseDateTimeLocal } from './Utils.js';
+import { escapeHtml, isImeKeyEvent, preserveScroll, formatDayLabel, formatDueDateLabel, parseDateTimeLocal } from './Utils.js';
 import { icon } from './icons.js';
 import { priorityColor, PRIORITY_NAMES } from './priority.js';
 import { renderTaskItem as renderTaskItemHtml } from './taskItem.js';
 import { flashEnter, clearClassAfterAnim } from './motion.js';
 import { Popover } from './popover.js';
-import { buildReminderContent } from './ReminderPicker.js';
+import { buildDateTimeContent } from './DateTimePicker.js';
+
+const REPEAT_OPTIONS = [
+  ['none', '不重复'], ['daily', '每天'], ['weekdays', '工作日'],
+  ['weekly', '每周'], ['monthly', '每月'], ['yearly', '每年'],
+];
+const LIST_COLORS = ['#5b8def', '#7e8cff', '#59b3a3', '#e08a5e', '#c77dbb', '#d9a441'];
 
 export class TaskDetail {
   constructor() {
@@ -211,10 +217,14 @@ export class TaskDetail {
           </div>
         </div>
 
-        <div class="detail-section">
+        <div class="detail-card">
           <div class="detail-field">
-            <div class="detail-field-label">${icon('flag', { size: 14 })}<span>截止日期</span></div>
-            <input type="date" class="detail-input" id="detail-due-date" value="${escapeHtml(task.dueDate || '')}">
+            <div class="detail-field-label">${icon('calendar', { size: 14 })}<span>截止日期</span></div>
+            <button type="button" id="detail-due-date" class="detail-picker-btn ${task.dueDate ? '' : 'is-empty'}"
+                    data-action="open-due-date" aria-haspopup="dialog">
+              <span class="detail-picker-btn__text">${task.dueDate ? escapeHtml(formatDueDateLabel(task.dueDate)) : '未设置'}</span>
+              ${icon('chevronDown', { size: 15 })}
+            </button>
           </div>
 
           <div class="detail-field">
@@ -228,20 +238,21 @@ export class TaskDetail {
 
           <div class="detail-field">
             <div class="detail-field-label">${icon('repeat', { size: 14 })}<span>重复</span></div>
-            <select class="detail-select" id="detail-repeat">
-              ${[['none', '不重复'], ['daily', '每天'], ['weekdays', '工作日'], ['weekly', '每周'], ['monthly', '每月'], ['yearly', '每年']]
-                .map(([value, label]) => `<option value="${value}" ${task.repeat === value ? 'selected' : ''}>${label}</option>`)
-                .join('')}
-            </select>
+            <button type="button" id="detail-repeat" class="detail-picker-btn ${task.repeat && task.repeat !== 'none' ? '' : 'is-empty'}"
+                    data-action="open-repeat" aria-haspopup="menu" aria-expanded="false">
+              <span class="detail-picker-btn__text">${escapeHtml(this.repeatLabel(task.repeat))}</span>
+              ${icon('chevronDown', { size: 15 })}
+            </button>
           </div>
 
           <div class="detail-field">
             <div class="detail-field-label">${icon('clipboard', { size: 14 })}<span>清单</span></div>
-            <select class="detail-select" id="detail-list">
-              ${lists.map(list => `
-                <option value="${escapeHtml(list.id)}" ${task.listId === list.id ? 'selected' : ''}>${escapeHtml(list.name)}</option>
-              `).join('')}
-            </select>
+            <button type="button" id="detail-list" class="detail-picker-btn" data-action="open-list" aria-haspopup="menu" aria-expanded="false">
+              <span class="detail-picker-btn__text detail-picker-btn__text--dot">
+                <span class="list-dot" style="background:${escapeHtml(this.listColor(task.listId))}"></span>${escapeHtml(this.listName(task.listId))}
+              </span>
+              ${icon('chevronDown', { size: 15 })}
+            </button>
           </div>
         </div>
 
@@ -349,7 +360,16 @@ export class TaskDetail {
 
     switch (action) {
       case 'open-reminder':
-        this.openReminderPopover(target);
+        this.openDateTimePopover(target, 'datetime');
+        break;
+      case 'open-due-date':
+        this.openDateTimePopover(target, 'date');
+        break;
+      case 'open-repeat':
+        this.openOptionsPopover(target, 'repeat');
+        break;
+      case 'open-list':
+        this.openOptionsPopover(target, 'list');
         break;
       case 'toggle-myday':
         store.toggleMyDay(task.id);
@@ -419,22 +439,6 @@ export class TaskDetail {
         store.updateTask(task.id, { note: e.target.value });
         this.emitUpdate(task.id);
         break;
-      case 'detail-due-date':
-        store.updateTask(task.id, { dueDate: e.target.value || null });
-        this.emitUpdate(task.id);
-        break;
-      case 'detail-reminder':
-        store.updateTask(task.id, { reminder: e.target.value || null, reminderNotified: false });
-        this.emitUpdate(task.id);
-        break;
-      case 'detail-repeat':
-        store.updateTask(task.id, { repeat: e.target.value });
-        this.emitUpdate(task.id);
-        break;
-      case 'detail-list':
-        store.updateTask(task.id, { listId: e.target.value });
-        this.emitUpdate(task.id);
-        break;
       default:
         break;
     }
@@ -484,14 +488,6 @@ export class TaskDetail {
     return (completed / task.subtasks.length) * 100;
   }
 
-  focusField(taskId, fieldId) {
-    const id = taskId || this.currentTaskId;
-    if (!id) return;
-    this.open(id);
-    const input = document.getElementById(fieldId);
-    if (input) input.focus();
-  }
-
   focusReminder(taskId) {
     const id = taskId || this.currentTaskId;
     if (!id) return;
@@ -499,12 +495,19 @@ export class TaskDetail {
     const btn = document.getElementById('detail-reminder');
     if (btn) {
       btn.focus();
-      this.openReminderPopover(btn);
+      this.openDateTimePopover(btn, 'datetime');
     }
   }
 
   focusDueDate(taskId) {
-    this.focusField(taskId, 'detail-due-date');
+    const id = taskId || this.currentTaskId;
+    if (!id) return;
+    this.open(id);
+    const btn = document.getElementById('detail-due-date');
+    if (btn) {
+      btn.focus();
+      this.openDateTimePopover(btn, 'date');
+    }
   }
 
   formatReminder(value) {
@@ -513,22 +516,46 @@ export class TaskDetail {
     return d.toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   }
 
-  openReminderPopover(anchor) {
+  repeatLabel(value) {
+    const found = REPEAT_OPTIONS.find(([v]) => v === value);
+    return found ? found[1] : '不重复';
+  }
+
+  listName(listId) {
+    const list = store.getList(listId);
+    return list ? list.name : '清单';
+  }
+
+  listColor(listId) {
+    const lists = store.getLists();
+    const i = lists.findIndex(l => l.id === listId);
+    return LIST_COLORS[(i < 0 ? 0 : i) % LIST_COLORS.length];
+  }
+
+  // 截止日期（date）/ 提醒（datetime）统一选择器
+  openDateTimePopover(anchor, mode) {
     const task = this.getTask();
     if (!task || !this.popover) return;
-    // 再次点击同一字段：收起
     if (this.popover.isOpen()) { this.popover.close(); return; }
-    const build = buildReminderContent({
-      value: task.reminder,
-      onApply: (val) => {
+    const build = buildDateTimeContent({
+      mode,
+      date: mode === 'date' ? task.dueDate : (task.reminder ? task.reminder.slice(0, 10) : null),
+      time: mode === 'datetime' && task.reminder ? task.reminder.slice(11, 16) : null,
+      taskDots: (y, m) => new Set(store.getCalendarTasks(y, m).map(t => t.dueDate)),
+      onApply: ({ date, time }) => {
         this.popover.close();
-        store.updateTask(task.id, { reminder: val, reminderNotified: false });
+        if (mode === 'date') {
+          store.updateTask(task.id, { dueDate: date || null });
+        } else {
+          store.updateTask(task.id, { reminder: date ? `${date}T${time}` : null, reminderNotified: false });
+        }
         this.render();
         this.emitUpdate(task.id);
       },
       onClear: () => {
         this.popover.close();
-        store.updateTask(task.id, { reminder: null, reminderNotified: false });
+        if (mode === 'date') store.updateTask(task.id, { dueDate: null });
+        else store.updateTask(task.id, { reminder: null, reminderNotified: false });
         this.render();
         this.emitUpdate(task.id);
       },
@@ -537,8 +564,48 @@ export class TaskDetail {
     this.popover.open({
       anchor,
       content: build.el,
-      className: 'popover--reminder',
+      className: 'popover--datetime',
       onClose: () => build.destroy(),
+    });
+  }
+
+  // 重复 / 清单：锚定下拉浮层
+  openOptionsPopover(anchor, kind) {
+    const task = this.getTask();
+    if (!task || !this.popover) return;
+    if (this.popover.isOpen()) { this.popover.close(); return; }
+    const isRepeat = kind === 'repeat';
+    const items = isRepeat
+      ? REPEAT_OPTIONS.map(([value, label]) => ({ value, label }))
+      : store.getLists().map((l, i) => ({ value: l.id, label: l.name, color: LIST_COLORS[i % LIST_COLORS.length] }));
+    const current = isRepeat ? task.repeat : task.listId;
+
+    const board = document.createElement('div');
+    board.className = 'option-menu';
+    board.setAttribute('role', 'menu');
+    board.innerHTML = items.map((it) => `
+      <button type="button" class="option-menu__item ${it.value === current ? 'is-active' : ''}"
+              role="menuitemradio" aria-checked="${it.value === current}" data-value="${escapeHtml(it.value)}">
+        ${it.color ? `<span class="option-menu__dot" style="background:${escapeHtml(it.color)}"></span>` : ''}
+        <span class="option-menu__label">${escapeHtml(it.label)}</span>
+        <span class="option-menu__check">${icon('check', { size: 15 })}</span>
+      </button>
+    `).join('');
+
+    board.addEventListener('click', (e) => {
+      const item = e.target.closest('[data-value]');
+      if (!item) return;
+      this.popover.close();
+      if (isRepeat) store.updateTask(task.id, { repeat: item.dataset.value });
+      else store.updateTask(task.id, { listId: item.dataset.value });
+      this.render();
+      this.emitUpdate(task.id);
+    });
+
+    this.popover.open({
+      anchor,
+      content: board,
+      className: 'popover--options',
     });
   }
 

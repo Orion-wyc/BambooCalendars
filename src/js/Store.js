@@ -1,6 +1,6 @@
 import {
   addDays, addMonths, addYears, advanceToNextWeekday, parseDateKey,
-  startOfToday, toDateKey
+  startOfToday, toDateKey, diffDays, parseDateTimeLocal, toDateTimeLocalValue
 } from './Utils.js';
 
 const BUILTIN_LIST_ID = 'tasks';
@@ -601,10 +601,26 @@ export class Store {
       tags: [...(task.tags || [])],
       subtasks: (task.subtasks || []).map(s => ({ ...s, id: this.generateId(), completed: false })),
       dueDate: toDateKey(date),
+      reminder: this._shiftReminder(task.reminder, task.dueDate, date),
       createdAt: Date.now(),
       updatedAt: Date.now(),
       order: this._nextOrder(),
     };
+  }
+
+  // 顺延提醒以跟随新的截止日期：保留提醒相对截止日的偏移（无截止日则对齐到新截止日，保留时刻）
+  _shiftReminder(reminder, oldDueKey, newDueDate) {
+    const prev = parseDateTimeLocal(reminder);
+    if (!prev) return null;
+    const oldDue = parseDateKey(oldDueKey);
+    if (oldDue) {
+      return toDateTimeLocalValue(addDays(prev, diffDays(newDueDate, oldDue)));
+    }
+    const shifted = new Date(
+      newDueDate.getFullYear(), newDueDate.getMonth(), newDueDate.getDate(),
+      prev.getHours(), prev.getMinutes()
+    );
+    return toDateTimeLocalValue(shifted);
   }
 
   _advanceRepeat(date, repeat) {

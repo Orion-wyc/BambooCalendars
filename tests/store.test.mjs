@@ -196,6 +196,33 @@ test('BUG-12 每月重复按同一天推进', () => {
   assert.equal(next.dueDate, U.toDateKey(U.addMonths(base, 1)));
 });
 
+test('重复任务生成下一期时顺延提醒时间', () => {
+  const s = freshStore(null);
+  const base = U.addDays(U.startOfToday(), 5);
+  const dueKey = U.toDateKey(base);
+
+  // 提醒在截止当天 → 顺延到新的截止当天（时刻不变）
+  const t = s.createTask({ title: '每日提醒', dueDate: dueKey, repeat: 'daily' });
+  s.updateTask(t.id, { reminder: `${dueKey}T09:30` });
+  s.toggleComplete(t.id);
+  const next = s.data.tasks.find(x => x.id !== t.id);
+  assert.equal(next.dueDate, U.toDateKey(U.addDays(base, 1)));
+  assert.equal(next.reminder, `${U.toDateKey(U.addDays(base, 1))}T09:30`);
+
+  // 提醒比截止早一天 → 保持相对偏移
+  const t2 = s.createTask({ title: '每周提醒', dueDate: dueKey, repeat: 'weekly' });
+  s.updateTask(t2.id, { reminder: `${U.toDateKey(U.addDays(base, -1))}T08:00` });
+  s.toggleComplete(t2.id);
+  const n2 = s.data.tasks.find(x => x.id !== t2.id && x.title === '每周提醒');
+  assert.equal(n2.dueDate, U.toDateKey(U.addDays(base, 7)));
+  assert.equal(n2.reminder, `${U.toDateKey(U.addDays(base, 6))}T08:00`);
+
+  // 原任务没有提醒 → 新实例也不应有提醒
+  const t3 = s.createTask({ title: '无提醒', dueDate: dueKey, repeat: 'daily' });
+  s.toggleComplete(t3.id);
+  assert.equal(s.data.tasks.find(x => x.id !== t3.id && x.title === '无提醒').reminder, null);
+});
+
 test('BUG-18 拖拽重排后 order 唯一且切换为手动排序', () => {
   const s = freshStore(null);
   const a = s.createTask({ title: 'a' });

@@ -134,7 +134,7 @@ export class WheelPicker {
   _bindEvents() {
     // 滚轮：拦截原生滚动，改成“一格一项”的程序化步进（可精确调整、不抖动）
     this.scroller.addEventListener('wheel', (e) => this._onWheel(e), { passive: false });
-    // 外部/触控滚动（非本组件驱动）时同步选中项
+    // 任何滚动（含外部/触控/程序化）停止后，同步选中项并静默归位到中间拷贝
     this.scroller.addEventListener('scroll', () => this._onScroll(), { passive: true });
     this.el.addEventListener('keydown', (e) => this._onKeyDown(e));
   }
@@ -170,12 +170,32 @@ export class WheelPicker {
   }
 
   _onScroll() {
-    if (this._suppress || this._animating) return; // 本组件驱动的滚动不重算
-    const g = centerIndex(this.scroller.scrollTop, this.itemHeight);
-    if (g !== this._g) {
-      this._g = g;
-      this._setActive(g);
+    if (this._suppress) return;
+    // 非本组件动画驱动的滚动（外部/触控）实时同步选中项
+    if (!this._animating) {
+      const g = centerIndex(this.scroller.scrollTop, this.itemHeight);
+      if (g !== this._g) {
+        this._g = g;
+        this._setActive(g);
+      }
     }
+    // 滚动停止 / 吸附完成后再静默归位（节流到停止瞬间，避免中途打断）
+    this._scheduleSettle(120);
+  }
+
+  _scheduleSettle(delay = 120) {
+    if (this._settleTimer) clearTimeout(this._settleTimer);
+    this._settleTimer = setTimeout(() => this._settle(), delay);
+  }
+
+  // 收尾：同步权威索引 + 高亮，并静默归位到中间拷贝
+  _settle() {
+    if (this._suppress || this._destroyed || !this.scroller) return;
+    this._animating = false;
+    const g = centerIndex(this.scroller.scrollTop, this.itemHeight);
+    this._g = g;
+    this._setActive(g);
+    this._normalizeLoop();
   }
 
   _onKeyDown(e) {
@@ -188,28 +208,26 @@ export class WheelPicker {
     this._goTo(this._g + step, true);
   }
 
-  // 权威移动：更新 _g、滚动、同步高亮，并在动画结束后做无限循环归位
+  // 权威移动：更新 _g、滚动、同步高亮；收尾统一由 _settle/_normalizeLoop 处理
   _goTo(g, animate) {
     if (!this.count) return;
     const maxG = this.copies * this.count - 1;
     this._g = Math.max(0, Math.min(maxG, g));
     this._acc = 0;
-    if (animate && !prefersReduced() && typeof this.scroller.scrollTo === 'function') {
+    const smooth = animate && !prefersReduced() && typeof this.scroller.scrollTo === 'function';
+    if (smooth) {
       this._animating = true;
       this.scroller.scrollTo({ top: this._g * this.itemHeight, behavior: 'smooth' });
-      if (this._settleTimer) clearTimeout(this._settleTimer);
-      this._settleTimer = setTimeout(() => {
-        this._animating = false;
-        this._normalizeLoop();
-      }, 320);
+      this._scheduleSettle(400); // 兜底：即便没有 scroll 事件也能收尾
     } else {
       this.scroller.scrollTop = this._g * this.itemHeight;
-      this._normalizeLoop();
+      this._settle();
     }
     this._setActive(this._g);
   }
 
-  // 无限循环：把 _g 收回中间拷贝，并按“一份拷贝”高度静默平移 scrollTop（视觉不变）
+  // 无限循环：把 _g 收回中间拷贝，并按“一份拷贝”高度静默平移 scrollTop（视觉不变）。
+  // 目标：_g 始终落在中间组 [n, 2n)，从根本上避免滚到数组物理末端。
   _normalizeLoop() {
     const n = this.count;
     if (!n) return;

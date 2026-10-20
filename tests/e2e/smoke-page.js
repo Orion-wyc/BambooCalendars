@@ -579,6 +579,20 @@
       ok('方向键回退一项', hourWheel.getAttribute('aria-valuetext') === back,
         hourWheel.getAttribute('aria-valuetext'));
 
+      // 无限循环：多次滚动值环绕，且 scrollTop 收敛在中间拷贝（不会滚到底/顶）
+      const loopStart = parseInt(hourWheel.getAttribute('aria-valuetext'), 10);
+      for (let i = 0; i < 28; i++) {
+        scroller.dispatchEvent(new WheelEvent('wheel', { deltaY: 100, bubbles: true, cancelable: true }));
+        await sleep(50);
+      }
+      await sleep(650);
+      ok('多次滚动后时间值正确环绕',
+        parseInt(hourWheel.getAttribute('aria-valuetext'), 10) === (loopStart + 28) % 24,
+        `${loopStart} → ${hourWheel.getAttribute('aria-valuetext')}`);
+      ok('无限循环静默归位不触底',
+        scroller.scrollTop > 0 && (scroller.scrollTop + scroller.clientHeight) < scroller.scrollHeight - 1,
+        `${scroller.scrollTop}+${scroller.clientHeight}/${scroller.scrollHeight}`);
+
       click(pop.querySelector('[data-role="ok"]'));
       await sleep(220);
       const stored = store.data.tasks.find(x => x.id === taskId);

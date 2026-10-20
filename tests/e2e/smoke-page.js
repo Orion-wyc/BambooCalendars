@@ -430,10 +430,9 @@
     }
     const countEl = $('#sidebar-nav .nav-item-count');
     const addEl = $('.lists-section-add');
-    const alignDiff = (countEl && addEl)
-      ? Math.abs(countEl.getBoundingClientRect().right - addEl.getBoundingClientRect().right)
-      : null;
-    ok('侧边栏任务数与新建清单按钮右对齐',
+    const centerX = (el) => { const b = el.getBoundingClientRect(); return b.left + b.width / 2; };
+    const alignDiff = (countEl && addEl) ? Math.abs(centerX(countEl) - centerX(addEl)) : null;
+    ok('侧边栏任务数与新建清单按钮垂直（中心）对齐',
       alignDiff !== null && alignDiff <= 1,
       `差 ${alignDiff === null ? 'N/A' : alignDiff.toFixed(2)}px`);
     ok('侧边栏底部不再有「新清单」按钮', !$('#btn-add-list'));
@@ -529,6 +528,21 @@
     ok('选中任务后主视图宽度不变', Math.abs(mainBefore - mainAfter) <= 0.5, `${mainBefore} → ${mainAfter}`);
     ok('选中任务后详情面板宽度不变', Math.abs(paneBefore - paneAfter) <= 0.5, `${paneBefore} → ${paneAfter}`);
     ok('选中任务后显示详情内容', app.taskDetail.isOpen() && Boolean($('.detail-content')));
+    {
+      const doneBtn = $('.btn-complete-task');
+      const ds = doneBtn.querySelector('svg').getBoundingClientRect();
+      const dp = doneBtn.querySelector('span').getBoundingClientRect();
+      const db = doneBtn.getBoundingClientRect();
+      const btnCx = db.left + db.width / 2;
+      const btnCy = db.top + db.height / 2;
+      ok('完成按钮图标+文字整体水平居中',
+        Math.abs((ds.left + dp.right) / 2 - btnCx) <= 1,
+        `${((ds.left + dp.right) / 2).toFixed(2)} vs ${btnCx.toFixed(2)}`);
+      ok('完成按钮图标与文字垂直居中',
+        Math.abs((ds.top + ds.height / 2) - btnCy) <= 1
+        && Math.abs((dp.top + dp.height / 2) - btnCy) <= 1,
+        `${(ds.top + ds.height / 2).toFixed(2)} / ${(dp.top + dp.height / 2).toFixed(2)} vs ${btnCy.toFixed(2)}`);
+    }
     click($('#task-list-area'));
     await sleep(100);
     ok('点击空白处关闭详情并显示占位',

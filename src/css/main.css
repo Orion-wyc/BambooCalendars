@@ -423,8 +423,8 @@ html.dark-mode ::-webkit-scrollbar-thumb:hover {
   font-size: 12px;
   font-weight: 600;
   opacity: 0.7;
-  min-width: 20px;
-  text-align: right;
+  width: 24px;
+  text-align: center;
   font-variant-numeric: tabular-nums;
 }
 
@@ -523,22 +523,9 @@ html.dark-mode ::-webkit-scrollbar-thumb:hover {
 .list-item-count {
   font-size: 12px;
   opacity: 0.7;
-  min-width: 20px;
-  text-align: right;
+  width: 24px;
+  text-align: center;
   font-variant-numeric: tabular-nums;
-}
-
-.list-item-actions {
-  display: none;
-  gap: 2px;
-}
-
-.list-item:hover .list-item-actions {
-  display: flex;
-}
-
-.list-item:hover .list-item-count {
-  display: none;
 }
 
 .btn-icon-sm {
@@ -1553,9 +1540,18 @@ html.dark-mode ::-webkit-scrollbar-thumb:hover {
   border: none;
   font-size: 14px;
   font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
   border-radius: var(--radius-md);
   cursor: pointer;
   transition: background var(--transition-fast), filter var(--transition-fast);
+}
+
+/* 图标与文字作为整体水平+垂直居中 */
+.btn-complete-task .icon,
+.btn-delete-task .icon {
+  display: block;
+  flex: none;
 }
 
 .btn-complete-task {

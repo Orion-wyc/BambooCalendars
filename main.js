@@ -23,6 +23,11 @@ let isQuitting = false;
 let saveWindowStateTimer = null;
 
 const TITLEBAR_HEIGHT = 36;
+// 默认/最小窗口尺寸：以默认尺寸作为下限，避免窗口被挤压导致布局错乱
+const DEFAULT_WIDTH = 1200;
+const DEFAULT_HEIGHT = 800;
+const MIN_WIDTH = DEFAULT_WIDTH;
+const MIN_HEIGHT = DEFAULT_HEIGHT;
 const overlayState = { color: '#ffffff', symbolColor: '#242424', height: TITLEBAR_HEIGHT };
 
 function appIconPath() {
@@ -360,8 +365,8 @@ function isInsideSomeDisplay(bounds) {
 
 function restoreWindowState() {
   const state = readJSON(WINDOW_STATE_PATH, {});
-  const width = Math.max(900, Number(state.width) || 1200);
-  const height = Math.max(600, Number(state.height) || 800);
+  const width = Math.max(MIN_WIDTH, Number(state.width) || DEFAULT_WIDTH);
+  const height = Math.max(MIN_HEIGHT, Number(state.height) || DEFAULT_HEIGHT);
   const visible = isInsideSomeDisplay({ x: state.x, y: state.y, width, height });
   return {
     width,
@@ -380,8 +385,8 @@ function createWindow() {
     height: state.height,
     x: state.x,
     y: state.y,
-    minWidth: 900,
-    minHeight: 600,
+    minWidth: MIN_WIDTH,
+    minHeight: MIN_HEIGHT,
     title: 'Bamboo Todo',
     titleBarStyle: isMac ? 'hiddenInset' : 'hidden',
     ...(isMac ? {} : {

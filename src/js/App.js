@@ -118,6 +118,10 @@ class App {
       this.taskList.render();
     });
 
+    // 主视图顶部清单操作 → 复用 Sidebar 的重命名/删除逻辑
+    eventBus.on('list:rename-request', () => this.sidebar.renameCurrentList());
+    eventBus.on('list:delete-request', () => this.sidebar.deleteCurrentList());
+
     eventBus.on('tag:delete', (tagId) => {
       if (this.taskList.filterTagId === tagId) this.taskList.setTagFilter(tagId);
       this.taskList.render();

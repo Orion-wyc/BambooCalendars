@@ -383,7 +383,7 @@
       return { cx: b.left + b.width / 2, w: b.width };
     };
     const probeAlign = () => ({
-      add: iconCenter('.btn-add-list-icon'),
+      add: iconCenter('#btn-pomodoro .btn-add-list-icon'),
       settings: iconCenter('#btn-settings .nav-item-icon'),
       nav: iconCenter('#sidebar-nav .nav-item .nav-item-icon'),
       sidebar: (() => {
@@ -421,6 +421,23 @@
     ok('BUG-56 紧凑模式侧边栏无横向溢出', compactAlign.overflow === false);
     document.documentElement.classList.remove('compact-mode');
     await sleep(450);
+
+    // ---- 侧边栏任务数与「新建清单」按钮右对齐 ----
+    if (!$('#sidebar-nav .nav-item-count')) {
+      store.createTask({ title: '对齐用任务' });
+      app.sidebar.update();
+      await sleep(80);
+    }
+    const countEl = $('#sidebar-nav .nav-item-count');
+    const addEl = $('.lists-section-add');
+    const alignDiff = (countEl && addEl)
+      ? Math.abs(countEl.getBoundingClientRect().right - addEl.getBoundingClientRect().right)
+      : null;
+    ok('侧边栏任务数与新建清单按钮右对齐',
+      alignDiff !== null && alignDiff <= 1,
+      `差 ${alignDiff === null ? 'N/A' : alignDiff.toFixed(2)}px`);
+    ok('侧边栏底部不再有「新清单」按钮', !$('#btn-add-list'));
+    ok('侧边栏清单行不再有行内操作按钮', document.querySelectorAll('#sidebar-lists .list-item-actions').length === 0);
 
     // ---- BUG-49 日历「今天」按钮 ----
     click($('#sidebar-nav [data-view="calendar"]'));
@@ -792,7 +809,7 @@
     // ---- BUG-53 清单/任务增删改走应用内对话框 ----
     const dialogHidden = () => $('#dialog-overlay').classList.contains('hidden');
     const listCountBefore = store.getLists().length;
-    click($('#btn-add-list'));
+    click($('.lists-section-add'));
     await sleep(120);
     ok('BUG-53 点击「新清单」弹出对话框', !dialogHidden());
     ok('BUG-53 对话框自动聚焦输入框',
@@ -813,11 +830,14 @@
     ok('BUG-53 创建后对话框关闭', dialogHidden());
 
     const workList = store.getLists().find(l => l.name === '工作');
-    ok('BUG-53 新清单带重命名/删除按钮',
-      Boolean($(`.btn-rename-list[data-list-id="${workList.id}"]`)) &&
-      Boolean($(`.btn-delete-list[data-list-id="${workList.id}"]`)));
+    // 进入该清单：重命名/删除按钮已移至主视图顶部
+    app.sidebar.jumpToListId(workList.id);
+    await sleep(80);
+    ok('BUG-53 主视图顶部带重命名/删除按钮',
+      Boolean($('.list-header-btn[data-action="rename-list"]')) &&
+      Boolean($('.list-header-btn[data-action="delete-list"]')));
 
-    click($(`.btn-rename-list[data-list-id="${workList.id}"]`));
+    click($('.list-header-btn[data-action="rename-list"]'));
     await sleep(120);
     ok('BUG-53 点击重命名按钮弹出对话框并预填名称',
       !dialogHidden() && $('#dialog-input').value === '工作', $('#dialog-input').value);
@@ -828,14 +848,14 @@
     ok('BUG-53 侧边栏显示新名称',
       $$('#sidebar-lists .list-item').some(el => el.textContent.includes('工作安排')));
 
-    click($(`.btn-rename-list[data-list-id="${workList.id}"]`));
+    click($('.list-header-btn[data-action="rename-list"]'));
     await sleep(100);
     key($('#dialog-input'), 'Escape');
     await sleep(120);
     ok('BUG-53 Esc 取消对话框', dialogHidden());
     ok('BUG-53 取消后名称未变', store.getList(workList.id).name === '工作安排');
 
-    click($(`.btn-delete-list[data-list-id="${workList.id}"]`));
+    click($('.list-header-btn[data-action="delete-list"]'));
     await sleep(120);
     ok('BUG-53 删除清单弹出确认框', !dialogHidden());
     ok('BUG-53 确认框文案含清单名',
@@ -844,7 +864,7 @@
     await sleep(120);
     ok('BUG-53 取消后清单保留', Boolean(store.getList(workList.id)));
 
-    click($(`.btn-delete-list[data-list-id="${workList.id}"]`));
+    click($('.list-header-btn[data-action="delete-list"]'));
     await sleep(100);
     click($('[data-action="dialog-ok"]'));
     await sleep(150);

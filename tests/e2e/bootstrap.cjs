@@ -122,11 +122,14 @@ async function mainChecks(win) {
 
   ok('窗口已显示', win.isVisible());
 
-  win.setBounds({ width: 1000, height: 700 });
+  ok('BUG-24 窗口最小尺寸为 1200x800',
+    JSON.stringify(win.getMinimumSize()) === JSON.stringify([1200, 800]),
+    JSON.stringify(win.getMinimumSize()));
+  win.setBounds({ width: 1240, height: 820 });
   await sleep(900);
   ok('BUG-24 resize 后防抖落盘', fs.existsSync(wsPath));
   const ws = readJson(wsPath, {});
-  ok('BUG-24 保存的尺寸与窗口一致', ws.width === 1000 && ws.height === 700, JSON.stringify(ws));
+  ok('BUG-24 保存的尺寸与窗口一致', ws.width === 1240 && ws.height === 820, JSON.stringify(ws));
 
   win.close();
   await sleep(400);

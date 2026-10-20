@@ -40,10 +40,6 @@ export class Sidebar {
       </div>
     `;
     this.el.footer.innerHTML = `
-      <button class="btn-add-list" id="btn-add-list">
-        <div class="btn-add-list-icon">${icon('plus')}</div>
-        <div>新清单</div>
-      </button>
       <button class="btn-add-list" id="btn-pomodoro" title="番茄钟">
         <div class="btn-add-list-icon">${icon('tomato')}</div>
         <div>番茄钟</div>
@@ -91,10 +87,6 @@ export class Sidebar {
             <div class="list-item-icon">${icon(builtin ? 'inbox' : 'clipboard')}</div>
             <div class="list-item-label">${escapeHtml(list.name)}</div>
             <div class="list-item-count">${counts[list.id] || ''}</div>
-            <div class="list-item-actions">
-              <button class="btn-icon-sm btn-rename-list" data-list-id="${escapeHtml(list.id)}" title="重命名">${icon('edit', { size: 15 })}</button>
-              ${builtin ? '' : `<button class="btn-icon-sm btn-delete-list" data-list-id="${escapeHtml(list.id)}" title="删除">${icon('close', { size: 15 })}</button>`}
-            </div>
           </div>
         `;
       }).join('')}
@@ -113,18 +105,6 @@ export class Sidebar {
         this.addList();
         return;
       }
-      const renameBtn = e.target.closest('.btn-rename-list');
-      if (renameBtn) {
-        e.stopPropagation();
-        this.renameList(renameBtn.dataset.listId);
-        return;
-      }
-      const deleteBtn = e.target.closest('.btn-delete-list');
-      if (deleteBtn) {
-        e.stopPropagation();
-        this.deleteList(deleteBtn.dataset.listId);
-        return;
-      }
       const item = e.target.closest('.list-item');
       if (item && item.dataset.listId) {
         this.jumpToListId(item.dataset.listId);
@@ -132,8 +112,7 @@ export class Sidebar {
     });
 
     this.el.footer.addEventListener('click', (e) => {
-      if (e.target.closest('#btn-add-list')) this.addList();
-      else if (e.target.closest('#btn-pomodoro')) eventBus.emit('pomodoro:toggle');
+      if (e.target.closest('#btn-pomodoro')) eventBus.emit('pomodoro:toggle');
       else if (e.target.closest('#btn-settings')) eventBus.emit('settings:open');
     });
 

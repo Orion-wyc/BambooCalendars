@@ -221,8 +221,9 @@ test('BUG-08 排序方式 change 事件生效', () => {
 test('BUG-13/14 侧边栏渲染与内置清单保护', () => {
   const sidebar = new Sidebar();
   const html = document.getElementById('sidebar-lists').innerHTML;
-  assert.match(html, /btn-rename-list/);
-  assert.doesNotMatch(html, /data-list-id="tasks"[\s\S]*?btn-delete-list/);
+  // 重命名/删除已移至主视图顶部，侧边栏不再渲染行内操作按钮
+  assert.doesNotMatch(html, /btn-rename-list/);
+  assert.doesNotMatch(html, /btn-delete-list/);
   sidebar.render();
   sidebar.deleteList('tasks');
   assert.ok(store.getList('tasks'), '内置清单不应被删除');

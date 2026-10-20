@@ -697,6 +697,40 @@ html.dark-mode ::-webkit-scrollbar-thumb:hover {
   margin-top: 2px;
 }
 
+/* 主视图顶部的清单操作（重命名/删除） */
+.list-header-actions {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+
+.list-header-btn {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-soft);
+  background: var(--bg-panel);
+  color: var(--text-secondary);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.list-header-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border);
+}
+
+.list-header-btn--danger:hover {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
 #task-input-area {
   padding: 4px 32px 12px;
   flex: none;
@@ -1238,6 +1272,8 @@ html.dark-mode ::-webkit-scrollbar-thumb:hover {
   align-items: center;
   gap: 6px;
   font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
   color: var(--text-muted);
   margin-bottom: 6px;
 }
@@ -1246,7 +1282,7 @@ html.dark-mode ::-webkit-scrollbar-thumb:hover {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid var(--border-soft);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   font-size: 14px;
   outline: none;
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
@@ -1264,7 +1300,7 @@ html.dark-mode ::-webkit-scrollbar-thumb:hover {
   min-height: 80px;
   padding: 10px 12px;
   border: 1px solid var(--border-soft);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   font-size: 14px;
   font-family: inherit;
   outline: none;
@@ -1284,7 +1320,7 @@ html.dark-mode ::-webkit-scrollbar-thumb:hover {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid var(--border-soft);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   font-size: 14px;
   outline: none;
   background: var(--bg-main);
@@ -3090,7 +3126,7 @@ button:focus-visible,
   color: var(--text-primary);
   background: var(--bg-main);
   border: 1px solid var(--border-soft);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   cursor: pointer;
   outline: none;
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);

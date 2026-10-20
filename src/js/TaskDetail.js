@@ -286,6 +286,7 @@ export class TaskDetail {
 
         <div class="detail-section detail-meta">
           <div>创建于 ${new Date(task.createdAt).toLocaleString('zh-CN')}</div>
+          ${task.completed && task.completedAt ? `<div>完成于 ${new Date(task.completedAt).toLocaleString('zh-CN')}</div>` : ''}
         </div>
       </div>
 

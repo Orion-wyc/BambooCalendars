@@ -136,6 +136,13 @@ export class TaskList {
       ? `<div class="list-header-subtitle">${parts.join(' · ')}</div>`
       : '';
 
+    const listActions = this.currentView === 'list' && this.currentListId
+      ? `<div class="list-header-actions">
+          <button type="button" class="list-header-btn" data-action="rename-list" title="重命名清单">${icon('edit', { size: 16 })}</button>
+          ${store.isBuiltinList(this.currentListId) ? '' : `<button type="button" class="list-header-btn list-header-btn--danger" data-action="delete-list" title="删除清单">${icon('trash', { size: 16 })}</button>`}
+        </div>`
+      : '';
+
     header.innerHTML = `
       <div class="list-header-inner">
         <span class="list-header-icon">${icon(iconName)}</span>
@@ -143,6 +150,7 @@ export class TaskList {
           <h1>${title}</h1>
           ${subtitle}
         </div>
+        ${listActions}
       </div>
     `;
   }
@@ -508,6 +516,17 @@ export class TaskList {
   bindEvents() {
     const area = document.getElementById('task-list-area');
     const inputArea = document.getElementById('task-input-area');
+    const header = document.getElementById('list-header');
+
+    // 主视图顶部的清单操作（重命名/删除），逻辑仍由 Sidebar 承担
+    if (header) {
+      header.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-action]');
+        if (!btn) return;
+        if (btn.dataset.action === 'rename-list') eventBus.emit('list:rename-request');
+        else if (btn.dataset.action === 'delete-list') eventBus.emit('list:delete-request');
+      });
+    }
 
     inputArea.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && e.target.id === 'task-input' && !isImeKeyEvent(e)) {

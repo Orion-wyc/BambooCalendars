@@ -973,6 +973,11 @@ html.dark-mode ::-webkit-scrollbar-thumb:hover {
   color: var(--warning-dark);
 }
 
+.task-meta-item.is-overdue {
+  color: var(--danger);
+  font-weight: 600;
+}
+
 .task-due-date {
   display: inline-flex;
   align-items: center;
@@ -1381,10 +1386,10 @@ html.dark-mode ::-webkit-scrollbar-thumb:hover {
 }
 
 .subtask-checkbox {
-  width: 20px;
-  height: 20px;
-  border: 2px solid var(--grey-82);
-  border-radius: 7px;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--border);
+  border-radius: 6px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -1413,7 +1418,10 @@ html.dark-mode ::-webkit-scrollbar-thumb:hover {
   min-width: 0;
   font-size: 14px;
   color: var(--text-primary);
-  word-break: break-word;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: text;
 }
 
 .subtask-item.completed .subtask-title {
@@ -1421,9 +1429,68 @@ html.dark-mode ::-webkit-scrollbar-thumb:hover {
   color: var(--text-muted);
 }
 
-.btn-delete-subtask {
-  width: 26px;
+.subtask-edit-input {
+  flex: 1;
+  min-width: 0;
   height: 26px;
+  padding: 2px 8px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--text-primary);
+  background: var(--bg-panel);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+/* 右侧微交互：默认隐藏，悬停/聚焦时平滑浮现（拖拽柄 + 删除） */
+.subtask-actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.subtask-item:hover .subtask-actions,
+.subtask-item:focus-within .subtask-actions {
+  opacity: 1;
+}
+
+.subtask-drag {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  cursor: grab;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.subtask-drag:hover {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+
+.subtask-drag:active {
+  cursor: grabbing;
+}
+
+.subtask-item.dragging {
+  opacity: 0.5;
+}
+
+.subtask-item.drag-over {
+  box-shadow: inset 0 2px 0 0 var(--accent);
+}
+
+.btn-delete-subtask {
+  width: 24px;
+  height: 24px;
   border: none;
   background: transparent;
   color: var(--text-muted);
@@ -1432,14 +1499,8 @@ html.dark-mode ::-webkit-scrollbar-thumb:hover {
   display: flex;
   align-items: center;
   justify-content: center;
-  opacity: 0;
-  transition: background var(--transition-fast), color var(--transition-fast), opacity var(--transition-fast);
+  transition: background var(--transition-fast), color var(--transition-fast);
   flex: none;
-}
-
-.subtask-item:hover .btn-delete-subtask,
-.btn-delete-subtask:focus-visible {
-  opacity: 1;
 }
 
 .btn-delete-subtask:hover {

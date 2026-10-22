@@ -3,7 +3,7 @@ import { eventBus } from './EventBus.js';
 import { dialog } from './Dialog.js';
 import {
   escapeHtml, formatDayLabel, formatDueDateLabel, isImeKeyEvent,
-  startOfToday, toDateKey
+  startOfToday, toDateKey, parseDateKey
 } from './Utils.js';
 import { icon } from './icons.js';
 import { PRIORITY_COLORS, PRIORITY_LABELS, PRIORITY_NAMES, PRIORITY_FALLBACK } from './priority.js';
@@ -422,7 +422,9 @@ export class TaskList {
                   <div class="task-title">${this.highlightSearch(task.title)}</div>
                   <div class="task-meta">
                     ${task.important ? `<div class="task-meta-item is-important">${icon('star', { size: 13 })}<span>重要</span></div>` : ''}
-                    ${task.dueDate ? `<div class="task-meta-item task-due-date">${icon('flag', { size: 13 })}<span>${escapeHtml(formatDueDateLabel(task.dueDate))}</span></div>` : ''}
+                    ${this.isOverdue(task)
+                      ? `<div class="task-meta-item is-overdue">${icon('alert', { size: 13 })}<span>已超期</span></div>`
+                      : (task.dueDate ? `<div class="task-meta-item task-due-date">${icon('flag', { size: 13 })}<span>${escapeHtml(formatDueDateLabel(task.dueDate))}</span></div>` : '')}
                   </div>
                 </div>
               </div>
@@ -439,6 +441,12 @@ export class TaskList {
       return;
     }
     area.innerHTML = html;
+  }
+
+  isOverdue(task) {
+    if (task.completed || !task.dueDate) return false;
+    const due = parseDateKey(task.dueDate);
+    return Boolean(due) && due < startOfToday();
   }
 
   emptyState(view) {

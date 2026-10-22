@@ -543,6 +543,35 @@ export class Store {
     return task;
   }
 
+  updateSubtask(taskId, subtaskId, title) {
+    const task = this.data.tasks.find(t => t.id === taskId);
+    const next = typeof title === 'string' ? title.trim() : '';
+    if (!task || !next) return task;
+    const subtask = (task.subtasks || []).find(s => s.id === subtaskId);
+    if (subtask) {
+      subtask.title = next;
+      task.updatedAt = Date.now();
+      this.save();
+    }
+    return task;
+  }
+
+  reorderSubtask(taskId, draggedId, targetId) {
+    if (draggedId === targetId) return false;
+    const task = this.data.tasks.find(t => t.id === taskId);
+    if (!task) return false;
+    const list = task.subtasks || [];
+    const from = list.findIndex(s => s.id === draggedId);
+    const to = list.findIndex(s => s.id === targetId);
+    if (from === -1 || to === -1) return false;
+    const [moved] = list.splice(from, 1);
+    // 统一“落在目标项之前”：向下拖时移除后目标索引前移一位，避免少移动一格
+    list.splice(from < to ? to - 1 : to, 0, moved);
+    task.updatedAt = Date.now();
+    this.save();
+    return true;
+  }
+
   reorderTask(draggedId, targetId) {
     if (draggedId === targetId) return false;
     const tasks = this.data.tasks;

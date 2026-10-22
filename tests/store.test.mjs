@@ -154,6 +154,35 @@ test('BUG-11 复制任务的 tags/subtasks 数组相互独立', () => {
   assert.deepEqual(t.tags, ['t1']);
 });
 
+test('子步骤：行内更新标题与拖拽排序', () => {
+  const s = freshStore(null);
+  const t = s.createTask({ title: '步骤任务' });
+  s.addSubtask(t.id, 'A');
+  s.addSubtask(t.id, 'B');
+  s.addSubtask(t.id, 'C');
+  const subs = () => s.data.tasks.find(x => x.id === t.id).subtasks;
+  assert.deepEqual(subs().map(x => x.title), ['A', 'B', 'C']);
+
+  s.updateSubtask(t.id, subs()[0].id, '  A2  ');
+  assert.equal(subs()[0].title, 'A2', '更新并去除首尾空格');
+  s.updateSubtask(t.id, subs()[0].id, '   ');
+  assert.equal(subs()[0].title, 'A2', '空白输入不覆盖');
+
+  const [a, b, c] = subs();
+  const idA = a.id; const idB = b.id; const idC = c.id;
+  // 初始 ['A2','B','C']；向下拖：统一“落在目标之前”
+  assert.equal(s.reorderSubtask(t.id, idA, idC), true);
+  assert.deepEqual(subs().map(x => x.title), ['B', 'A2', 'C']);
+  // 向上拖
+  assert.equal(s.reorderSubtask(t.id, idC, idA), true);
+  assert.deepEqual(subs().map(x => x.title), ['B', 'C', 'A2']);
+  // 再向上拖回
+  assert.equal(s.reorderSubtask(t.id, idA, idB), true);
+  assert.deepEqual(subs().map(x => x.title), ['A2', 'B', 'C']);
+  assert.equal(s.reorderSubtask(t.id, idA, idA), false, '自身排序返回 false');
+  assert.equal(s.reorderSubtask(t.id, 'nope', idC), false, '未知 id 返回 false');
+});
+
 test('BUG-12 重复任务只在完成边沿生成一次', () => {
   const s = freshStore(null);
   const t = s.createTask({ title: '每日', dueDate: U.toDateKey(new Date()), repeat: 'daily' });

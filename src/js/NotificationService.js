@@ -7,6 +7,7 @@ const REMINDER_WINDOW_MS = 60 * 1000;
 const REMINDER_MISSED_GRACE_MS = 10 * 60 * 1000;
 const DUE_TRIGGER_HOUR = 9;             // 到期当天 09:00 触发
 const DUE_LATE_GRACE_MS = 12 * 3600 * 1000; // 距触发时刻超过则静默（避免久未打开后轰炸）
+const DUE_SAME_DAY_GRACE_MS = 36 * 3600 * 1000; // “当天新建且当天到期”被跳过后的次日补发窗口
 
 function timeText(date) {
   return date.toLocaleString('zh-CN', {
@@ -78,6 +79,9 @@ export class NotificationService {
     store.data.tasks.forEach(task => {
       if (task.completed || !task.dueDate || task.dueNotified) return;
       if (task.dueDate > todayKey) return; // 未来日期
+      const createdKey = task.createdAt ? toDateKey(new Date(task.createdAt)) : null;
+      // 新建当天不触发到期通知（避免刚创建任务就弹）；次日仍会按下面的补发窗口处理
+      if (createdKey === todayKey) return;
       const due = parseDateTimeLocal(`${task.dueDate}T00:00`);
       if (!due) {
         task.dueNotified = true;
@@ -87,7 +91,10 @@ export class NotificationService {
       due.setHours(DUE_TRIGGER_HOUR, 0, 0, 0);
       const age = now - due.getTime();
       if (age < 0) return; // 到期当天但还没到触发时刻
-      if (enabled && age <= DUE_LATE_GRACE_MS) this.notify(task, 'due', { when: due });
+      // “当天新建且当天到期”的任务被跳过一整天，次日用更宽的补发窗口避免永久丢失
+      const sameDayCreated = createdKey && createdKey === task.dueDate;
+      const grace = sameDayCreated ? DUE_SAME_DAY_GRACE_MS : DUE_LATE_GRACE_MS;
+      if (enabled && age <= grace) this.notify(task, 'due', { when: due });
       task.dueNotified = true;
       changed = true;
     });

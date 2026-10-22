@@ -148,7 +148,9 @@ test('到期通知：到期当天触发一次、逾期静默、未来不标记',
   const todayKey = U.toDateKey(now);
 
   const due = store.createTask({ title: '到期任务', dueDate: todayKey });
+  due.createdAt = nowMs - 2 * 24 * 3600 * 1000; // 非当天新建
   const overdue = store.createTask({ title: '逾期任务', dueDate: U.toDateKey(U.addDays(now, -3)) });
+  overdue.createdAt = nowMs - 5 * 24 * 3600 * 1000;
   const future = store.createTask({ title: '未来任务', dueDate: U.toDateKey(U.addDays(now, 5)) });
 
   notificationService.checkDueDates(nowMs);
@@ -168,10 +170,37 @@ test('到期通知开关关闭时不发送但仍标记', async () => {
   const now = new Date(); now.setHours(12, 0, 0, 0);
   store.updateSettings({ notifyDue: false });
   const due = store.createTask({ title: '关闭到期', dueDate: U.toDateKey(now) });
+  due.createdAt = now.getTime() - 2 * 24 * 3600 * 1000; // 非当天新建
   notificationService.checkDueDates(now.getTime());
   assert.equal(mock.notifications.filter(n => n.includes('关闭到期')).length, 0);
   assert.equal(due.dueNotified, true);
   store.updateSettings({ notifyDue: true });
+});
+
+test('到期通知：新建当天不触发也不标记', async () => {
+  const { notificationService } = await import('../src/js/NotificationService.js');
+  mock.notifications.length = 0;
+  const now = new Date(); now.setHours(12, 0, 0, 0);
+  const due = store.createTask({ title: '今天新建今天到期', dueDate: U.toDateKey(now) });
+  notificationService.checkDueDates(now.getTime());
+  assert.equal(mock.notifications.filter(n => n.includes('今天新建今天到期')).length, 0, '新建当天不触发');
+  assert.equal(due.dueNotified, false, '也不标记，便于次日再评估');
+});
+
+test('到期通知：当天新建当天到期的任务次日补发一次', async () => {
+  const { notificationService } = await import('../src/js/NotificationService.js');
+  mock.notifications.length = 0;
+  const day1 = new Date(); day1.setHours(12, 0, 0, 0);
+  const due = store.createTask({ title: '当天新建当天到期B', dueDate: U.toDateKey(day1) });
+
+  notificationService.checkDueDates(day1.getTime());
+  assert.equal(mock.notifications.filter(n => n.includes('当天新建当天到期B')).length, 0, '当天不触发');
+  assert.equal(due.dueNotified, false);
+
+  const day2 = new Date(day1.getTime() + 24 * 3600 * 1000); // 次日 12:00，age≈27h
+  notificationService.checkDueDates(day2.getTime());
+  assert.equal(mock.notifications.filter(n => n.includes('当天新建当天到期B')).length, 1, '次日应补发一次');
+  assert.equal(due.dueNotified, true);
 });
 
 test('提醒通知开关关闭时不发送', async () => {

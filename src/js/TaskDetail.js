@@ -22,6 +22,7 @@ export class TaskDetail {
     this.selfUpdating = false;
     this.dayContext = null;   // 日历"当日清单"模式下的日期键
     this.dayFilter = {};
+    this.editingSubtaskId = null;
     this._enterPending = false;
     this.popover = new Popover();
     this.panel = document.getElementById('detail-panel');
@@ -44,6 +45,7 @@ export class TaskDetail {
   open(taskId) {
     if (!taskId || !store.data.tasks.some(t => t.id === taskId)) return;
     if (this.popover) this.popover.close();
+    this.editingSubtaskId = null;
     const switching = this.currentTaskId !== taskId;
     this.currentTaskId = taskId;
     this.lastRenderedTaskId = null;
@@ -54,6 +56,7 @@ export class TaskDetail {
   openDay(date, filter = {}) {
     if (!date) return;
     if (this.popover) this.popover.close();
+    this.editingSubtaskId = null;
     this.dayContext = date;
     this.dayFilter = filter || {};
     this.currentTaskId = null;
@@ -64,6 +67,7 @@ export class TaskDetail {
 
   close() {
     if (this.popover) this.popover.close();
+    this.editingSubtaskId = null;
     // 任务模式：若在日历当日清单里打开的任务，返回当日清单（保留选中）
     if (this.currentTaskId) {
       this.currentTaskId = null;
@@ -268,13 +272,19 @@ export class TaskDetail {
           ` : ''}
           ${task.subtasks.length ? `<div class="subtask-list">
             ${task.subtasks.map(subtask => `
-              <div class="subtask-item ${subtask.completed ? 'completed' : ''}">
+              <div class="subtask-item ${subtask.completed ? 'completed' : ''}" data-subtask-id="${escapeHtml(subtask.id)}">
                 <div class="subtask-checkbox ${subtask.completed ? 'checked' : ''}"
                      data-action="toggle-subtask" data-subtask-id="${escapeHtml(subtask.id)}">
                   ${subtask.completed ? icon('check', { size: 11, strokeWidth: 2.6 }) : ''}
                 </div>
-                <div class="subtask-title">${escapeHtml(subtask.title)}</div>
-                <button class="btn-delete-subtask" data-action="delete-subtask" data-subtask-id="${escapeHtml(subtask.id)}" title="删除步骤">${icon('close', { size: 14 })}</button>
+                ${this.editingSubtaskId === subtask.id
+                  ? `<input type="text" class="subtask-edit-input" id="subtask-edit-input" maxlength="120"
+                            data-subtask-id="${escapeHtml(subtask.id)}" value="${escapeHtml(subtask.title)}">`
+                  : `<div class="subtask-title" data-action="edit-subtask" data-subtask-id="${escapeHtml(subtask.id)}" title="点击编辑">${escapeHtml(subtask.title)}</div>`}
+                <div class="subtask-actions">
+                  <span class="subtask-drag" draggable="true" data-subtask-id="${escapeHtml(subtask.id)}" title="拖拽排序">${icon('move', { size: 14 })}</span>
+                  <button type="button" class="btn-delete-subtask" data-action="delete-subtask" data-subtask-id="${escapeHtml(subtask.id)}" title="删除步骤">${icon('close', { size: 14 })}</button>
+                </div>
               </div>
             `).join('')}
           </div>` : ''}
@@ -307,7 +317,58 @@ export class TaskDetail {
       if (e.key === 'Enter' && e.target.id === 'add-subtask-input' && !isImeKeyEvent(e)) {
         e.preventDefault();
         this.addSubtask();
+        return;
       }
+      if (e.target.id === 'subtask-edit-input' && !isImeKeyEvent(e)) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          this.commitSubtaskEdit(e.target.dataset.subtaskId, e.target.value);
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          this.cancelSubtaskEdit();
+        }
+      }
+    });
+
+    // 步骤拖拽排序（仅从拖拽柄发起）
+    this.panel.addEventListener('dragstart', (e) => {
+      const handle = e.target.closest('.subtask-drag');
+      if (!handle) return;
+      this._dragSubtaskId = handle.dataset.subtaskId;
+      const item = handle.closest('.subtask-item');
+      if (item) item.classList.add('dragging');
+      if (e.dataTransfer) {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', this._dragSubtaskId);
+      }
+    });
+    this.panel.addEventListener('dragover', (e) => {
+      if (!this._dragSubtaskId) return;
+      const item = e.target.closest('.subtask-item');
+      if (!item || item.dataset.subtaskId === this._dragSubtaskId) return;
+      e.preventDefault();
+      item.classList.add('drag-over');
+    });
+    this.panel.addEventListener('dragleave', (e) => {
+      const item = e.target.closest('.subtask-item');
+      if (item) item.classList.remove('drag-over');
+    });
+    this.panel.addEventListener('drop', (e) => {
+      const item = e.target.closest('.subtask-item');
+      if (!item || !this._dragSubtaskId || !this.currentTaskId) return;
+      e.preventDefault();
+      const targetId = item.dataset.subtaskId;
+      const draggedId = this._dragSubtaskId;
+      this._dragSubtaskId = null;
+      if (store.reorderSubtask(this.currentTaskId, draggedId, targetId)) {
+        this.render();
+        this.emitUpdate(this.currentTaskId);
+      }
+    });
+    this.panel.addEventListener('dragend', () => {
+      this._dragSubtaskId = null;
+      this.panel.querySelectorAll('.subtask-item.dragging, .subtask-item.drag-over')
+        .forEach(el => el.classList.remove('dragging', 'drag-over'));
     });
 
     eventBus.on('task:select', (taskId) => this.open(taskId));
@@ -397,6 +458,13 @@ export class TaskDetail {
         this.render();
         this.emitUpdate(task.id);
         break;
+      case 'edit-subtask': {
+        this.editingSubtaskId = target.dataset.subtaskId;
+        this.render();
+        const input = document.getElementById('subtask-edit-input');
+        if (input) { input.focus(); input.select(); }
+        break;
+      }
       case 'delete-subtask': {
         const deletedIndex = task.subtasks.findIndex(s => s.id === target.dataset.subtaskId);
         store.deleteSubtask(task.id, target.dataset.subtaskId);
@@ -440,9 +508,29 @@ export class TaskDetail {
         store.updateTask(task.id, { note: e.target.value });
         this.emitUpdate(task.id);
         break;
+      case 'subtask-edit-input':
+        this.commitSubtaskEdit(e.target.dataset.subtaskId, e.target.value);
+        break;
       default:
         break;
     }
+  }
+
+  commitSubtaskEdit(subtaskId, value) {
+    const title = String(value || '').trim();
+    this.editingSubtaskId = null;
+    if (title && subtaskId && this.currentTaskId) {
+      store.updateSubtask(this.currentTaskId, subtaskId, title);
+      this.render();
+      this.emitUpdate(this.currentTaskId);
+    } else {
+      this.render();
+    }
+  }
+
+  cancelSubtaskEdit() {
+    this.editingSubtaskId = null;
+    this.render();
   }
 
   focusNeighbour(deletedIndex) {

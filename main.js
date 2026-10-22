@@ -24,7 +24,8 @@ let saveWindowStateTimer = null;
 
 const TITLEBAR_HEIGHT = 36;
 // 默认/最小窗口尺寸：以默认尺寸作为下限，避免窗口被挤压导致布局错乱
-const DEFAULT_WIDTH = 1200;
+// 宽度取 1280，保证日历视图 7 列日程格不被过度压缩，同时兼容常见 1280 宽屏幕
+const DEFAULT_WIDTH = 1280;
 const DEFAULT_HEIGHT = 800;
 const MIN_WIDTH = DEFAULT_WIDTH;
 const MIN_HEIGHT = DEFAULT_HEIGHT;
@@ -397,6 +398,8 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      // 关闭拼写检查：避免输入框中出现红色波浪下划线
+      spellcheck: false,
     }
   });
 

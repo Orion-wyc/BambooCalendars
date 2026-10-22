@@ -52,6 +52,34 @@
     ok('BUG-03 单次操作只渲染详情面板一次', detailRenders === 1, detailRenders);
     app.taskDetail.render = dRender;
 
+    // 步骤行：悬停微交互 + 行内编辑
+    ok('步骤行含拖拽柄与删除按钮',
+      Boolean($('.subtask-item .subtask-drag')) && Boolean($('.subtask-item .btn-delete-subtask')));
+    const subActions = $('.subtask-item .subtask-actions');
+    ok('步骤操作区默认隐藏', Boolean(subActions) && getComputedStyle(subActions).opacity === '0',
+      subActions && getComputedStyle(subActions).opacity);
+    ok('步骤复选框为微型圆角', (() => {
+      const cb = $('.subtask-item .subtask-checkbox').getBoundingClientRect();
+      return cb.width <= 20 && cb.height <= 20;
+    })());
+    click($('.subtask-item .subtask-title'));
+    await sleep(40);
+    const editInput = $('#subtask-edit-input');
+    ok('点击步骤文本进入行内编辑', Boolean(editInput));
+    ok('行内编辑框限制最大长度', Boolean(editInput) && editInput.getAttribute('maxlength') === '120');
+    editInput.value = '改好的步骤';
+    key(editInput, 'Enter');
+    await sleep(60);
+    ok('行内编辑回车保存', store.data.tasks[0].subtasks[0].title === '改好的步骤',
+      store.data.tasks[0].subtasks[0].title);
+    click($('.subtask-item .subtask-title'));
+    await sleep(40);
+    $('#subtask-edit-input').value = '   ';
+    key($('#subtask-edit-input'), 'Enter');
+    await sleep(60);
+    ok('空白编辑不覆盖原标题', store.data.tasks[0].subtasks[0].title === '改好的步骤',
+      store.data.tasks[0].subtasks[0].title);
+
     let thrown = null;
     try { click($('[data-action="close-detail"]')); } catch (e) { thrown = e; }
     await sleep(30);

@@ -27,3 +27,6 @@ npm-debug.log*
 # Data (runtime)
 data/
 *.db
+
+# Screenshot scratch
+output/

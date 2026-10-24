@@ -80,6 +80,27 @@
     ok('空白编辑不覆盖原标题', store.data.tasks[0].subtasks[0].title === '改好的步骤',
       store.data.tasks[0].subtasks[0].title);
 
+    // 拖拽排序：可把首项拖到末项之后（到达最下方）
+    $('#add-subtask-input').value = '步骤二';
+    click($('[data-action="add-subtask"]'));
+    await sleep(40);
+    let subItems = $$('.subtask-item');
+    ok('已有两个步骤', subItems.length === 2, subItems.length);
+    const firstTitle = subItems[0].querySelector('.subtask-title').textContent;
+    const secondTitle = subItems[1].querySelector('.subtask-title').textContent;
+    const dt = new DataTransfer();
+    subItems[0].querySelector('.subtask-drag').dispatchEvent(
+      new DragEvent('dragstart', { bubbles: true, cancelable: true, dataTransfer: dt }));
+    const r2 = subItems[1].getBoundingClientRect();
+    const bottomY = r2.top + r2.height * 0.9;
+    subItems[1].dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt, clientY: bottomY }));
+    subItems[1].dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt, clientY: bottomY }));
+    await sleep(80);
+    const afterTitles = $$('.subtask-item .subtask-title').map(e => e.textContent);
+    ok('拖拽可到达最下方（末项之后）', afterTitles[afterTitles.length - 1] === firstTitle,
+      afterTitles.join(' | '));
+    ok('拖拽后顺序正确', afterTitles[0] === secondTitle, afterTitles.join(' | '));
+
     let thrown = null;
     try { click($('[data-action="close-detail"]')); } catch (e) { thrown = e; }
     await sleep(30);
@@ -755,7 +776,9 @@
     ok('日历窗格固定高度 76px', Math.round(paneRect.height) === 76, paneRect.height);
 
     const calMonthStart = app.taskList.calendarMonth;
-    const capDate = U.toDateKey(new Date(calMonthStart.getFullYear(), calMonthStart.getMonth(), 24));
+    // 选一个不与“今天/其它用例”冲突的日期，并清空该日已有任务
+    const capDate = U.toDateKey(new Date(calMonthStart.getFullYear(), calMonthStart.getMonth(), 10));
+    store.data.tasks = store.data.tasks.filter(t => t.dueDate !== capDate);
     const capIds = [];
     for (let i = 0; i < 8; i++) capIds.push(store.createTask({ title: `待办${i}`, dueDate: capDate, priority: 1 }).id);
     for (let i = 0; i < 4; i++) { const t = store.createTask({ title: `完成${i}`, dueDate: capDate, priority: 2 }); store.toggleComplete(t.id); capIds.push(t.id); }
@@ -777,6 +800,7 @@
     await sleep(80);
 
     const quietDate = U.toDateKey(new Date(calMonthStart.getFullYear(), calMonthStart.getMonth(), 3));
+    store.data.tasks = store.data.tasks.filter(t => t.dueDate !== quietDate);
     const quietIds = [];
     for (let i = 0; i < 4; i++) quietIds.push(store.createTask({ title: `窗格恰好${i}`, dueDate: quietDate }).id);
     app.taskList.render();

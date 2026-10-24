@@ -556,17 +556,25 @@ export class Store {
     return task;
   }
 
-  reorderSubtask(taskId, draggedId, targetId) {
+  // 拖拽排序：targetId 为空表示追加到末尾；after=true 表示落在目标项之后
+  reorderSubtask(taskId, draggedId, targetId, after = false) {
     if (draggedId === targetId) return false;
     const task = this.data.tasks.find(t => t.id === taskId);
     if (!task) return false;
     const list = task.subtasks || [];
     const from = list.findIndex(s => s.id === draggedId);
-    const to = list.findIndex(s => s.id === targetId);
-    if (from === -1 || to === -1) return false;
+    if (from === -1) return false;
     const [moved] = list.splice(from, 1);
-    // 统一“落在目标项之前”：向下拖时移除后目标索引前移一位，避免少移动一格
-    list.splice(from < to ? to - 1 : to, 0, moved);
+    if (targetId === null || targetId === undefined) {
+      list.push(moved);
+    } else {
+      const to = list.findIndex(s => s.id === targetId);
+      if (to === -1) {
+        list.splice(from, 0, moved); // 目标不存在：还原
+        return false;
+      }
+      list.splice(after ? to + 1 : to, 0, moved);
+    }
     task.updatedAt = Date.now();
     this.save();
     return true;

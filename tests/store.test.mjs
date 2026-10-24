@@ -179,6 +179,12 @@ test('子步骤：行内更新标题与拖拽排序', () => {
   // 再向上拖回
   assert.equal(s.reorderSubtask(t.id, idA, idB), true);
   assert.deepEqual(subs().map(x => x.title), ['A2', 'B', 'C']);
+  // after=true：落在目标之后
+  assert.equal(s.reorderSubtask(t.id, idA, idB, true), true);
+  assert.deepEqual(subs().map(x => x.title), ['B', 'A2', 'C']);
+  // targetId=null：追加到末尾（支持拖到最下方）
+  assert.equal(s.reorderSubtask(t.id, idA, null), true);
+  assert.deepEqual(subs().map(x => x.title), ['B', 'C', 'A2']);
   assert.equal(s.reorderSubtask(t.id, idA, idA), false, '自身排序返回 false');
   assert.equal(s.reorderSubtask(t.id, 'nope', idC), false, '未知 id 返回 false');
 });

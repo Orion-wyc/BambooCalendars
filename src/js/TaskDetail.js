@@ -344,31 +344,53 @@ export class TaskDetail {
     });
     this.panel.addEventListener('dragover', (e) => {
       if (!this._dragSubtaskId) return;
+      const list = this.panel.querySelector('.subtask-list');
       const item = e.target.closest('.subtask-item');
-      if (!item || item.dataset.subtaskId === this._dragSubtaskId) return;
-      e.preventDefault();
-      item.classList.add('drag-over');
+      if (item && item.dataset.subtaskId !== this._dragSubtaskId) {
+        e.preventDefault();
+        const rect = item.getBoundingClientRect();
+        const after = e.clientY > rect.top + rect.height / 2;
+        this._clearDragClasses();
+        item.classList.add(after ? 'drag-over-after' : 'drag-over-before');
+        return;
+      }
+      // 列表下方空白区：追加到末尾
+      if (list && e.clientY >= list.getBoundingClientRect().bottom) {
+        e.preventDefault();
+        this._clearDragClasses();
+        list.classList.add('drag-over-end');
+      }
     });
     this.panel.addEventListener('dragleave', (e) => {
-      const item = e.target.closest('.subtask-item');
-      if (item) item.classList.remove('drag-over');
+      if (!this.panel.contains(e.relatedTarget)) this._clearDragClasses();
     });
     this.panel.addEventListener('drop', (e) => {
-      const item = e.target.closest('.subtask-item');
-      if (!item || !this._dragSubtaskId || !this.currentTaskId) return;
-      e.preventDefault();
-      const targetId = item.dataset.subtaskId;
+      if (!this._dragSubtaskId || !this.currentTaskId) return;
       const draggedId = this._dragSubtaskId;
+      const list = this.panel.querySelector('.subtask-list');
+      const item = e.target.closest('.subtask-item');
+      let moved = false;
+      if (item && item.dataset.subtaskId !== draggedId) {
+        e.preventDefault();
+        const rect = item.getBoundingClientRect();
+        const after = e.clientY > rect.top + rect.height / 2;
+        moved = store.reorderSubtask(this.currentTaskId, draggedId, item.dataset.subtaskId, after);
+      } else if (list && e.clientY >= list.getBoundingClientRect().bottom) {
+        // 拖到列表下方：追加到末尾
+        e.preventDefault();
+        moved = store.reorderSubtask(this.currentTaskId, draggedId, null);
+      }
       this._dragSubtaskId = null;
-      if (store.reorderSubtask(this.currentTaskId, draggedId, targetId)) {
+      if (moved) {
         this.render();
         this.emitUpdate(this.currentTaskId);
+      } else {
+        this._clearDragClasses();
       }
     });
     this.panel.addEventListener('dragend', () => {
       this._dragSubtaskId = null;
-      this.panel.querySelectorAll('.subtask-item.dragging, .subtask-item.drag-over')
-        .forEach(el => el.classList.remove('dragging', 'drag-over'));
+      this._clearDragClasses();
     });
 
     eventBus.on('task:select', (taskId) => this.open(taskId));
@@ -531,6 +553,12 @@ export class TaskDetail {
   cancelSubtaskEdit() {
     this.editingSubtaskId = null;
     this.render();
+  }
+
+  _clearDragClasses() {
+    this.panel.querySelectorAll(
+      '.subtask-item.dragging, .subtask-item.drag-over-before, .subtask-item.drag-over-after, .subtask-list.drag-over-end'
+    ).forEach(el => el.classList.remove('dragging', 'drag-over-before', 'drag-over-after', 'drag-over-end'));
   }
 
   focusNeighbour(deletedIndex) {

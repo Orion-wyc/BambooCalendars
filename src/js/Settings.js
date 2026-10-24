@@ -237,7 +237,7 @@ export class Settings {
         <div style="color: var(--text-secondary); font-size: 13px; line-height: 2;">
           <div>版本：${escapeHtml(this.appVersion || '未知')}</div>
           <div>类型：离线待办事项桌面应用</div>
-          <div>数据存储：本地 JSON 文件${escapeHtml(this.dataDir ? `（${this.dataDir}）` : '')}</div>
+          <div>数据存储：本地 SQLite 数据库${escapeHtml(this.dataDir ? `（${this.dataDir}）` : '')}</div>
           <div>技术栈：Electron + 原生 JS</div>
         </div>
         <div class="settings-actions" style="margin-top: 12px; display: flex; gap: 8px;">
